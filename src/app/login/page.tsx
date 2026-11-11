@@ -5,35 +5,26 @@ import { useRouter } from "next/navigation";
 import { ArrowRight, Eye, EyeOff, LoaderCircle, Sprout, ShieldCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { api } from "@/lib/api";
+import { useLogin, useSession } from "@/lib/auth";
 
 export default function LoginPage() {
   const router = useRouter();
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [visible, setVisible] = useState(false);
-  const [pending, setPending] = useState(false);
-  const [error, setError] = useState("");
+  const session = useSession();
+  const login = useLogin();
+  const pending = login.isPending;
+  const error = login.error?.message ?? "";
 
   useEffect(() => {
-    let active = true;
-    api("/auth/me").then(() => { if (active) router.replace("/dashboard"); }).catch(() => {});
-    return () => { active = false; };
-  }, [router]);
+    if (session.data) router.replace("/game");
+  }, [router, session.data]);
 
-  async function signIn(event: FormEvent<HTMLFormElement>) {
+  function signIn(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    setError("");
-    setPending(true);
-    try {
-      await api("/auth/login", { method: "POST", body: JSON.stringify({ username, password }) });
-      router.replace("/dashboard");
-    } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "Unable to sign in. Please try again.");
-      setPending(false);
-    }
+    login.mutate({ username, password }, { onSuccess: () => router.replace("/game") });
   }
-
   return <main className="grid min-h-dvh bg-[#fafbf8] text-[#172e27] lg:grid-cols-2">
     <section className="relative hidden overflow-hidden bg-[#143c31] p-12 text-[#eef4d9] lg:flex lg:flex-col xl:p-16">
       <div className="flex items-center gap-2.5 text-xl font-semibold"><Sprout className="size-7" />IdleOn<span className="ml-1 rounded-full border border-white/20 px-2 py-0.5 text-[10px] font-normal uppercase tracking-widest">Workspace</span></div>
@@ -59,10 +50,11 @@ export default function LoginPage() {
           {error && <p role="alert" className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">{error}</p>}
           <Button type="submit" disabled={pending} className="h-12 w-full justify-between bg-[#204d3c] px-4 text-white hover:bg-[#153d2d]">{pending ? "Signing in…" : "Sign in"}{pending ? <LoaderCircle className="size-4 animate-spin" /> : <ArrowRight className="size-4" />}</Button>
         </form>
-        {process.env.NODE_ENV !== "production" && <div className="mt-7 rounded-xl border border-[#dce4d8] bg-[#f0f3eb] p-4"><div className="flex items-center justify-between"><p className="text-xs font-semibold text-[#4d664c]">Try the admin account</p><button type="button" disabled={pending} onClick={() => { setUsername("admin"); setPassword("Admin123!"); setError(""); }} className="text-xs font-medium underline underline-offset-4 disabled:opacity-50">Fill details</button></div><p className="mt-2 text-xs text-[#6e7b6b]">Username: <code>admin</code><span className="mx-2">·</span>Password: <code>Admin123!</code></p></div>}
+        {process.env.NODE_ENV !== "production" && <div className="mt-7 rounded-xl border border-[#dce4d8] bg-[#f0f3eb] p-4"><div className="flex items-center justify-between"><p className="text-xs font-semibold text-[#4d664c]">Try the admin account</p><button type="button" disabled={pending} onClick={() => { setUsername("admin"); setPassword("Admin123!"); login.reset(); }} className="text-xs font-medium underline underline-offset-4 disabled:opacity-50">Fill details</button></div><p className="mt-2 text-xs text-[#6e7b6b]">Username: <code>admin</code><span className="mx-2">·</span>Password: <code>Admin123!</code></p></div>}
         <p className="mt-8 text-center text-xs text-[#8b938a]"><ShieldCheck className="mr-1.5 inline size-3.5" />A secure space to keep moving forward.</p>
       </div>
       <footer className="text-center text-[11px] text-[#92998e]">IdleOn Workspace · A fresh start, every time.</footer>
     </section>
   </main>;
 }
+

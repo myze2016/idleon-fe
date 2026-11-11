@@ -1,15 +1,89 @@
 IdleOn workspace frontend built with Next.js, TypeScript, and shadcn/ui.
 
-The 2D canvas playground is at `/game`, also linked from the dashboard. Click the
-scene and use A/D or arrow keys to move, and Space/W/up arrow to jump. On-screen
-buttons support touch. Pause/resume and reset are available above the canvas.
-The playground runs locally without the backend; it does not save progress.
-Scene rendering and the animation loop live in `src/components/game/game-canvas.tsx`.
+TanStack Query manages session requests, login, and logout through `src/lib/auth.ts`.
+Shared character queries and creation mutations are in `src/lib/character-api.ts`.
+The dashboard displays the saved character and links to creation or the game.
+Its provider is in `src/components/providers.tsx`. Zustand manages the room's menu
+and Pause state in `src/components/game/game-store.tsx`, with a fresh store each
+time the game page mounts. Animation and player movement stay in canvas refs.
+
+The single-screen room is at `/game`, also linked from the dashboard. Use WASD or
+arrow keys to move, or click/tap the floor to walk. The character name is drawn
+at the top left and the Menu button at the top right, inside the canvas. Opening
+Menu pauses movement and opens a centered canvas panel with Dashboard and Delete
+account. Delete account resets the saved character and team, then returns to
+character creation while keeping the login account. X or Escape closes the menu.
+Entering `/game` requires signing in. New players choose a character name and one
+of 11 weapon types; returning players load their saved character from the API.
+Character name and weapon are saved in MariaDB through the Prisma-backed API.
+Run the backend migrations and seed first (see `../idleon-be/README.md`).
+Room position resets when you leave; your saved character is kept.
+Scene rendering and the animation loop live in `src/components/game/room-canvas.tsx`.
+
+Start launches an endless side-scrolling expedition in the selected Meadow or
+Forest. The team automatically walks right while layered scenery scrolls left.
+Front slots lead Back slots. An empty team uses the free starter in Front 1.
+Return to room or Escape ends the expedition and keeps the team and location
+selection. Distance resets for each expedition; hidden tabs pause progression.
+The expedition renderer is `src/components/game/expedition-canvas.tsx` and uses
+bounded procedural scenery instead of accumulating terrain objects.
+Battles keep the starter character's name, account level, EXP progress bar, gold,
+and a Character button visible inside the canvas. Character opens the full roster
+and stats without leaving the expedition. Its overlay pauses local movement,
+spawning, and battle playback; closing it resumes the same expedition state.
+
+Forest randomly spawns a Coco Klan Warrior or Slinger walking toward the team.
+The team stops for automatic combat, plays the server's attack timeline, and
+continues after victory. Slinger encounters stop at ranged distance and show
+sling projectiles. Health bars show combat damage. Team defeat returns to the
+room; HP and MP persist between battles throughout an expedition; returning to the room and starting a new expedition restores them. Each regular defeated enemy awards 10 database-saved gold,
+shown at the bottom left in both the expedition and the room. Meadow randomly
+spawns Boar (40 HP), Slime (40 HP), and Plant (50 HP), each with 5 ATK and a
+10-gold reward. Each type has its own canvas appearance and uses the same combat flow.
+
+Monsters spawn every random 5–15 seconds, including while a battle is running.
+Multiple monsters can approach or wait on screen. Ready monsters fight in groups
+after the current battle finishes; each has its own HP and attack timing, and
+Inferno hits all living enemies in the group. The canvas removes defeated groups.
+Meadow shows progress toward a saved random 25–30-monster boss threshold. Mutant
+Boar is drawn larger with a Boss label and awards 40 gold.
+Defeating the boss starts a new cycle; room visits preserve the saved counter.
+Forest has its own independent 25–30-kill boss cycle and progress indicator.
+Coco Klan Chief has 500 HP, 40 ATK, 10 DEF, ranged attacks, and rewards 10 gold.
+Its larger crowned sprite uses ranged attack effects. Neither boss directly grants wishes.
+
+Every defeated monster also awards 1 account EXP. The room shows account level,
+current EXP toward the next level, and a progress bar next to gold. Level starts
+at 1, with requirements doubling each level: 10, 20, 40, 80 EXP, etc. Each level
+gained awards 20 wish currency and displays a level-up message during combat.
+Progression belongs to the account and is shared
+by the whole roster; wishing and changing the team do not reset it.
+
+Wish opens a full-screen canvas with the database balance and reward result.
+Creating a starter grants 1 wish currency; each wish costs 1 and adds a random
+weapon-type character to the saved roster. Character and Team both use the full
+owned roster. Wishes exclude types already owned, including the starter. The Wish
+screen shows collection progress and disables wishing once all 11 types are owned.
+Team assignments identify characters by database ID.
+Selecting a card in Character opens its full-screen canvas base-stat view. In the
+team picker, selecting a card still assigns it directly to the chosen slot.
+The stats screen also shows Attack (Melee/Ranged), Skill 1, and Skill 2 with actual
+descriptions, resource costs, casting times, and cooldowns. Skill 2 can be unlocked for that character using 10,000 account gold;
+the updated gold balance and unlock status are saved on the backend. The details
+canvas scrolls on shorter screens to keep all stats and abilities accessible.
+Attack and spell timing is shown in seconds. Speed reduces both using
+`base / (1 + Speed/100)`; all spells default to a 1-second base cast time.
+Battle playback uses the backend's timestamps rather than a fixed animation delay.
+Available skills trigger automatically. Combat displays HP/MP bars, cast progress,
+skill labels, poison, healing, blocks, projectiles, and critical-hit text. Buffs,
+stuns, passives, and resource consumption are resolved by the backend.
 
 Run `npm.cmd run dev` here and in `../idleon-be` in separate terminals.
 Visit http://localhost:3000/login. Development account: `admin` / `Admin123!`.
-Successful login opens `/dashboard`; sign out clears the server session.
-The API URL defaults to http://localhost:4000/api. Set `NEXT_PUBLIC_API_URL` in
+Successful login opens `/game` directly. New players see character creation drawn
+on the canvas; saved characters enter their room immediately. The name field and keyboard
+controls use native accessible inputs over the canvas. `/dashboard` remains available.
+The API URL defaults to http://localhost:8000/api. Set `NEXT_PUBLIC_API_URL` in
 `.env.local` if needed (see `.env.example`). Use `localhost` for both applications.
 
 ## Getting Started
