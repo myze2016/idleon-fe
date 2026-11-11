@@ -1,4 +1,5 @@
 "use client";
+import { ResponsiveCanvasFrame } from "./responsive-canvas-frame";
 
 import { useEffect, useRef, useState } from "react";
 import { useGameState, useGameStoreApi } from "./game-store";
@@ -67,7 +68,7 @@ export function WorldMap({ onClose }: { onClose: () => void }) {
     return () => observer.disconnect();
   }, [selected, focus]);
 
-  return <div role="dialog" aria-modal="true" aria-label="World map" className="absolute inset-0 z-30 bg-[#c5c695]" onKeyDown={(event) => {
+  return <ResponsiveCanvasFrame><div role="dialog" aria-modal="true" aria-label="World map" className="absolute inset-0 z-30 bg-[#c5c695]" onKeyDown={(event) => {
     if (event.key === "Escape") { event.preventDefault(); event.stopPropagation(); onClose(); }
     if (event.key === "Tab") {
       const buttons = Array.from(event.currentTarget.querySelectorAll<HTMLButtonElement>("button"));
@@ -82,5 +83,5 @@ export function WorldMap({ onClose }: { onClose: () => void }) {
       {locations.map((location) => <button key={location.id} type="button" aria-pressed={selected === location.id} onClick={() => store.getState().selectLocation(location.id)} onFocus={() => setFocus(location.id)} onBlur={() => setFocus("")} className="absolute h-[88px] w-32 -translate-x-1/2 -translate-y-1/2 cursor-pointer rounded-xl outline-none" style={{ left: `${location.x * 100}%`, top: `${location.y * 100}%` }}><span className="sr-only">{location.name}</span></button>)}
     </div>
     <p role="status" className="sr-only">{selected ? `Selected destination: ${selected}` : "Select Meadow or Forest."}</p>
-  </div>;
+  </div></ResponsiveCanvasFrame>;
 }

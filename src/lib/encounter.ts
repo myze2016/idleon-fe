@@ -1,6 +1,7 @@
 import type { CharacterStats, AccountProgress } from "./character";
 
 export interface EnemyEncounter {
+  additionalEnemies?: EnemyEncounter[];
   id: string; type: "warrior" | "slinger" | "boar" | "slime" | "plant" | "mutant-boar" | "coco-klan-chief"; name: string; stats: CharacterStats; gold: number;
   boss: boolean; wishCurrency: number; meadowProgress?: { defeated: number; target: number | null };
   forestProgress?: { defeated: number; target: number | null };

@@ -1,51 +1,78 @@
 "use client";
+import { drawCharacter } from "./character-design";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useGameStoreApi } from "./game-store";
-import { weaponDetails, type Character, type AccountProgress } from "@/lib/character";
+import { type Character, type AccountProgress } from "@/lib/character";
 import { api } from "@/lib/api";
 import { useSession } from "@/lib/auth";
 import { useQueryClient } from "@tanstack/react-query";
 import type { EnemyEncounter, BattleResult, BattleStep } from "@/lib/encounter";
 import { CharacterRoster } from "./character-roster";
+import { CollectionPanel } from "./collection-panel";
+import { battleHudLayout } from "./battle-hud-layout";
+import { isRangedSkill } from "@/lib/skill-range";
+import { drawCombatEffect, type CombatEffect } from "./combat-effects";
 
 export function ExpeditionCanvas({ location, team, gold, characterName, characters, progression }: {
   location: "meadow" | "forest"; team: (Character | null)[]; gold: number;
   characterName: string; characters: Character[]; progression: AccountProgress;
 }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const [hud, setHud] = useState(() => battleHudLayout(950, 300));
   const returnRef = useRef<HTMLButtonElement>(null);
   const focused = useRef(false);
   const characterFocused = useRef(false);
   const paused = useRef(false);
   const [rosterOpen, setRosterOpen] = useState(false);
+  const [collectionOpen, setCollectionOpen] = useState<"Shop" | "Artifacts" | null>(null);
+  const overlayOpen = rosterOpen || collectionOpen !== null;
+  const [returnError, setReturnError] = useState("");
+  const returning = useRef(false);
   const store = useGameStoreApi();
   const session = useSession();
   const userId = session.data?.user.id;
   const client = useQueryClient();
+  const returnToRoom = useCallback(async () => {
+    if (returning.current) return;
+    returning.current = true; paused.current = true; setReturnError("");
+    try {
+      await api<void>("/encounters/return", { method: "POST" });
+      store.getState().returnToRoom();
+    } catch (error) {
+      setReturnError(error instanceof Error ? error.message : "Could not return. Try again.");
+      paused.current = false;
+    } finally { returning.current = false; }
+  }, [store]);
   const goldRef = useRef(gold);
+  const charactersRef = useRef(characters);
+  useEffect(() => { charactersRef.current = characters; }, [characters]);
   const nameRef = useRef(characterName);
   const progressRef = useRef(progression);
   useEffect(() => { goldRef.current = gold; }, [gold]);
   useEffect(() => { nameRef.current = characterName; progressRef.current = progression; }, [characterName, progression]);
-  useEffect(() => { if (!rosterOpen) returnRef.current?.focus({ preventScroll: true }); }, [rosterOpen]);
+  useEffect(() => { if (!overlayOpen) returnRef.current?.focus({ preventScroll: true }); }, [overlayOpen]);
 
   function closeRoster() { paused.current = false; setRosterOpen(false); }
+  function closeCollection() { paused.current = false; setCollectionOpen(null); }
 
   useEffect(() => {
     const canvas = canvasRef.current, ctx = canvas?.getContext("2d");
     if (!canvas || !ctx) return;
     const forest = location === "forest";
-    const members = team.flatMap((character, slot) => character ? [{ character, slot, weapon: new Path2D(weaponDetails(character.weapon).path) }] : []);
+    const members = team.flatMap((character, slot) => character ? [{ character: charactersRef.current.find((owned) => owned.id === character.id) ?? character, slot }] : []);
     let width = 1, height = 1, ratio = 1, frame = 0, last = 0, distance = 0, elapsed = 0;
-    const spawnDelay = () => 5 + Math.random() * 10;
+    const spawnDelay = () => 1 + Math.random() * 14;
     let teamHp = members.map(({ character }) => character.stats?.hp ?? 100);
     let teamMp = members.map(({ character }) => character.stats?.mp ?? 0);
+    const memberPositions: number[] = [];
     let alive = true, spawning = false, firstSpawn = true, nextSpawn = spawnDelay(), message = "", messageUntil = 0;
     type Monster = {
-      data: EnemyEncounter; x: number; stage: "approach" | "ready" | "waiting" | "fighting" | "result";
+      data: EnemyEncounter; x: number; moving?: boolean; stage: "approach" | "ready" | "waiting" | "fighting" | "result";
       hp: number; teamHp: number[]; teamMp: number[]; casts: NonNullable<BattleStep["teamCasting"]>; battle?: BattleResult; step: number; nextStep: number; until: number; lastHit?: BattleStep; battleStartedAt: number; lastHitAt: number;
     };
+    let effects: CombatEffect[] = [];
+    const battleLog: { actor: string; detail: string }[] = [];
     let foe: Monster | null = null, monsters: Monster[] = [], activeGroup: Monster[] = [];
     let meadowProgress: { defeated: number; target: number | null } = { defeated: 0, target: null };
 
@@ -55,15 +82,20 @@ export function ExpeditionCanvas({ location, team, gold, characterName, characte
       if (resetBattle) { monsters = monsters.filter((monster) => !activeGroup.includes(monster)); activeGroup = []; foe = null; }
     }
     async function spawn() {
+      // Resolution is computed before playback ends; keep the on-screen boss
+      // exclusive even after its server encounter has already been resolved.
+      if (monsters.some((monster) => monster.data.boss)) return;
       spawning = true;
       nextSpawn = elapsed + spawnDelay();
       try {
-        const data = await api<EnemyEncounter>("/encounters", { method: "POST", body: JSON.stringify({ location, teamIds: members.map(({ character }) => character.id), newExpedition: firstSpawn }) });
+        const data = await api<EnemyEncounter>("/encounters", { method: "POST", body: JSON.stringify({ location, teamIds: members.map(({ character }) => character.id), newExpedition: firstSpawn, wave: true }) });
         if (!alive) return;
         firstSpawn = false;
         const progress = forest ? data.forestProgress : data.meadowProgress;
         if (progress) meadowProgress = progress;
-        monsters.push({ data, x: 1.08, stage: "approach", hp: data.stats.hp, teamHp: members.map(({ character }) => character.stats?.hp ?? 100), teamMp: members.map(({ character }) => character.stats?.mp ?? 0), casts: [], step: 0, nextStep: 0, until: 0, battleStartedAt: 0, lastHitAt: 0 });
+        [data, ...(data.additionalEnemies ?? [])].forEach((enemy, index) => {
+          monsters.push({ data: enemy, x: 1.08 + index * 0.08, stage: "approach", hp: enemy.stats.hp, teamHp: [...teamHp], teamMp: [...teamMp], casts: [], step: 0, nextStep: 0, until: 0, battleStartedAt: 0, lastHitAt: 0 });
+        });
       } catch (error) { if (alive) failed(error); }
       finally { spawning = false; }
     }
@@ -87,6 +119,7 @@ export function ExpeditionCanvas({ location, team, gold, characterName, characte
     function resize() {
       if (!canvas) return;
       width = Math.max(1, canvas.clientWidth); height = Math.max(1, canvas.clientHeight);
+      setHud(battleHudLayout(width, height));
       ratio = Math.min(window.devicePixelRatio || 1, 2);
       canvas.width = Math.round(width * ratio); canvas.height = Math.round(height * ratio);
     }
@@ -132,9 +165,11 @@ export function ExpeditionCanvas({ location, team, gold, characterName, characte
       if (paused.current) { last = time; frame = requestAnimationFrame(draw); return; }
       const dt = document.hidden ? 0 : Math.min((time - (last || time)) / 1000, 0.05); last = time;
       elapsed += dt;
+      // Refresh equipped stats without restarting the running expedition.
+      members.forEach((member) => { member.character = charactersRef.current.find((owned) => owned.id === member.character.id) ?? member.character; });
       const battling = !!foe && foe.stage !== "approach";
       if (!battling) distance += dt * 90;
-      if (!spawning && elapsed >= nextSpawn && !document.hidden) void spawn();
+      if (!spawning && elapsed >= nextSpawn && !document.hidden && !monsters.some((monster) => monster.data.boss)) void spawn();
       ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
       const ground = height * 0.78;
       const sky = ctx.createLinearGradient(0, 0, 0, ground);
@@ -161,12 +196,35 @@ export function ExpeditionCanvas({ location, team, gold, characterName, characte
       const spacing = Math.min(68, width * 0.34 / Math.max(1, members.length - 1));
       const avatarScale = Math.max(0.55, Math.min(2, height / 300, spacing / 43));
       const leadingX = width * 0.16 + (members.length - 1) * spacing;
-      monsters.forEach((monster, index) => {
-        if (monster.stage !== "approach") return;
-        const reach = monster.data.stats.range === "range" ? Math.max(95, avatarScale * 100) : Math.max(38, avatarScale * 35);
-        const stop = Math.min(width * 0.94, leadingX + reach + index * Math.min(58, width * 0.09));
-        monster.x = Math.max(stop / width, monster.x - dt * 175 / width);
-        if (monster.x * width <= stop + 1) monster.stage = "ready";
+      const rangedReach = Math.min(width * 0.38, Math.max(150, avatarScale * 170));
+      const contactReach = Math.max(38, avatarScale * 35);
+      const upcoming = foe?.stage === "fighting" ? foe.battle?.steps[foe.step] : undefined;
+      const front = Math.max(...members.flatMap((_, index) => teamHp[index] > 0 ? [memberPositions[index] ?? width * 0.16 + (members.length - 1 - index) * spacing] : []), width * 0.16);
+      monsters.forEach((monster) => {
+        if (monster.hp <= 0 || monster.stage === "result") return;
+        const ranged = monster.data.stats.range === "range";
+        const victim = upcoming?.actor === "enemy" && activeGroup[upcoming.enemyIndex ?? 0] === monster
+          ? members.findIndex(({ character }) => character.id === upcoming.characterId) : -1;
+        const targetX = victim >= 0 ? memberPositions[victim] ?? front : front;
+        const stop = Math.min(width * 0.94, targetX + (ranged ? rangedReach : contactReach));
+        const current = monster.x * width;
+        monster.moving = Math.abs(stop - current) > 2;
+        monster.x = (current + Math.sign(stop - current) * Math.min(Math.abs(stop - current), dt * 175)) / width;
+        // Engage at sight range, but melee attacks wait below until contact.
+        if (monster.stage === "approach" && monster.x * width <= leadingX + rangedReach) monster.stage = "ready";
+      });
+      const memberMoving: boolean[] = [];
+      members.forEach(({ character }, index) => {
+        const home = width * 0.16 + (members.length - 1 - index) * spacing;
+        const nextAction = foe?.battle?.steps.slice(foe.step).find((step) => step.actor === "team" && step.characterId === character.id && step.kind !== "poison");
+        const castingAtRange = isRangedSkill(foe?.casts[index]?.name) || isRangedSkill(nextAction?.label);
+        const attacking = upcoming?.actor === "team" && upcoming.characterId === character.id ? activeGroup[upcoming.enemyIndex ?? 0] : undefined;
+        const target = attacking ?? monsters.find((monster) => monster.hp > 0 && monster.stage !== "approach" && monster.stage !== "result");
+        const desired = castingAtRange ? memberPositions[index] ?? home : target && character.stats?.range !== "range" && teamHp[index] > 0
+          ? Math.max(home, target.x * width - contactReach) : home;
+        const current = memberPositions[index] ?? home;
+        memberMoving[index] = Math.abs(desired - current) > 2;
+        memberPositions[index] = current + Math.sign(desired - current) * Math.min(Math.abs(desired - current), dt * 320);
       });
       if (!foe) {
         const ready = monsters.filter((monster) => monster.stage === "ready");
@@ -175,8 +233,35 @@ export function ExpeditionCanvas({ location, team, gold, characterName, characte
       if (foe) {
         if (foe.stage === "fighting" && foe.battle && elapsed >= foe.nextStep) {
           while (foe.stage === "fighting" && elapsed >= foe.nextStep) {
+          const pending = foe.battle.steps[foe.step];
+          if (pending && pending.damage > 0 && pending.kind !== "poison") {
+            const member = members.findIndex(({ character }) => character.id === pending.characterId);
+            const enemy = activeGroup[pending.enemyIndex ?? 0];
+            const ranged = pending.actor === "enemy" ? enemy?.data.stats.range === "range"
+              : members[member]?.character.stats?.range === "range" || isRangedSkill(pending.label);
+            if (!ranged && member >= 0 && enemy && Math.abs(enemy.x * width - memberPositions[member]) > contactReach + 8) {
+              foe.battleStartedAt += dt;
+              foe.nextStep += dt;
+              break;
+            }
+          }
           const step = foe.battle.steps[foe.step++];
           if (step) {
+            const memberIndex = members.findIndex(({ character }) => character.id === step.characterId);
+            const enemy = activeGroup[step.enemyIndex ?? 0];
+            const actor = step.actor === "enemy" ? enemy?.data.name ?? "Enemy" : members[memberIndex]?.character.name ?? "Ally";
+            const detail = (step.label ?? "Attack") + (step.damage ? ` -${step.damage} HP` : "")
+              + (step.healing ? ` +${step.healing} HP` : "") + (step.critical ? " · Critical" : "");
+            battleLog.unshift({ actor, detail });
+            battleLog.length = Math.min(battleLog.length, 5);
+            if (memberIndex >= 0 && enemy) {
+              const character = members[memberIndex].character;
+              const playerX = memberPositions[memberIndex];
+              effects.push({ step, startedAt: elapsed, enemyId: enemy.data.id,
+                source: step.actor === "team" ? playerX : enemy.x * width,
+                target: step.actor === "team" ? enemy.x * width : playerX,
+                weapon: character.weapon, ranged: step.actor === "team" ? character.stats?.range === "range" || isRangedSkill(step.label) : enemy.data.stats.range === "range" });
+            }
             foe.hp = step.enemyHp; foe.teamHp = step.teamHp; foe.teamMp = step.teamMp ?? foe.teamMp;
             teamHp = [...foe.teamHp]; teamMp = [...foe.teamMp];
             foe.casts = step.teamCasting ?? []; foe.lastHit = step; foe.lastHitAt = elapsed;
@@ -188,8 +273,8 @@ export function ExpeditionCanvas({ location, team, gold, characterName, characte
           const teamDefeated = foe.teamHp.length > 0 && foe.teamHp.every((hp) => hp <= 0);
           const battleLost = foe.step >= foe.battle.steps.length && !foe.battle.won;
           if (teamDefeated || battleLost) {
-            alive = false;
-            store.getState().returnToRoom();
+            void returnToRoom();
+            frame = requestAnimationFrame(draw);
             return;
           }
           if (foe.step >= foe.battle.steps.length) {
@@ -199,57 +284,57 @@ export function ExpeditionCanvas({ location, team, gold, characterName, characte
           else foe.nextStep = foe.battleStartedAt + (foe.battle.steps[foe.step].at ?? foe.step * 0.45 + 0.45);
           }
         } else if (foe.stage === "result" && elapsed >= foe.until) {
-          if (!foe.battle?.won) { store.getState().returnToRoom(); }
+          if (!foe.battle?.won) { void returnToRoom(); }
+          if (activeGroup.some((monster) => monster.data.boss)) nextSpawn = elapsed + spawnDelay();
           monsters = monsters.filter((monster) => !activeGroup.includes(monster));
           activeGroup = []; foe = null;
         }
       }
       // Keep the formation on the left, with Front slots leading toward the right.
-      members.forEach(({ character, slot, weapon }, index) => {
-        const x = width * 0.16 + (members.length - 1 - index) * spacing;
+      members.forEach(({ character, slot }, index) => {
+        const x = memberPositions[index];
         const health = teamHp[index];
-        const phase = elapsed * 9 + index * 0.7, stride = battling ? 0 : Math.sin(phase), bob = Math.abs(stride) * 1.6;
+        const action = [...effects].reverse().find((effect) => effect.step.characterId === character.id && effect.step.actor === "team" && effect.step.kind !== "poison" && elapsed - effect.startedAt < 0.4);
+        const swing = action ? Math.sin(Math.min(1, (elapsed - action.startedAt) / 0.4) * Math.PI) : 0;
+        const rangedAction = action?.ranged || action?.step.kind === "cast";
+        const phase = elapsed * 9 + index * 0.7, stride = health <= 0 || (battling && !memberMoving[index]) ? 0 : Math.sin(phase), bob = Math.abs(stride) * 1.6;
         if (health <= 0) ctx.globalAlpha = 0.3;
-        ctx.save(); ctx.translate(x, ground - 1 - bob * avatarScale); ctx.scale(avatarScale, avatarScale);
-        ctx.fillStyle = "#16271d55"; ctx.beginPath(); ctx.ellipse(0, 4 + bob, 18, 4, 0, 0, Math.PI * 2); ctx.fill();
-        for (const leg of [-1, 1]) {
-          ctx.save(); ctx.translate(leg * 6, -12); ctx.rotate(stride * 0.55 * leg);
-          rect(-4, 0, 8, 13, "#263c34"); rect(-4, 10, 11, 4, "#1c2d27"); ctx.restore();
-        }
-        rect(-12, -29, 24, 19, "#cda367"); rect(-9, -44, 18, 17, "#efce9f");
-        rect(-13, -47, 26, 7, "#35654d"); rect(-16, -41, 32, 4, "#35654d"); rect(5, -34, 3, 3, "#233b33");
-        ctx.save(); ctx.translate(-10, -25); ctx.rotate(-stride * 0.4); rect(-3, 0, 6, 13, "#b68d54"); ctx.restore();
-        ctx.save(); ctx.translate(12, -29); ctx.rotate(stride * 0.1); ctx.scale(0.5, 0.5);
-        ctx.strokeStyle = "#f0e8c9"; ctx.lineWidth = 3; ctx.lineJoin = "round"; ctx.lineCap = "round"; ctx.stroke(weapon); ctx.restore();
-        ctx.restore();
+        ctx.save(); ctx.translate(x + swing * (rangedAction ? -3 : 12) * avatarScale, ground - 1 - bob * avatarScale); ctx.scale(avatarScale, avatarScale);
+        drawCharacter(ctx, character.weapon, { stride, swing: swing * (rangedAction ? -0.2 : 1) }); ctx.restore();
         ctx.globalAlpha = 1;
         ctx.textAlign = "center";
-        text(character.name, x, ground - 58 * avatarScale, "600 12px system-ui", forest ? "#eef0cf" : "#173c2e", Math.max(28, spacing - 6));
+        text(character.name, x, ground - 92 * avatarScale, "600 12px system-ui", forest ? "#eef0cf" : "#173c2e", Math.max(28, spacing - 6));
         text(`${slot < 3 ? "Front" : "Back"} ${slot % 3 + 1}`, x, ground + 25 * avatarScale, "10px system-ui", "#f1ebce", Math.max(28, spacing - 6));
         ctx.textAlign = "left";
         {
           const barWidth = Math.max(24, Math.min(52, spacing - 4));
-          rect(x - barWidth / 2, ground - 51 * avatarScale, barWidth, 4, "#392c29");
-          rect(x - barWidth / 2, ground - 51 * avatarScale, barWidth * health / (character.stats?.hp ?? 100), 4, "#9cce7e");
+          rect(x - barWidth / 2, ground - 84 * avatarScale, barWidth, 4, "#392c29");
+          rect(x - barWidth / 2, ground - 84 * avatarScale, barWidth * Math.min(1, health / (character.stats?.hp ?? 100)), 4, "#9cce7e");
           const maxMp = character.stats?.mp ?? 0;
           if (maxMp > 0) {
-            rect(x - barWidth / 2, ground - 46 * avatarScale, barWidth, 3, "#26383e");
-            rect(x - barWidth / 2, ground - 46 * avatarScale, barWidth * teamMp[index] / maxMp, 3, "#7cbad1");
+            rect(x - barWidth / 2, ground - 78 * avatarScale, barWidth, 3, "#26383e");
+            rect(x - barWidth / 2, ground - 78 * avatarScale, barWidth * Math.min(1, teamMp[index] / maxMp), 3, "#7cbad1");
           }
           const cast = foe?.casts[index];
           if (cast && health > 0 && foe) {
             const progress = Math.max(0, Math.min(1, (elapsed - foe.battleStartedAt - cast.startedAt) / (cast.endsAt - cast.startedAt)));
-            rect(x - barWidth / 2, ground - 39 * avatarScale, barWidth, 3, "#403d2a");
-            rect(x - barWidth / 2, ground - 39 * avatarScale, barWidth * progress, 3, "#f0d68a");
+            rect(x - barWidth / 2, ground - 72 * avatarScale, barWidth, 3, "#403d2a");
+            rect(x - barWidth / 2, ground - 72 * avatarScale, barWidth * progress, 3, "#f0d68a");
           }
         }
       });
       for (const monster of monsters) {
         const foe = monster;
         const x = foe.x * width, size = Math.max(1, Math.min(2, height / 300)) * (foe.data.boss ? 1.45 : 1);
+        const attack = [...effects].reverse().find((effect) => effect.enemyId === foe.data.id && effect.step.actor === "enemy" && elapsed - effect.startedAt < 0.45);
+        const attackProgress = attack ? Math.min(1, (elapsed - attack.startedAt) / 0.45) : 0;
+        const strike = attack && foe.hp > 0 ? Math.sin(attackProgress * Math.PI) : 0;
+        const ranged = foe.data.stats.range === "range";
         if (foe.hp <= 0) ctx.globalAlpha = 0.25;
-        ctx.save(); ctx.translate(x, ground - 1); ctx.scale(-size, size);
-        const stride = foe.stage === "approach" ? Math.sin(elapsed * 10) : 0;
+        ctx.save(); ctx.translate(x + strike * (ranged ? 3 : -14) * size, ground - 1 - (foe.data.type === "slime" ? strike * 7 * size : 0)); ctx.scale(-size, size);
+        ctx.rotate(strike * (ranged ? -0.08 : 0.16));
+        if (foe.data.type === "slime") ctx.scale(1 + strike * 0.22, 1 - strike * 0.16);
+        const stride = foe.hp > 0 && foe.moving ? Math.sin(elapsed * 10) : 0;
         if (foe.data.type === "boar" || foe.data.type === "mutant-boar") {
           rect(-16 + stride * 3, -11, 7, 12, "#4d382a"); rect(8 - stride * 3, -11, 7, 12, "#4d382a");
           ctx.fillStyle = foe.data.boss ? "#81576d" : "#916445"; ctx.beginPath(); ctx.ellipse(-2, -22, 25, 16, 0, 0, Math.PI * 2); ctx.fill();
@@ -268,13 +353,16 @@ export function ExpeditionCanvas({ location, team, gold, characterName, characte
           ctx.fillStyle = "#a4db93"; ctx.beginPath(); ctx.ellipse(-7, -21 - bounce, 7, 4, -0.3, 0, Math.PI * 2); ctx.fill();
           rect(7, -18 - bounce, 4, 5, "#234b32"); rect(-5, -18 - bounce, 4, 5, "#234b32"); rect(0, -9 - bounce, 5, 2, "#234b32");
         } else if (foe.data.type === "plant") {
-          const sway = stride * 3;
+          const sway = stride * 3 + strike * 15;
           ctx.strokeStyle = "#4c793c"; ctx.lineWidth = 7; ctx.beginPath(); ctx.moveTo(0, 0); ctx.quadraticCurveTo(-6, -20, sway, -35); ctx.stroke();
           ctx.fillStyle = "#5d943e"; ctx.beginPath(); ctx.ellipse(-12, -13, 14, 5, 0.45, 0, Math.PI * 2); ctx.fill();
           ctx.beginPath(); ctx.ellipse(11, -18, 14, 5, -0.45, 0, Math.PI * 2); ctx.fill();
           ctx.fillStyle = "#c57b68"; ctx.beginPath(); ctx.ellipse(sway, -40, 18, 14, 0, 0, Math.PI * 2); ctx.fill();
-          rect(sway - 13, -40, 26, 5, "#613f36");
-          for (let tooth = 0; tooth < 4; tooth++) rect(sway - 10 + tooth * 6, -40, 3, 3, "#eee4bc");
+          rect(sway - 13, -40 - strike * 4, 26, 5 + strike * 9, "#613f36");
+          for (let tooth = 0; tooth < 4; tooth++) {
+            rect(sway - 10 + tooth * 6, -40 - strike * 4, 3, 3, "#eee4bc");
+            rect(sway - 10 + tooth * 6, -38 + strike * 5, 3, 3, "#eee4bc");
+          }
         } else {
         rect(-10 + stride * 3, -9, 7, 10, "#5c442f"); rect(3 - stride * 3, -9, 7, 10, "#5c442f");
         ctx.fillStyle = foe.data.type === "warrior" ? "#9c7145" : "#b48b58";
@@ -290,8 +378,14 @@ export function ExpeditionCanvas({ location, team, gold, characterName, characte
           }
           rect(-16, -22, 32, 6, "#78527e");
         }
-        if (foe.data.type === "warrior") { rect(18, -37, 4, 36, "#62452c"); rect(14, -44, 13, 12, "#a2a58a"); }
-        else { ctx.strokeStyle = "#dbc39a"; ctx.beginPath(); ctx.moveTo(14, -25); ctx.lineTo(27, -39); ctx.lineTo(20, -13); ctx.stroke(); }
+        ctx.save(); ctx.translate(13, -29); ctx.rotate(strike * (ranged ? -1.8 : 1.5));
+        rect(-3, -1, 7, 16, "#9c7145");
+        if (foe.data.type === "warrior") { rect(5, -8, 4, 36, "#62452c"); rect(1, -15, 13, 12, "#a2a58a"); }
+        else {
+          ctx.strokeStyle = "#dbc39a"; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(1, 4); ctx.lineTo(14, -10); ctx.lineTo(7, 16); ctx.stroke();
+          if (strike > 0.3) { ctx.fillStyle = "#d8c29a"; ctx.beginPath(); ctx.arc(14, -10, 4, 0, Math.PI * 2); ctx.fill(); }
+        }
+        ctx.restore();
         }
         ctx.restore();
         ctx.globalAlpha = 1;
@@ -303,77 +397,59 @@ export function ExpeditionCanvas({ location, team, gold, characterName, characte
           text(`+${foe.battle.goldEarned} gold · +${foe.battle.expEarned} EXP`, x, ground - 88 * size, "600 18px system-ui", "#f0d68a", width * 0.55);
           if (foe.battle.wishEarned) text(`Level up! Lv.${foe.battle.progression.level} · +${foe.battle.wishEarned} wish`, x, ground - 104 * size, "600 17px system-ui", "#f0d68a", width * 0.55);
         }
-        if (foe.lastHit && foe.stage === "fighting" && (foe.lastHit.enemyIndex ?? 0) === activeGroup.indexOf(foe)) {
-          const targetIndex = members.findIndex(({ character }) => character.id === foe!.lastHit!.characterId);
-          const targetX = foe.lastHit.actor === "team" ? x : width * 0.16 + (members.length - 1 - targetIndex) * spacing;
-          if (foe.lastHit.damage > 0) text(`${foe.lastHit.critical ? "CRIT " : ""}-${foe.lastHit.damage}`, targetX, ground - 78 * size, "600 17px system-ui", foe.lastHit.kind === "poison" ? "#b2de89" : "#ffd1aa");
-          if (foe.lastHit.actor === "team" && targetIndex >= 0 && foe.lastHit.damage > 0 && foe.lastHit.kind !== "poison") {
-            const attacker = members[targetIndex].character;
-            const originX = width * 0.16 + (members.length - 1 - targetIndex) * spacing;
-            const progress = Math.max(0, Math.min(1, (elapsed - foe.lastHitAt) / 0.35));
-            if (attacker.stats?.range === "range" || ["Fireball", "Inferno", "Throw Spear"].includes(foe.lastHit.label ?? "")) {
-              ctx.strokeStyle = ["Fireball", "Inferno"].includes(foe.lastHit.label ?? "") ? "#f2a25a" : "#fff0b8"; ctx.lineWidth = 3; ctx.beginPath();
-              const projectileX = originX + (x - originX) * progress;
-              ctx.moveTo(projectileX - 8, ground - 30 * size); ctx.lineTo(projectileX + 8, ground - 30 * size); ctx.stroke();
-            } else {
-              ctx.strokeStyle = "#f0e8c9"; ctx.lineWidth = 3; ctx.beginPath();
-              ctx.arc(x, ground - 26 * size, 20 * size, -1.2 + progress, 0.6 + progress); ctx.stroke();
-            }
-          }
-          if (foe.lastHit.kind === "heal") {
-            for (const id of foe.lastHit.targetIds ?? []) {
-              const recipient = members.findIndex(({ character }) => character.id === id);
-              if (recipient >= 0) text("+", width * 0.16 + (members.length - 1 - recipient) * spacing, ground - 70 * size, "600 24px system-ui", "#b5eb99");
-            }
-          }
-          if (foe.lastHit.kind === "block") {
-            ctx.strokeStyle = "#c2daf3"; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(targetX, ground - 25 * size, 25 * size, -1.4, 1.4); ctx.stroke();
-          }
-          if (foe.data.stats.range === "range" && foe.lastHit.actor === "enemy") {
-            const progress = Math.max(0, Math.min(1, (elapsed - foe.lastHitAt) / 0.35));
-            ctx.fillStyle = "#d6cfaf"; ctx.beginPath(); ctx.arc(x + (targetX - x) * progress, ground - 35 * size - Math.sin(progress * Math.PI) * 32, 4, 0, Math.PI * 2); ctx.fill();
-          }
-        }
         ctx.textAlign = "left";
       }
-      box(16, 16, Math.max(100, Math.min(260, width - 176)), 88, "#102c26e8", "#708360");
-      text(nameRef.current, 30, 43, "600 17px system-ui", "#f1ebce", Math.max(72, Math.min(232, width - 204)));
-      text(`${forest ? "Forest" : "Meadow"} · ${Math.floor(distance / 16)} m`, 30, 65, "12px system-ui", "#c1cda9", Math.max(80, Math.min(230, width - 202)));
-      text(`Boss: ${meadowProgress.defeated}/${meadowProgress.target ?? "25–30"}`, 30, 86, "12px system-ui", "#e4d895", Math.max(80, Math.min(230, width - 202)));
-      if (foe?.lastHit?.label && foe.stage !== "approach") {
-        const label = foe.lastHit.label + (foe.lastHit.healing ? ` +${foe.lastHit.healing} HP` : "") + (foe.lastHit.critical ? " · Critical" : "");
-        box(16, 116, Math.min(420, width - 32), 38, "#102c26e8", "#708360");
-        text(label, 28, 140, "600 12px system-ui", "#e4d895", Math.min(396, width - 56));
+      effects = effects.filter((effect) => elapsed - effect.startedAt < 0.9);
+      for (const effect of effects) drawCombatEffect(ctx, effect, elapsed - effect.startedAt, ground, avatarScale, (id) => {
+        const index = members.findIndex(({ character }) => character.id === id);
+        return index < 0 ? undefined : memberPositions[index];
+      });
+      const layout = battleHudLayout(width, height);
+      const nameX = layout.pad + 12, nameTop = layout.pad;
+      box(layout.pad, nameTop, layout.nameWidth, layout.nameHeight, "#102c26e8", "#708360");
+      text(nameRef.current, nameX, nameTop + (layout.compact ? layout.nameHeight * 0.31 : 27), `600 ${layout.compact ? 14 : 17}px system-ui`, "#f1ebce", layout.nameWidth - 24);
+      text(`${forest ? "Forest" : "Meadow"} · ${Math.floor(distance / 16)} m`, nameX, nameTop + (layout.compact ? layout.nameHeight * 0.59 : 49), `${layout.compact ? 10 : 12}px system-ui`, "#c1cda9", layout.nameWidth - 24);
+      text(`Boss: ${meadowProgress.defeated}/${meadowProgress.target ?? "38–45"}`, nameX, nameTop + (layout.compact ? layout.nameHeight * 0.84 : 70), `${layout.compact ? 10 : 12}px system-ui`, "#e4d895", layout.nameWidth - 24);
+      if (!layout.compact) battleLog.forEach((entry, index) => {
+        const y = layout.logY + index * (layout.rowHeight + layout.rowGap);
+        box(layout.pad, y, layout.nameWidth, layout.rowHeight, "#102c26e8", "#708360");
+        text(`${entry.actor}: ${entry.detail}`, nameX, y + layout.rowHeight / 2 + 3, `600 ${layout.compact ? 10 : 12}px system-ui`, index === 0 ? "#e4d895" : "#c1cda9", layout.nameWidth - 24);
+      });
+      const progress = progressRef.current, progressWidth = Math.min(220, width - layout.pad * 2);
+      const hudTop = layout.progressY, compactHud = layout.compact;
+      box(layout.pad, hudTop, progressWidth, layout.progressHeight, "#102c26ed", "#b8a76d");
+      text(`Gold: ${goldRef.current}`, nameX, hudTop + (compactHud ? layout.progressHeight * 0.28 : 26), `600 ${compactHud ? 11 : 15}px system-ui`, "#e4d895", compactHud ? 100 : progressWidth - 28);
+      text(compactHud ? `Lv. ${progress.level}` : `Account Lv. ${progress.level}`, compactHud ? layout.pad + 126 : nameX, hudTop + (compactHud ? layout.progressHeight * 0.28 : 50), `600 ${compactHud ? 11 : 14}px system-ui`, "#f1ebce", compactHud ? 76 : progressWidth - 28);
+      text(`EXP: ${progress.exp}/${progress.expToNextLevel}`, nameX, hudTop + (compactHud ? layout.progressHeight * 0.58 : 74), `${compactHud ? 10 : 12}px system-ui`, "#c1cda9", progressWidth - 28);
+      rect(nameX, hudTop + (compactHud ? layout.progressHeight * 0.72 : 88), progressWidth - 28, 6, "#365642");
+      rect(nameX, hudTop + (compactHud ? layout.progressHeight * 0.72 : 88), (progressWidth - 28) * progress.exp / progress.expToNextLevel, 6, "#d7c981");
+      if (message && elapsed < messageUntil) text(message, layout.pad, height - layout.progressHeight - 24, "11px system-ui", "#ffcebb", width - 32);
+      const controls = [...layout.controls, { ...layout.returnButton, label: "Return to room" }];
+      for (const control of controls) {
+        const active = control.label === "Character" ? characterFocused.current : control.label === "Return to room" ? focused.current : false;
+        box(control.x, control.y, control.width, control.height, "#102c26ed", active ? "#fff0b8" : "#708360");
+        ctx.textAlign = "center";
+        text(control.label, control.x + control.width / 2, control.y + control.height / 2 + 4, `600 ${layout.fontSize}px system-ui`, "#f1ebce", control.width - 12);
+        ctx.textAlign = "left";
       }
-      const progress = progressRef.current, progressWidth = Math.min(220, width - 32);
-      const compactHud = height < 480, hudTop = height - (compactHud ? 88 : 126);
-      box(16, hudTop, progressWidth, compactHud ? 72 : 110, "#102c26ed", "#b8a76d");
-      text(`Gold: ${goldRef.current}`, 30, hudTop + 26, `600 ${compactHud ? 12 : 15}px system-ui`, "#e4d895", compactHud ? 100 : progressWidth - 28);
-      text(compactHud ? `Lv. ${progress.level}` : `Account Lv. ${progress.level}`, compactHud ? 142 : 30, hudTop + (compactHud ? 26 : 50), "600 14px system-ui", "#f1ebce", compactHud ? 76 : progressWidth - 28);
-      text(`EXP: ${progress.exp}/${progress.expToNextLevel}`, 30, hudTop + (compactHud ? 46 : 74), "12px system-ui", "#c1cda9", progressWidth - 28);
-      rect(30, hudTop + (compactHud ? 56 : 88), progressWidth - 28, 6, "#365642");
-      rect(30, hudTop + (compactHud ? 56 : 88), (progressWidth - 28) * progress.exp / progress.expToNextLevel, 6, "#d7c981");
-      if (message && elapsed < messageUntil) text(message, 20, height - 142, "12px system-ui", "#ffcebb", width - 40);
-      const characterX = width - (width < 640 ? 148 : 264), characterY = width < 640 ? 76 : 16, characterWidth = width < 640 ? 132 : 104;
-      box(characterX, characterY, characterWidth, 48, "#102c26ed", characterFocused.current ? "#fff0b8" : "#708360");
-      ctx.textAlign = "center"; text("Character", characterX + characterWidth / 2, characterY + 30, "600 13px system-ui", "#f1ebce"); ctx.textAlign = "left";
-      box(width - 148, 16, 132, 48, "#102c26ed", focused.current ? "#fff0b8" : "#708360");
-      ctx.textAlign = "center"; text("Return to room", width - 82, 46, "600 13px system-ui", "#f1ebce"); ctx.textAlign = "left";
       frame = requestAnimationFrame(draw);
     }
     frame = requestAnimationFrame(draw); returnRef.current?.focus({ preventScroll: true });
     return () => { alive = false; cancelAnimationFrame(frame); observer.disconnect(); document.removeEventListener("visibilitychange", visibility); };
-  }, [location, team, client, userId, store]);
+  }, [location, team, client, userId, returnToRoom]);
 
   return <div className="relative h-full w-full overflow-hidden bg-[#173d3a]" onKeyDown={(event) => {
-    if (event.key === "Escape") { event.preventDefault(); if (rosterOpen) closeRoster(); else store.getState().returnToRoom(); }
+    if (event.key === "Escape") { event.preventDefault(); if (rosterOpen) closeRoster(); else if (collectionOpen) closeCollection(); else void returnToRoom(); }
   }}>
-    <div inert={rosterOpen} className="h-full w-full">
+    <div inert={overlayOpen} className="h-full w-full">
     <canvas ref={canvasRef} role="img" aria-label={`Your team is automatically walking from left to right through an endless ${location}.`} className="block h-full w-full" />
-    <button ref={returnRef} type="button" onClick={() => store.getState().returnToRoom()} onFocus={() => { focused.current = true; }} onBlur={() => { focused.current = false; }} className="absolute top-4 right-4 h-12 w-[132px] cursor-pointer rounded-xl outline-none"><span className="sr-only">Return to room</span></button>
-    <button type="button" aria-label="Character" aria-expanded={rosterOpen} onClick={() => { paused.current = true; setRosterOpen(true); }} onFocus={() => { characterFocused.current = true; }} onBlur={() => { characterFocused.current = false; }} className="absolute top-[76px] right-4 h-12 w-[132px] cursor-pointer rounded-xl outline-none sm:top-4 sm:right-40 sm:w-[104px]"><span className="sr-only">Character</span></button>
+    <button ref={returnRef} type="button" style={{ left: hud.returnButton.x, top: hud.returnButton.y, width: hud.returnButton.width, height: hud.returnButton.height }} onClick={() => void returnToRoom()} onFocus={() => { focused.current = true; }} onBlur={() => { focused.current = false; }} className="absolute cursor-pointer rounded-xl outline-none"><span className="sr-only">Return to room</span></button>
+    {returnError && <p role="alert" className="absolute top-40 left-4 rounded bg-[#102c26] p-3 text-sm text-red-200">{returnError} Use Return to room to retry.</p>}
+    <button type="button" style={{ left: hud.controls[0].x, top: hud.controls[0].y, width: hud.controls[0].width, height: hud.controls[0].height }} aria-label="Character" aria-expanded={rosterOpen} onClick={() => { paused.current = true; setRosterOpen(true); }} onFocus={() => { characterFocused.current = true; }} onBlur={() => { characterFocused.current = false; }} className="absolute cursor-pointer rounded-xl outline-none"><span className="sr-only">Character</span></button>
     <p role="status" className="sr-only">{characterName}. Gold {gold}. Account level {progression.level}. EXP {progression.exp} of {progression.expToNextLevel}.</p>
+    {hud.controls.slice(1).map((control) => <button key={control.label} type="button" style={{ left: control.x, top: control.y, width: control.width, height: control.height }} aria-label={control.label} aria-expanded={collectionOpen === control.label} onClick={() => { if (control.label === "Shop" || control.label === "Artifacts") { paused.current = true; setCollectionOpen(control.label); } }} className="absolute cursor-pointer rounded-xl outline-none focus-visible:ring-2 focus-visible:ring-[#fff0b8]"><span className="sr-only">{control.label}</span></button>)}
     </div>
     {rosterOpen && <CharacterRoster characters={characters} onClose={closeRoster} />}
+    {collectionOpen && <CollectionPanel title={collectionOpen} onClose={closeCollection} />}
   </div>;
 }

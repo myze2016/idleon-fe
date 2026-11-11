@@ -6,6 +6,32 @@ import type { Character, CharacterState } from "@/lib/character";
 
 const characterKey = (userId?: string) => ["character", userId] as const;
 
+export function useUpgradeCharacter(userId?: string) {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => api<CharacterState>(`/character/${encodeURIComponent(id)}/upgrade`, { method: "POST" }),
+    onSuccess: async (state) => { await client.cancelQueries({ queryKey: characterKey(userId) }); client.setQueryData(characterKey(userId), state); },
+  });
+}
+
+export function useArtifactAction(userId?: string) {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: (input: { stat: string } | { characterId: string; artifactId: string | null }) => "stat" in input
+      ? api<CharacterState>("/character/artifacts/buy", { method: "POST", body: JSON.stringify(input) })
+      : api<CharacterState>(`/character/${encodeURIComponent(input.characterId)}/artifact`, { method: "POST", body: JSON.stringify({ artifactId: input.artifactId }) }),
+    onSuccess: async (state) => { await client.cancelQueries({ queryKey: characterKey(userId) }); client.setQueryData(characterKey(userId), state); },
+  });
+}
+
+export function useAssignTeamSlot(userId?: string) {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: (input: { slot: number; characterId: string }) => api<CharacterState>("/character/team", { method: "POST", body: JSON.stringify(input) }),
+    onSuccess: async (state) => { await client.cancelQueries({ queryKey: characterKey(userId) }); client.setQueryData(characterKey(userId), state); },
+  });
+}
+
 export function useUnlockSkill2(userId?: string) {
   const client = useQueryClient();
   const queryKey = characterKey(userId);
@@ -23,7 +49,7 @@ export function useDeleteCharacter(userId?: string) {
     mutationFn: () => api<void>("/character", { method: "DELETE" }),
     onSuccess: async () => {
       await client.cancelQueries({ queryKey });
-      client.setQueryData(queryKey, { character: null, characters: [], wishCurrency: 0, gold: 0, progression: { level: 1, totalExp: 0, exp: 0, expToNextLevel: 10 } });
+      client.setQueryData(queryKey, { character: null, characters: [], artifacts: [], teamSlots: [null, null, null, null, null, null], wishCurrency: 0, gold: 0, progression: { level: 1, totalExp: 0, exp: 0, expToNextLevel: 10 } });
     },
   });
 }
@@ -58,9 +84,9 @@ export function useWish(userId?: string) {
   const queryKey = characterKey(userId);
   return useMutation({
     mutationFn: () => api<CharacterState & { reward: Character }>("/character/wish", { method: "POST" }),
-    onSuccess: async ({ character, characters, wishCurrency, gold, progression }) => {
+    onSuccess: async (state) => {
       await client.cancelQueries({ queryKey });
-      client.setQueryData(queryKey, { character, characters, wishCurrency, gold, progression });
+      client.setQueryData(queryKey, state);
     },
     onError: () => { void client.invalidateQueries({ queryKey }); },
   });

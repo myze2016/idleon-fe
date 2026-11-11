@@ -1,4 +1,6 @@
 "use client";
+import { ResponsiveCanvasFrame } from "./responsive-canvas-frame";
+import { drawCharacter } from "./character-design";
 
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { weapons, type Character, type WeaponType } from "@/lib/character";
@@ -55,9 +57,7 @@ export function CharacterCreation({ onCreate, pending, error }: {
     weapons.forEach((option, i) => {
       const x = left + i % cols * (cell + 12), y = 260 + Math.floor(i / cols) * 110;
       box(x, y, cell, 98, weapon === option.id ? "#536b43" : "#16392f", focus === option.id ? "#fff" : weapon === option.id ? "#e4d895" : "#54715b");
-      ctx.save(); ctx.translate(x + cell / 2 - 20, y + 8); ctx.scale(0.65, 0.65);
-      ctx.strokeStyle = "#dbe4ad"; ctx.lineWidth = 3; ctx.lineCap = "round"; ctx.lineJoin = "round";
-      ctx.stroke(new Path2D(option.path)); ctx.restore();
+      ctx.save(); ctx.translate(x + cell / 2, y + 62); ctx.scale(0.72, 0.72); drawCharacter(ctx, option.id); ctx.restore();
       ctx.textAlign = "center"; text(option.label, x + cell / 2, y + 76, "500 13px system-ui");
       if (weapon === option.id) text("SELECTED", x + cell / 2, y + 91, "600 9px system-ui", "#fff0b8");
       ctx.textAlign = "left";
@@ -86,7 +86,7 @@ export function CharacterCreation({ onCreate, pending, error }: {
     setValidation(""); onCreate({ name: name.trim(), weapon });
   }
 
-  return <div ref={host} className="flex h-full w-full items-start overflow-auto bg-[#102e29]">
+  return <ResponsiveCanvasFrame overlay={false}><div ref={host} className="flex h-full w-full items-start overflow-auto bg-[#102e29]">
     <div className="relative my-auto w-full shrink-0" style={{ height }}>
       <canvas ref={canvas} aria-hidden="true" className="absolute inset-0 h-full w-full" />
       <form onSubmit={submit} aria-label="Create your character" aria-busy={pending} className="absolute inset-0">
@@ -102,5 +102,5 @@ export function CharacterCreation({ onCreate, pending, error }: {
         {message && <p role="alert" className="sr-only">{message}</p>}
       </form>
     </div>
-  </div>;
+  </div></ResponsiveCanvasFrame>;
 }

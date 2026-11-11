@@ -1,4 +1,6 @@
 "use client";
+import { ResponsiveCanvasFrame } from "./responsive-canvas-frame";
+import { drawCharacter } from "./character-design";
 
 import { useEffect, useRef, useState } from "react";
 import { useSession } from "@/lib/auth";
@@ -18,7 +20,7 @@ export function WishScreen({ onClose }: { onClose: () => void }) {
   const complete = ownedCount >= weapons.length;
   const reward = wish.data?.reward;
   const error = wish.error?.message ?? state.error?.message;
-  const enabled = balance > 0 && !!userId && !wish.isPending && !complete;
+  const enabled = balance >= 100 && !!userId && !wish.isPending && !complete;
 
   useEffect(() => { closeRef.current?.focus({ preventScroll: true }); }, []);
 
@@ -49,7 +51,7 @@ export function WishScreen({ onClose }: { onClose: () => void }) {
       ctx.fillStyle = "#e4d89515"; ctx.beginPath(); ctx.arc(width / 2, centerY, compact ? 38 : 62, 0, Math.PI * 2); ctx.fill();
       ctx.strokeStyle = "#e4d895"; ctx.lineWidth = 3; ctx.lineCap = "round"; ctx.lineJoin = "round";
       if (reward) {
-        ctx.save(); ctx.translate(width / 2 - 32, centerY - 32); ctx.stroke(new Path2D(weaponDetails(reward.weapon).path)); ctx.restore();
+        ctx.save(); ctx.translate(width / 2, centerY + (compact ? 28 : 49)); ctx.scale(compact ? 1 : 1.6, compact ? 1 : 1.6); drawCharacter(ctx, reward.weapon); ctx.restore();
       } else {
         ctx.beginPath();
         for (let i = 0; i < 10; i++) {
@@ -64,8 +66,8 @@ export function WishScreen({ onClose }: { onClose: () => void }) {
       if (reward && !compact) text("Added to your character list", width / 2, centerY + 113, "13px system-ui", "#c1cda9", width - 40);
       const buttonWidth = Math.min(280, width - 48);
       box((width - buttonWidth) / 2, height - 116, buttonWidth, 52, enabled ? "#e4d895" : "#6b796b", focus === "wish" ? "#fff" : "#b8a76d");
-      text(complete ? "Collection complete" : wish.isPending ? "Wishing..." : "Wish · 1 currency", width / 2, height - 83, "600 17px system-ui", "#17392e");
-      text(complete ? "All 11 types owned. No more wishes available." : error ?? (balance === 0 ? "No wish currency remaining." : "Equal chances among unowned types. No duplicates."), width / 2, height - 32, "12px system-ui", error && !complete ? "#ffcebb" : "#c1cda9", width - 40);
+      text(complete ? "Collection complete" : wish.isPending ? "Wishing..." : "Wish · 100 currency", width / 2, height - 83, "600 17px system-ui", "#17392e");
+      text(complete ? "All 11 types owned. No more wishes available." : error ?? (balance < 100 ? "You need 100 wish currency to pull." : "Equal chances among unowned types. No duplicates."), width / 2, height - 32, "12px system-ui", error && !complete ? "#ffcebb" : "#c1cda9", width - 40);
       ctx.textAlign = "left";
       box(width - 64, 16, 48, 48, "#163a30", focus === "close" ? "#fff" : "#708360");
       ctx.strokeStyle = "#f1ebce"; ctx.beginPath(); ctx.moveTo(width - 47, 33); ctx.lineTo(width - 33, 47); ctx.moveTo(width - 33, 33); ctx.lineTo(width - 47, 47); ctx.stroke();
@@ -74,7 +76,7 @@ export function WishScreen({ onClose }: { onClose: () => void }) {
     return () => observer.disconnect();
   }, [balance, reward, error, enabled, focus, wish.isPending, ownedCount, complete]);
 
-  return <div role="dialog" aria-modal="true" aria-label="Wish for a character" className="absolute inset-0 z-30 bg-[#162a36]" onKeyDown={(event) => {
+  return <ResponsiveCanvasFrame minHeight={440}><div role="dialog" aria-modal="true" aria-label="Wish for a character" className="absolute inset-0 z-30 bg-[#162a36]" onKeyDown={(event) => {
     if (event.key === "Escape") { event.preventDefault(); event.stopPropagation(); if (!wish.isPending) onClose(); }
     if (event.key === "Tab") {
       const controls = Array.from(event.currentTarget.querySelectorAll<HTMLButtonElement>("button:not(:disabled)"));
@@ -85,8 +87,8 @@ export function WishScreen({ onClose }: { onClose: () => void }) {
   }}>
     <canvas ref={canvasRef} aria-hidden="true" className="block h-full w-full" />
     <button ref={closeRef} type="button" aria-label="Close wish screen" onClick={onClose} onFocus={() => setFocus("close")} onBlur={() => setFocus("")} className="absolute top-4 right-4 size-12 cursor-pointer rounded-xl outline-none"><span className="sr-only">Close wish screen</span></button>
-    <button type="button" disabled={!enabled} onClick={() => wish.mutate()} onFocus={() => setFocus("wish")} onBlur={() => setFocus("")} className="absolute bottom-16 left-1/2 h-[52px] w-[min(280px,calc(100%-48px))] -translate-x-1/2 cursor-pointer rounded-xl outline-none disabled:cursor-default"><span className="sr-only">Wish for a random character. Costs 1 wish currency.</span></button>
+    <button type="button" disabled={!enabled} onClick={() => wish.mutate()} onFocus={() => setFocus("wish")} onBlur={() => setFocus("")} className="absolute bottom-16 left-1/2 h-[52px] w-[min(280px,calc(100%-48px))] -translate-x-1/2 cursor-pointer rounded-xl outline-none disabled:cursor-default"><span className="sr-only">Wish for a random character. Costs 100 wish currency.</span></button>
     <p role="status" className="sr-only">Wish currency: {balance}. Collection: {ownedCount} of {weapons.length}. {complete ? "Collection complete. Wishing is disabled." : wish.isPending ? "Wishing." : reward ? `Received ${weaponDetails(reward.weapon).label}. Added to your roster.` : "Wish for a character type you do not own."}</p>
     {error && <p role="alert" className="sr-only">{error}</p>}
-  </div>;
+  </div></ResponsiveCanvasFrame>;
 }

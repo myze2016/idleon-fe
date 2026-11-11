@@ -1,9 +1,13 @@
 "use client";
+import { ResponsiveCanvasFrame } from "./responsive-canvas-frame";
+import { drawCharacter } from "./character-design";
 
 import { useEffect, useRef, useState } from "react";
 import { CharacterRoster } from "./character-roster";
 import { useGameState, useGameStoreApi } from "./game-store";
-import { weaponDetails, type Character } from "@/lib/character";
+import { type Character } from "@/lib/character";
+import { useAssignTeamSlot } from "@/lib/character-api";
+import { useSession } from "@/lib/auth";
 
 export function TeamScreen({ characters, onClose }: { characters: Character[]; onClose: () => void }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -11,6 +15,9 @@ export function TeamScreen({ characters, onClose }: { characters: Character[]; o
   const [closeFocused, setCloseFocused] = useState(false);
   const slots = useGameState((state) => state.teamSlots);
   const store = useGameStoreApi();
+  const session = useSession();
+  const save = useAssignTeamSlot(session.data?.user.id);
+  const saving = useRef(false);
   const [selectedSlot, setSelectedSlot] = useState<number | null>(null);
   const [focusedSlot, setFocusedSlot] = useState<number | null>(null);
   const [rects, setRects] = useState<{ x: number; y: number; width: number; height: number }[]>([]);
@@ -67,13 +74,8 @@ export function TeamScreen({ characters, onClose }: { characters: Character[]; o
         const centerY = top + cardHeight * 0.53;
         if (member) {
           ctx.save(); ctx.translate(x + slotWidth / 2, centerY + 14);
-          const avatarScale = Math.max(0.4, Math.min(2, slotWidth / 52, cardHeight / 100)); ctx.scale(avatarScale, avatarScale);
-          ctx.fillStyle = "#243c34"; ctx.fillRect(-11, -10, 8, 10); ctx.fillRect(3, -10, 8, 10);
-          ctx.fillStyle = "#cda367"; ctx.fillRect(-12, -27, 24, 19);
-          ctx.fillStyle = "#efce9f"; ctx.fillRect(-9, -42, 18, 17);
-          ctx.fillStyle = "#35654d"; ctx.fillRect(-13, -45, 26, 7); ctx.fillRect(-16, -39, 32, 4);
-          ctx.translate(12, -30); ctx.scale(0.5, 0.5); ctx.strokeStyle = "#f0e8c9"; ctx.lineWidth = 3;
-          ctx.stroke(new Path2D(weaponDetails(member.weapon).path)); ctx.restore();
+          const avatarScale = Math.max(0.4, Math.min(2, slotWidth / 72, cardHeight / 160)); ctx.scale(avatarScale, avatarScale);
+          drawCharacter(ctx, member.weapon); ctx.restore();
           ctx.font = `600 ${font}px system-ui`; ctx.fillStyle = "#f1ebce"; ctx.fillText(member.name, x + slotWidth / 2, top + cardHeight - 20, slotWidth - 8);
           continue;
         }
@@ -91,12 +93,19 @@ export function TeamScreen({ characters, onClose }: { characters: Character[]; o
     return () => observer.disconnect();
   }, [closeFocused, slots, focusedSlot, selectedSlot]);
 
-  if (selectedSlot !== null) return <CharacterRoster characters={characters} selectionLabel={`Assign to ${selectedSlot < 3 ? "Front" : "Back"} ${selectedSlot % 3 + 1}`} onClose={() => setSelectedSlot(null)} onSelect={(character) => {
-    store.getState().assignCharacter(selectedSlot, character);
-    setSelectedSlot(null);
-  }} />;
+  if (selectedSlot !== null) return <div className="absolute inset-0 z-30">
+    <CharacterRoster characters={characters} selectionLabel={`Assign to ${selectedSlot < 3 ? "Front" : "Back"} ${selectedSlot % 3 + 1}`} onClose={() => { if (!saving.current) setSelectedSlot(null); }} onSelect={(character) => {
+      if (saving.current || !character.id) return;
+      saving.current = true;
+      save.mutate({ slot: selectedSlot, characterId: character.id }, {
+        onSuccess: () => { store.getState().assignCharacter(selectedSlot, character); setSelectedSlot(null); },
+        onSettled: () => { saving.current = false; },
+      });
+    }} />
+    {(save.isPending || save.error) && <p role="status" className="absolute bottom-14 left-6 z-50 rounded bg-[#102e29] p-3 text-sm text-[#f1ebce]">{save.isPending ? "Saving team..." : save.error?.message}</p>}
+  </div>;
 
-  return <div role="dialog" aria-modal="true" aria-label="Team formation" className="absolute inset-0 z-30 bg-[#102e29]" onKeyDown={(event) => {
+  return <ResponsiveCanvasFrame minWidth={600}><div role="dialog" aria-modal="true" aria-label="Team formation" className="absolute inset-0 z-30 bg-[#102e29]" onKeyDown={(event) => {
     if (event.key === "Escape") { event.preventDefault(); event.stopPropagation(); onClose(); }
     if (event.key === "Tab") {
       const buttons = Array.from(event.currentTarget.querySelectorAll<HTMLButtonElement>("button"));
@@ -109,5 +118,5 @@ export function TeamScreen({ characters, onClose }: { characters: Character[]; o
     <button ref={closeRef} type="button" aria-label="Close team" onClick={onClose} onFocus={() => setCloseFocused(true)} onBlur={() => setCloseFocused(false)} className="absolute top-4 right-4 size-12 cursor-pointer rounded-xl outline-none"><span className="sr-only">Close team</span></button>
     {rects.map((rect, i) => <button key={i} ref={(element) => { slotRefs.current[i] = element; }} type="button" aria-label={`${i < 3 ? "Front" : "Back"} ${i % 3 + 1}: ${slots[i]?.name ?? "empty"}. Choose character`} onClick={() => { returnSlot.current = i; setSelectedSlot(i); }} onFocus={() => setFocusedSlot(i)} onBlur={() => setFocusedSlot(null)} className="absolute cursor-pointer rounded-xl outline-none" style={{ left: rect.x, top: rect.y, width: rect.width, height: rect.height }}><span className="sr-only">Choose character</span></button>)}
     <p role="status" className="sr-only">{slots.filter(Boolean).length} of 6 slots filled.</p>
-  </div>;
+  </div></ResponsiveCanvasFrame>;
 }

@@ -41,26 +41,26 @@ shown at the bottom left in both the expedition and the room. Meadow randomly
 spawns Boar (40 HP), Slime (40 HP), and Plant (50 HP), each with 5 ATK and a
 10-gold reward. Each type has its own canvas appearance and uses the same combat flow.
 
-Monsters spawn every random 5–15 seconds, including while a battle is running.
+Monsters spawn every 1–15 seconds, including during regular battles: exactly 1 in Meadow and a random 1–2 in Forest, with equal chances for either Forest wave size. Bosses spawn alone and pause further spawning while on screen.
 Multiple monsters can approach or wait on screen. Ready monsters fight in groups
 after the current battle finishes; each has its own HP and attack timing, and
 Inferno hits all living enemies in the group. The canvas removes defeated groups.
-Meadow shows progress toward a saved random 25–30-monster boss threshold. Mutant
+Meadow shows progress toward a saved random 38–45-monster boss threshold. Mutant
 Boar is drawn larger with a Boss label and awards 40 gold.
-Defeating the boss starts a new cycle; room visits preserve the saved counter.
-Forest has its own independent 25–30-kill boss cycle and progress indicator.
+Defeating the boss starts a new cycle; returning to the room resets both location counters to zero and rolls fresh boss targets on the next expedition.
+Forest has its own independent 38–45-kill boss cycle and progress indicator.
 Coco Klan Chief has 500 HP, 40 ATK, 10 DEF, ranged attacks, and rewards 10 gold.
 Its larger crowned sprite uses ranged attack effects. Neither boss directly grants wishes.
 
 Every defeated monster also awards 1 account EXP. The room shows account level,
 current EXP toward the next level, and a progress bar next to gold. Level starts
 at 1, with requirements doubling each level: 10, 20, 40, 80 EXP, etc. Each level
-gained awards 20 wish currency and displays a level-up message during combat.
+gained awards 100 wish currency and displays a level-up message during combat.
 Progression belongs to the account and is shared
 by the whole roster; wishing and changing the team do not reset it.
 
 Wish opens a full-screen canvas with the database balance and reward result.
-Creating a starter grants 1 wish currency; each wish costs 1 and adds a random
+Creating a starter grants 1 wish currency; each wish costs 100 and adds a random
 weapon-type character to the saved roster. Character and Team both use the full
 owned roster. Wishes exclude types already owned, including the starter. The Wish
 screen shows collection progress and disables wishing once all 11 types are owned.
@@ -120,3 +120,13 @@ You can check out [the Next.js GitHub repository](https://github.com/vercel/next
 The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
 
 Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+
+Team assignments save to the database before updating the displayed slot. All six slots restore when reopening the game or logging back in, and returning to the room preserves the saved formation. Failed saves show an error and allow retrying the character selection.
+
+Shop lists seven +5 stat artifacts, each priced at 1,000 gold. Purchased copies appear in Artifacts with their equipment status. Open Character, select a character, then select its Artifact slot to equip, replace, or unequip one owned copy. Each character has one slot; each copy can equip one character. Inventory and equipment persist in the database. Character stats include artifact bonuses; battle HUD updates without resetting expedition progress. Equipment changes apply to the next resolved battle.
+
+Character stats has a repeatable Upgrade option below the Artifact slot. Each purchase costs 1,000 gold and shows its class bonus and current upgrade count. Upgrades are permanent and save per character, stack with artifacts, and update combat stats and speed timing. Changes during battle apply to the next resolved battle.
+
+Character skill descriptions show active damage formulas such as (40 + current ATK) or (20 + current Magic). Passive and non-damaging skill effects keep their configured values.
+
+All non-battle canvas screens share ResponsiveCanvasFrame. Short windows scale the canvas and matching native controls together, with scrolling for content that needs more space. Nested screens inherit scaling to avoid shrinking twice. The six-slot team remains horizontal and scrolls on narrow windows; character roster pagination reserves space for navigation. Room controls have extra vertical space on narrow screens. Stats, shop, inventory, and creation retain scrolling access to all controls.

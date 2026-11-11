@@ -1,4 +1,5 @@
 "use client";
+import { ResponsiveCanvasFrame } from "./responsive-canvas-frame";
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
@@ -49,7 +50,7 @@ export function RoomMenu({ onClose }: { onClose: () => void }) {
     return () => observer.disconnect();
   }, [focus, error, remove.isPending]);
 
-  return <div id="room-menu" role="dialog" aria-modal="true" aria-label="Room menu" className="absolute inset-0 z-30" onKeyDown={(event) => {
+  return <ResponsiveCanvasFrame><div id="room-menu" role="dialog" aria-modal="true" aria-label="Room menu" className="absolute inset-0 z-30" onKeyDown={(event) => {
     if (event.key === "Escape") { event.preventDefault(); event.stopPropagation(); if (!remove.isPending) onClose(); }
     if (event.key === "Tab") {
       const controls = Array.from(event.currentTarget.querySelectorAll<HTMLElement>("button:not(:disabled), a[href]"));
@@ -66,5 +67,5 @@ export function RoomMenu({ onClose }: { onClose: () => void }) {
       <p className="sr-only">Removes your character and returns to character creation. Your sign-in is kept.</p>
       {error && <p role="alert" className="sr-only">{error}</p>}
     </div>
-  </div>;
+  </div></ResponsiveCanvasFrame>;
 }

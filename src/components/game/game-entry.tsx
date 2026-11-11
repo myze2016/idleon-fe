@@ -40,5 +40,6 @@ export function GameEntry() {
     <p role="alert">{failure?.message}</p><Button onClick={() => { if (session.error) void session.refetch(); else void character.refetch(); }}>Try again</Button><Link href="/dashboard" className="text-sm underline">Back to dashboard</Link>
   </div>;
   if (!character.data?.character) return <CharacterCreation pending={create.isPending} error={create.error?.message} onCreate={(input) => create.mutate(input)} />;
-  return <GameStoreProvider key={userId}><GameScene character={character.data.character} characters={character.data.characters} gold={character.data.gold} progression={character.data.progression} /></GameStoreProvider>;
+  const savedTeam = Array.from({ length: 6 }, (_, index) => character.data.characters.find((member) => member.id === character.data.teamSlots?.[index]) ?? null);
+  return <GameStoreProvider key={userId} initialTeam={savedTeam}><GameScene character={character.data.character} characters={character.data.characters} gold={character.data.gold} progression={character.data.progression} /></GameStoreProvider>;
 }

@@ -19,9 +19,10 @@ export interface CharacterStats {
 }
 export interface ActionTiming { attackInterval: number; baseSpellCastTime: number; spellCastTime: number }
 export interface CharacterSkill { id: string; name: string; description: string; passive: boolean; mpCost: number; hpCost: number; baseCastTime: number; cooldown: number; unlocked: boolean }
-export interface Character { name: string; weapon: WeaponType; id?: string; isStarter?: boolean; stats?: CharacterStats; skill2Unlocked?: boolean; timing?: ActionTiming; skills?: CharacterSkill[] }
+export interface CharacterUpgrade { stat: Exclude<keyof CharacterStats, "range">; label: string; amount: number; cost: number }
+export interface Character { name: string; weapon: WeaponType; id?: string; isStarter?: boolean; stats?: CharacterStats; baseStats?: CharacterStats; artifactId?: string | null; upgradeLevel?: number; upgrade?: CharacterUpgrade | null; skill2Unlocked?: boolean; timing?: ActionTiming; skills?: CharacterSkill[] }
 export interface AccountProgress { level: number; totalExp: number; exp: number; expToNextLevel: number }
-export interface CharacterState { character: Character | null; characters: Character[]; wishCurrency: number; gold: number; progression: AccountProgress }
+export interface CharacterState { character: Character | null; characters: Character[]; artifacts: import("./artifact").Artifact[]; teamSlots: (string | null)[]; wishCurrency: number; gold: number; progression: AccountProgress }
 
 export function weaponDetails(id: WeaponType) {
   return weapons.find((weapon) => weapon.id === id)!;

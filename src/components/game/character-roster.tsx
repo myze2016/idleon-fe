@@ -1,4 +1,6 @@
 "use client";
+import { ResponsiveCanvasFrame } from "./responsive-canvas-frame";
+import { drawCharacter } from "./character-design";
 
 import { useEffect, useRef, useState } from "react";
 import { weaponDetails, type Character } from "@/lib/character";
@@ -50,7 +52,7 @@ export function CharacterRoster({ characters, onClose, onSelect, selectionLabel 
       text(selectionMode ? "Choose character" : "Characters", 24, 48, "600 28px system-ui", "#f1ebce", width - 110);
       text(selectionLabel ?? `${characters.length} owned character${characters.length === 1 ? "" : "s"}`, 24, 75, "13px system-ui", "#c1cda9", width - 48);
       const gap = 16, cardWidth = Math.min(260, (width - 48 - (columns - 1) * gap) / columns);
-      const cardHeight = Math.min(264, Math.max(140, height - 160));
+      const cardHeight = Math.min(264, Math.max(140, height - 188));
       const start = safePage * perPage;
       setCards(characters.slice(start, start + perPage).map((_, i) => ({
         x: 24 + i % columns * (cardWidth + gap), y: 108 + Math.floor(i / columns) * 280,
@@ -61,22 +63,15 @@ export function CharacterRoster({ characters, onClose, onSelect, selectionLabel 
         const starter = character.isStarter ?? start + i === 0;
         box(x, y, cardWidth, cardHeight, "#163a30", focus === `character-${start + i}` ? "#ffffff" : starter ? "#d2c58b" : "#708360");
         text(starter ? "FREE STARTER" : "OWNED", x + 14, y + 25, "600 10px system-ui", "#e4d895");
-        const avatarScale = Math.min(2.5, (cardHeight - 90) / 50);
+        const avatarScale = Math.min(2.5, (cardHeight - 110) / 72);
         ctx.save(); ctx.translate(x + cardWidth / 2, y + cardHeight - 70); ctx.scale(avatarScale, avatarScale);
-        ctx.fillStyle = "#0c201c77"; ctx.beginPath(); ctx.ellipse(0, 4, 17, 4, 0, 0, Math.PI * 2); ctx.fill();
-        ctx.fillStyle = "#243c34"; ctx.fillRect(-11, -10, 8, 10); ctx.fillRect(3, -10, 8, 10);
-        ctx.fillStyle = "#cda367"; ctx.fillRect(-12, -27, 24, 19);
-        ctx.fillStyle = "#efce9f"; ctx.fillRect(-9, -42, 18, 17);
-        ctx.fillStyle = "#35654d"; ctx.fillRect(-13, -45, 26, 7); ctx.fillRect(-16, -39, 32, 4);
-        ctx.fillStyle = "#233b33"; ctx.fillRect(5, -32, 3, 3);
-        ctx.translate(12, -30); ctx.scale(0.5, 0.5); ctx.strokeStyle = "#f0e8c9"; ctx.lineWidth = 3; ctx.lineCap = "round"; ctx.lineJoin = "round";
-        ctx.stroke(new Path2D(weaponDetails(character.weapon).path)); ctx.restore();
+        drawCharacter(ctx, character.weapon); ctx.restore();
         text(character.name, x + 14, y + cardHeight - 35, "600 18px system-ui", "#f1ebce", cardWidth - 28);
         text(weaponDetails(character.weapon).label, x + 14, y + cardHeight - 14, "12px system-ui", "#c1cda9", cardWidth - 28);
       });
       box(width - 64, 16, 48, 48, "#163a30", focus === "close" ? "#fff" : "#708360");
       ctx.strokeStyle = "#f1ebce"; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(width - 47, 33); ctx.lineTo(width - 33, 47); ctx.moveTo(width - 33, 33); ctx.lineTo(width - 47, 47); ctx.stroke();
-      text(selectionMode ? "Choose a character to place in this slot." : "Select a character to view base stats.", 24, height - 24, "12px system-ui", "#c1cda9", width - 48);
+      text(characters.length > perPage ? `Page ${safePage + 1}/${Math.ceil(characters.length / perPage)}` : selectionMode ? "Choose a character to place in this slot." : "Select a character to view stats.", 24, height - 24, "12px system-ui", "#c1cda9", characters.length > perPage ? Math.max(40, width - 244) : width - 48);
       if (characters.length > perPage) {
         box(width - 196, height - 62, 80, 44, "#163a30", focus === "previous" ? "#fff" : "#708360");
         box(width - 104, height - 62, 80, 44, "#163a30", focus === "next" ? "#fff" : "#708360");
@@ -89,7 +84,7 @@ export function CharacterRoster({ characters, onClose, onSelect, selectionLabel 
 
   if (inspected) return <CharacterStatsScreen character={inspected} onClose={() => setInspected(null)} />;
 
-  return <div role="dialog" aria-modal="true" aria-label={selectionMode ? "Choose a team character" : "Your characters"} className="absolute inset-0 z-30 bg-[#102e29]" onKeyDown={(event) => {
+  return <ResponsiveCanvasFrame minHeight={400}><div role="dialog" aria-modal="true" aria-label={selectionMode ? "Choose a team character" : "Your characters"} className="absolute inset-0 z-30 bg-[#102e29]" onKeyDown={(event) => {
     if (event.key === "Escape") { event.preventDefault(); event.stopPropagation(); onClose(); }
     if (event.key === "Tab") {
       const buttons = Array.from(event.currentTarget.querySelectorAll<HTMLButtonElement>("button:not(:disabled)"));
@@ -106,5 +101,5 @@ export function CharacterRoster({ characters, onClose, onSelect, selectionLabel 
       <button type="button" disabled={currentPage === 0} onClick={() => setPage(currentPage - 1)} onFocus={() => setFocus("previous")} onBlur={() => setFocus("")} className="absolute right-[116px] bottom-[18px] h-11 w-20 cursor-pointer rounded-xl outline-none disabled:cursor-default"><span className="sr-only">Previous page</span></button>
       <button type="button" disabled={currentPage === pages - 1} onClick={() => setPage(currentPage + 1)} onFocus={() => setFocus("next")} onBlur={() => setFocus("")} className="absolute right-6 bottom-[18px] h-11 w-20 cursor-pointer rounded-xl outline-none disabled:cursor-default"><span className="sr-only">Next page</span></button>
     </>}
-  </div>;
+  </div></ResponsiveCanvasFrame>;
 }

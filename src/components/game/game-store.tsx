@@ -12,8 +12,8 @@ interface GameState {
   assignCharacter: (slot: number, character: Character) => void;
   isPaused: boolean;
   isMapOpen: boolean;
-  activePanel: "character" | "wish" | "team" | null;
-  togglePanel: (panel: "character" | "wish" | "team") => void;
+  activePanel: "character" | "wish" | "team" | "shop" | "artifacts" | null;
+  togglePanel: (panel: "character" | "wish" | "team" | "shop" | "artifacts") => void;
   selectedLocation: "meadow" | "forest";
   selectLocation: (location: "meadow" | "forest") => void;
   togglePause: () => void;
@@ -21,7 +21,7 @@ interface GameState {
   startRoom: () => void;
 }
 
-function createGameStore() {
+function createGameStore(initialTeam: (Character | null)[]) {
   return createStore<GameState>()((set) => ({
     isExploring: false,
     startExploring: (starter) => set((state) => ({
@@ -29,7 +29,7 @@ function createGameStore() {
       teamSlots: state.teamSlots.some(Boolean) ? state.teamSlots : [starter, null, null, null, null, null],
     })),
     returnToRoom: () => set({ isExploring: false, isPaused: false, isMapOpen: false, activePanel: null }),
-    teamSlots: Array.from({ length: 6 }, () => null),
+    teamSlots: initialTeam,
     assignCharacter: (slot, character) => set((state) => {
       if (!Number.isInteger(slot) || slot < 0 || slot >= 6) return {};
       return { teamSlots: state.teamSlots.map((member, index) => index === slot ? character
@@ -49,8 +49,8 @@ function createGameStore() {
 
 const GameContext = createContext<ReturnType<typeof createGameStore> | null>(null);
 
-export function GameStoreProvider({ children }: { children: ReactNode }) {
-  const [store] = useState(createGameStore);
+export function GameStoreProvider({ children, initialTeam }: { children: ReactNode; initialTeam: (Character | null)[] }) {
+  const [store] = useState(() => createGameStore(initialTeam));
   return <GameContext.Provider value={store}>{children}</GameContext.Provider>;
 }
 

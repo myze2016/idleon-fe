@@ -1,6 +1,9 @@
 "use client";
+import { ResponsiveCanvasFrame } from "./responsive-canvas-frame";
+import { drawCharacter } from "./character-design";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
+import { roomToolbarLayout } from "./room-toolbar-layout";
 import { useGameState, useGameStoreApi } from "./game-store";
 import { weaponDetails, type Character, type AccountProgress } from "@/lib/character";
 import { WorldMap } from "./world-map";
@@ -8,11 +11,13 @@ import { CharacterRoster } from "./character-roster";
 import { TeamScreen } from "./team-screen";
 import { RoomMenu } from "./room-menu";
 import { WishScreen } from "./wish-screen";
+import { CollectionPanel } from "./collection-panel";
 
 const movementKeys = new Set(["KeyA", "KeyD", "KeyW", "KeyS", "ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown"]);
 
 export function RoomCanvas({ character, characters, gold, progression }: { character: Character; characters: Character[]; gold: number; progression: AccountProgress }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const [toolbar, setToolbar] = useState(() => roomToolbarLayout(960));
   const store = useGameStoreApi();
   const menuOpen = useGameState((state) => state.isPaused);
   const mapOpen = useGameState((state) => state.isMapOpen);
@@ -32,7 +37,7 @@ export function RoomCanvas({ character, characters, gold, progression }: { chara
     if (!store.getState().isPaused) canvasRef.current?.focus({ preventScroll: true });
   }
 
-  function togglePanel(panel: "character" | "wish" | "team") {
+  function togglePanel(panel: "character" | "wish" | "team" | "shop" | "artifacts") {
     input.current.clear(); destination.current = null;
     store.getState().togglePanel(panel);
     if (!store.getState().activePanel) canvasRef.current?.focus({ preventScroll: true });
@@ -49,12 +54,13 @@ export function RoomCanvas({ character, characters, gold, progression }: { chara
     const canvas = canvasRef.current;
     const ctx = canvas?.getContext("2d");
     if (!canvas || !ctx) return;
-    const weapon = new Path2D(weaponDetails(character.weapon).path);
+
     const player = { x: 0.5, y: 0.7, facing: 1 };
     let width = 0, height = 0, ratio = 1, last = 0, frame = 0;
     function resize() {
       if (!canvas) return;
       width = canvas.clientWidth; height = canvas.clientHeight;
+      setToolbar(roomToolbarLayout(width));
       ratio = Math.min(window.devicePixelRatio || 1, 2);
       canvas.width = Math.round(width * ratio); canvas.height = Math.round(height * ratio);
     }
@@ -140,22 +146,15 @@ export function RoomCanvas({ character, characters, gold, progression }: { chara
       const px = player.x * width, py = player.y * height;
       const avatarScale = Math.max(1, Math.min(2, Math.min(width, height) / 320));
       ctx.save(); ctx.translate(px, py); ctx.scale(avatarScale, avatarScale);
-      ctx.fillStyle = "#1d241d44"; ctx.beginPath(); ctx.ellipse(0, 3, 18, 5, 0, 0, Math.PI * 2); ctx.fill();
-      box(-11, -10, 8, 10, "#243c34"); box(3, -10, 8, 10, "#243c34");
-      box(-12, -27, 24, 19, "#cda367"); box(-9, -42, 18, 17, "#efce9f");
-      box(-13, -45, 26, 7, "#35654d"); box(-16, -39, 32, 4, "#35654d");
-      box(player.facing > 0 ? 5 : -7, -32, 3, 3, "#233b33");
-      ctx.translate(player.facing * 12, -30); ctx.scale(player.facing * 0.5, 0.5);
-      ctx.strokeStyle = "#f0e8c9"; ctx.lineWidth = 3; ctx.lineCap = "round"; ctx.lineJoin = "round"; ctx.stroke(weapon);
-      ctx.restore();
-
+      drawCharacter(ctx, character.weapon, { facing: player.facing }); ctx.restore();
       // HUD is rendered in screen coordinates, keeping both corners anchored on resize.
-      const hudY = width < 640 ? 90 : 16;
-      const compact = width < 640;
-      const nameWidth = Math.max(70, Math.min(300, width - (compact ? 32 : 424)));
+      const controls = roomToolbarLayout(width);
+      const nameWidth = Math.max(70, Math.min(300, width >= 950 ? controls[0].x - 32 : width - 32));
       box(16, 16, nameWidth, 62, "#102c26e8", "#708360", 10);
       text(character.name, 30, 42, "600 17px system-ui", "#f1ebce", nameWidth - 28);
       text(weaponDetails(character.weapon).label, 30, 62, "12px system-ui", "#c1cda9", nameWidth - 28);
+      box(16, 86, nameWidth, 32, "#e4d895", "#b8a76d", 8);
+      text("Id-leon City", 30, 107, "600 12px system-ui", "#19392d", nameWidth - 28);
       const progress = progressionRef.current;
       const progressWidth = Math.max(100, Math.min(200, width - 176));
       box(16, height - 126, progressWidth, 110, "#102c26ed", "#b8a76d", 10);
@@ -164,19 +163,10 @@ export function RoomCanvas({ character, characters, gold, progression }: { chara
       text(`EXP: ${progress.exp}/${progress.expToNextLevel}`, 30, height - 52, "12px system-ui", "#c1cda9", progressWidth - 28);
       box(30, height - 38, progressWidth - 28, 6, "#365642", undefined, 3);
       if (progress.exp > 0) box(30, height - 38, (progressWidth - 28) * progress.exp / progress.expToNextLevel, 6, "#d7c981", undefined, 3);
-      const menuWidth = compact ? 64 : 88;
-      box(width - menuWidth - 16, hudY, menuWidth, 46, "#102c26e8", focus.current === "menu" ? "#fff0b8" : "#708360", 10);
-      ctx.textAlign = "center";
-      text(store.getState().isPaused ? "Close" : "Menu", width - 16 - menuWidth / 2, hudY + 29, "600 14px system-ui", "#f1ebce");
-      ctx.textAlign = "left";
-      for (const action of [
-        { id: "character", label: "Character", right: compact ? 220 : 288, width: compact ? 84 : 104 },
-        { id: "team", label: "Team", right: compact ? 152 : 200, width: compact ? 60 : 80 },
-        { id: "wish", label: "Wish", right: compact ? 88 : 112, width: compact ? 56 : 80 },
-      ] as const) {
-        const x = width - action.right - action.width;
-        box(x, hudY, action.width, 46, "#102c26e8", focus.current === action.id || store.getState().activePanel === action.id ? "#fff0b8" : "#708360", 10);
-        ctx.textAlign = "center"; text(action.label, x + action.width / 2, hudY + 29, "600 14px system-ui", "#f1ebce"); ctx.textAlign = "left";
+      for (const control of controls) {
+        const label = control.id === "menu" && store.getState().isPaused ? "Close" : control.label;
+        box(control.x, control.y, control.width, control.height, "#102c26e8", focus.current === control.id || store.getState().activePanel === control.id ? "#fff0b8" : "#708360", 10);
+        ctx.textAlign = "center"; text(label, control.x + control.width / 2, control.y + 29, `600 ${control.width < 90 ? 12 : 14}px system-ui`, "#f1ebce"); ctx.textAlign = "left";
       }
       box(width - 144, height - 160, 128, 48, "#102c26ed", focus.current === "map" || store.getState().isMapOpen ? "#fff0b8" : "#708360", 10);
       box(width - 144, height - 108, 128, 28, "#102c26ed", undefined, 6);
@@ -197,7 +187,7 @@ export function RoomCanvas({ character, characters, gold, progression }: { chara
     };
   }, [character, store]);
 
-  return <div className="relative h-full w-full overflow-hidden bg-[#193d35]">
+  return <ResponsiveCanvasFrame overlay={false} minHeight={420} narrowMinHeight={520}><div className="relative h-full w-full overflow-hidden bg-[#193d35]">
     <div inert={menuOpen || mapOpen || activePanel !== null} className="h-full w-full">
     <canvas ref={canvasRef} tabIndex={0} aria-label={`${character.name}'s room`} aria-describedby="room-controls" className="block h-full w-full touch-none outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[#dbe4ad]" onPointerDown={(event) => {
       if (store.getState().isPaused || store.getState().isMapOpen || store.getState().activePanel) return;
@@ -213,20 +203,18 @@ export function RoomCanvas({ character, characters, gold, progression }: { chara
       }
     }}>Your browser needs canvas support to display your room.</canvas>
     <p id="room-controls" className="sr-only">Move with WASD or arrow keys, or click or tap the floor to walk. Open Menu to pause. Press Escape to close the menu.</p>
-    <p className="sr-only">{character.name}, {weaponDetails(character.weapon).label}</p>
+    <p className="sr-only">{character.name}, {weaponDetails(character.weapon).label}. Room location: Id-leon City.</p>
     <p role="status" className="sr-only">Account level {progression.level}. EXP {progression.exp} of {progression.expToNextLevel}. Total EXP {progression.totalExp}. Gold {gold}.</p>
     <p role="status" className="sr-only">Selected location: {selectedLocation === "meadow" ? "Meadow" : "Forest"}</p>
     <button type="button" aria-label="Map" aria-expanded={mapOpen} onClick={() => roomAction("map")} onFocus={() => { focus.current = "map"; }} onBlur={() => { focus.current = ""; }} className="absolute right-4 bottom-[112px] h-12 w-32 cursor-pointer rounded-[10px] outline-none"><span className="sr-only">Map</span></button>
     <button type="button" onClick={() => store.getState().startExploring(characters.find((member) => member.isStarter) ?? character)} onFocus={() => { focus.current = "start"; }} onBlur={() => { focus.current = ""; }} className="absolute right-4 bottom-4 h-[52px] w-32 cursor-pointer rounded-[10px] outline-none"><span className="sr-only">Start</span></button>
-    <button type="button" aria-label="Character" aria-expanded={activePanel === "character"} onClick={() => togglePanel("character")} onFocus={() => { focus.current = "character"; }} onBlur={() => { focus.current = ""; }} className="absolute top-[90px] right-[220px] h-[46px] w-[84px] cursor-pointer rounded-[10px] outline-none sm:top-4 sm:right-[288px] sm:w-[104px]"><span className="sr-only">Character</span></button>
-    <button type="button" aria-label="Team" aria-expanded={activePanel === "team"} onClick={() => togglePanel("team")} onFocus={() => { focus.current = "team"; }} onBlur={() => { focus.current = ""; }} className="absolute top-[90px] right-[152px] h-[46px] w-[60px] cursor-pointer rounded-[10px] outline-none sm:top-4 sm:right-[200px] sm:w-20"><span className="sr-only">Team</span></button>
-    <button type="button" aria-label="Wish" aria-expanded={activePanel === "wish"} onClick={() => togglePanel("wish")} onFocus={() => { focus.current = "wish"; }} onBlur={() => { focus.current = ""; }} className="absolute top-[90px] right-[88px] h-[46px] w-14 cursor-pointer rounded-[10px] outline-none sm:top-4 sm:right-[112px] sm:w-20"><span className="sr-only">Wish</span></button>
-    <button type="button" aria-label={menuOpen ? "Close room menu" : "Open room menu"} aria-expanded={menuOpen} aria-controls="room-menu" onClick={toggleMenu} onFocus={() => { focus.current = "menu"; }} onBlur={() => { focus.current = ""; }} className="absolute top-[90px] right-4 h-[46px] w-16 cursor-pointer rounded-[10px] outline-none sm:top-4 sm:w-[88px]"><span className="sr-only">{menuOpen ? "Close" : "Menu"}</span></button>
+    {toolbar.map((control) => <button key={control.id} type="button" aria-label={control.label} aria-expanded={control.id === "menu" ? menuOpen : activePanel === control.id} onClick={() => control.id === "menu" ? toggleMenu() : togglePanel(control.id)} onFocus={() => { focus.current = control.id; }} onBlur={() => { focus.current = ""; }} className="absolute cursor-pointer rounded-[10px] outline-none" style={{ left: control.x, top: control.y, width: control.width, height: control.height }}><span className="sr-only">{control.label}</span></button>)}
     </div>
     {mapOpen && <WorldMap onClose={() => roomAction("start")} />}
     {menuOpen && <RoomMenu onClose={() => roomAction("start")} />}
     {activePanel === "character" && <CharacterRoster characters={characters} onClose={() => roomAction("start")} />}
     {activePanel === "team" && <TeamScreen characters={characters} onClose={() => roomAction("start")} />}
     {activePanel === "wish" && <WishScreen onClose={() => roomAction("start")} />}
-  </div>;
+    {(activePanel === "shop" || activePanel === "artifacts") && <CollectionPanel title={activePanel === "shop" ? "Shop" : "Artifacts"} onClose={() => roomAction("start")} />}
+  </div></ResponsiveCanvasFrame>;
 }
