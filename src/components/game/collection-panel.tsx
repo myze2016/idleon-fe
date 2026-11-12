@@ -5,7 +5,7 @@ import { X } from "lucide-react";
 import { ResponsiveCanvasFrame } from "./responsive-canvas-frame";
 import { useSession } from "@/lib/auth";
 import { useArtifactAction, useCharacter } from "@/lib/character-api";
-import { artifactCatalog, artifactDetails, artifactBonus } from "@/lib/artifact";
+import { artifactCatalog, artifactDetails, artifactBonus, artifactStatText } from "@/lib/artifact";
 
 export function CollectionPanel({ title, onClose, characterId }: { title: "Shop" | "Artifacts"; onClose: () => void; characterId?: string }) {
   const closeRef = useRef<HTMLButtonElement>(null), busy = useRef(false);
@@ -57,7 +57,7 @@ export function CollectionPanel({ title, onClose, characterId }: { title: "Shop"
           <div className="flex items-center gap-4">
             <span aria-hidden="true" className="size-8 shrink-0 rotate-45 rounded-sm" style={{ backgroundColor: item.color }} />
             <div className="min-w-0"><h3 className="font-semibold">{item.name}{item.enhancementLevel > 0 ? ` · Enhance +${item.enhancementLevel}` : ""}</h3>
-              <p className="mt-1 text-sm" style={{ color: item.color }}>+{artifactBonus(item.enhancementLevel)} {item.label}</p>
+              <p className="mt-1 text-sm" style={{ color: item.color }}>{artifactStatText(item.stat, item.enhancementLevel)}</p>
               <p className="mt-1 text-xs text-[#c1cda9]">{title === "Shop" ? `Owned: ${owned}` : owner ? `Equipped: ${owner.name}${equipped ? " · Selected" : ""}` : "Not equipped"}</p>
             </div>
           </div>
@@ -65,7 +65,7 @@ export function CollectionPanel({ title, onClose, characterId }: { title: "Shop"
             {title === "Shop" ? <button type="button" className={buttonClass} disabled={action.isPending || gold < 500} onClick={() => perform({ stat: item.stat }, `${item.name} purchased.`)} aria-label={`Buy ${item.name} for 500 gold`}>Buy · 500 gold</button> : <>
               {characterId && <button type="button" className={buttonClass} disabled={action.isPending || equipped || (!!item.characterId && item.characterId !== characterId)} onClick={() => perform({ characterId, artifactId: item.id }, "Artifact equipment saved.")} aria-label={`Equip ${item.name}`}>{equipped ? "Equipped" : "Equip"}</button>}
               <button type="button" className={buttonClass} disabled={action.isPending || gold < 1000} onClick={() => perform({ enhanceId: item.id }, `${item.name} enhanced! +${artifactBonus(item.enhancementLevel + 1)} ${item.label}.`)} aria-label={`Enhance ${item.name} for 1,000 gold`}>{enhancing ? "Enhancing…" : "Enhance · 1,000 gold"}</button>
-              <span className="text-xs text-[#c1cda9]">Next: +{artifactBonus(item.enhancementLevel + 1)} {item.label}</span>
+              <span className="text-xs text-[#c1cda9]">Next: {artifactStatText(item.stat, item.enhancementLevel + 1)}</span>
             </>}
           </div>
           {gold < (title === "Shop" ? 500 : 1000) && <p className="mt-2 text-xs text-[#e4d895]">Need {((title === "Shop" ? 500 : 1000) - gold).toLocaleString()} more gold to {title === "Shop" ? "buy" : "enhance"}.</p>}

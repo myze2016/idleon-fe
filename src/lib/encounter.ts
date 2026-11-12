@@ -19,7 +19,7 @@ export interface BattleStep {
   teamCasting?: ({ name: string; startedAt: number; endsAt: number } | null)[];
   enemyIndex?: number; enemyHps?: number[];
 }
-export interface BattleResult { enemies?: EnemyEncounter[]; deepSeaFloor?: number; deepSeaJustUnlocked?: boolean; deepSeaProgress?: { defeated: number; target: number }; garnalandUnlocked?: boolean; garnalandJustUnlocked?: boolean; questItemsEarned?: import("./character").QuestItem[]; won: boolean; steps: BattleStep[]; goldEarned: number; gold: number; expEarned: number; progression: AccountProgress;
+export interface BattleResult { artifactsEarned?: (import("./artifact").Artifact & { name: string })[]; enemies?: EnemyEncounter[]; deepSeaFloor?: number; deepSeaJustUnlocked?: boolean; deepSeaProgress?: { defeated: number; target: number }; garnalandUnlocked?: boolean; garnalandJustUnlocked?: boolean; questItemsEarned?: import("./character").QuestItem[]; won: boolean; steps: BattleStep[]; goldEarned: number; gold: number; expEarned: number; progression: AccountProgress;
   wishEarned?: number; wishCurrency?: number; enemyHps?: number[]; meadowProgress?: { defeated: number; target: number | null };
   levelsGained?: number;
   initialTeamHp?: number[]; initialTeamMp?: number[]; teamHp?: number[]; teamMp?: number[];

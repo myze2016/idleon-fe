@@ -568,6 +568,7 @@ export function ExpeditionCanvas({ location, team, gold, characterName, characte
           if (foe.battle.garnalandJustUnlocked) text("Garnaland unlocked!", width * 0.5, height * 0.42, "600 22px system-ui", "#e4d895", width * 0.6);
           text(`+${foe.battle.goldEarned} gold · +${foe.battle.expEarned} EXP`, x, ground - 88 * size, "600 18px system-ui", "#f0d68a", width * 0.55);
           if (foe.battle.questItemsEarned?.length) text(`Obtained: ${foe.battle.questItemsEarned.map((item) => item.name).join(", ")}`, x, ground - 122 * size, "600 16px system-ui", "#a9e5ed", width * 0.65);
+          if (foe.battle.artifactsEarned?.length) text(`Obtained: ${foe.battle.artifactsEarned.map((item) => item.name).join(", ")}`, x, ground - 140 * size, "600 16px system-ui", "#79d8d5", width * 0.65);
           if (foe.battle.wishEarned) text(`Level up! Lv.${foe.battle.progression.level} · +${foe.battle.wishEarned} wish`, x, ground - 104 * size, "600 17px system-ui", "#f0d68a", width * 0.55);
         }
         ctx.textAlign = "left";

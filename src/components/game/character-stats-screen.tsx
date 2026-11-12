@@ -6,7 +6,7 @@ import { weaponDetails, type Character } from "@/lib/character";
 import { useSession } from "@/lib/auth";
 import { useCharacter, useUnlockSkill2, useUpgradeCharacter } from "@/lib/character-api";
 import { CollectionPanel } from "./collection-panel";
-import { artifactDetails, artifactBonus } from "@/lib/artifact";
+import { artifactDetails, artifactStatText } from "@/lib/artifact";
 
 export function CharacterStatsScreen({ character: initialCharacter, onClose }: { character: Character; onClose: () => void }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -100,7 +100,7 @@ export function CharacterStatsScreen({ character: initialCharacter, onClose }: {
       text(error ?? (!unlocked && gold < 1000 ? `Need ${(1000 - gold).toLocaleString()} more gold to unlock Skill 2.` : "Available skills are used automatically during combat."), left, 854, "12px system-ui", error ? "#ffcebb" : "#c1cda9", area);
       ctx.beginPath(); ctx.roundRect(left, 880, area, 66, 8); ctx.fillStyle = "#14372e"; ctx.fill(); ctx.strokeStyle = focused === "artifact" ? "#fff0b8" : "#708360"; ctx.stroke();
       text("Artifact · Select to equip or unequip", left + 12, 903, "600 14px system-ui", "#e4d895", area - 24);
-      text(equipped ? `${artifactDetails(equipped.stat).name} · +${artifactBonus(equipped.enhancementLevel)} ${artifactDetails(equipped.stat).label}` : "Empty · Buy artifacts in the Shop", left + 12, 927, "13px system-ui", "#c1cda9", area - 24);
+      text(equipped ? `${artifactDetails(equipped.stat).name} · ${artifactStatText(equipped.stat, equipped.enhancementLevel)}` : "Empty · Buy artifacts in the Shop", left + 12, 927, "13px system-ui", "#c1cda9", area - 24);
       text(`Character upgrades: ${character.upgradeLevel ?? 0}`, left, 974, "600 15px system-ui", "#e4d895", area);
       text(upgradeDefinition ? `Each upgrade: +${upgradeDefinition.amount} ${upgradeDefinition.label}. Permanent and repeatable.` : "Upgrades are not available for this class yet.", left, 995, "12px system-ui", "#c1cda9", area);
       ctx.beginPath(); ctx.roundRect(buttonX, 1010, buttonWidth, 44, 8); ctx.fillStyle = canUpgrade ? "#e4d895" : "#365642"; ctx.fill(); ctx.strokeStyle = focused === "upgrade" ? "#fff" : "#8f9c72"; ctx.stroke();
