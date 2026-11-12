@@ -93,12 +93,17 @@ devices to open `http://<server-PC-private-IPv4>:3020/login`. Set
 PvP in the room opens a two-player lobby: create/join a room, choose 1–6 owned
 characters each, and press Ready. Uneven teams such as 6v1 are allowed. Use room
 team copies your saved formation; click roster cards to add/remove characters.
-Both ready starts a shared five-second countdown. Teams walk toward each other
-in the expedition-style battlefield, then fight automatically with health/mana
+Both ready starts a shared five-second countdown with teams at opposite ends.
+Once it ends, melee units advance into reach while ranged units can attack from
+farther away. The expedition-style battlefield plays server-saved movement,
+with health/mana
 bars, attack animations, projectiles, and skill effects. Fallen units disappear.
 Use `player2` / `Player123!` for the second account after the
 backend seed; create its starter on first login. Use separate devices or incognito
 for separate sessions. PvP preserves PvE progress and grants no rewards.
+After a battle, Return to PvP room reopens the same custom room with both players
+and their team selections. Both must ready again for a rematch. Use the close
+button to leave PvP for your personal room.
 
 ## Getting Started
 

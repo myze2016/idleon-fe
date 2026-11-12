@@ -33,7 +33,7 @@ export function PvpPanel({ onClose }: { onClose: () => void }) {
   const serverTime = data ? Date.parse(data.serverNow) + Math.max(0, now - room.dataUpdatedAt) : now;
   const elapsed = data?.startsAt ? (serverTime - Date.parse(data.startsAt)) / 1000 : -5;
   const steps = data?.result?.steps.filter((step) => step.at <= elapsed) ?? [];
-  const recent = steps.filter((step) => step.kind !== "mana").slice(-8).reverse();
+  const recent = steps.filter((step) => !["mana", "move"].includes(step.kind)).slice(-8).reverse();
   const fighters = data?.result?.fighters ?? data?.players.flatMap((player) => player?.fighters ?? []) ?? [];
   const busy = action.isPending || leave.isPending;
   const button = "cursor-pointer rounded-lg border border-[#b8a76d] bg-[#e4d895] px-4 py-2 text-sm font-semibold text-[#17392e] outline-none focus-visible:ring-2 focus-visible:ring-[#fff0b8] disabled:cursor-not-allowed disabled:opacity-50";
@@ -70,7 +70,7 @@ export function PvpPanel({ onClose }: { onClose: () => void }) {
           <button type="button" disabled={busy || entry.isMine} className={button} onClick={() => action.mutate({ path: `/pvp/${entry.code}/join` })}>Join room</button>
         </li>)}</ul> : <p className="text-sm text-[#c1cda9]">No open rooms yet. Create one for the other player to join.</p>}
       </> : room.isPending ? <p role="status">Opening room…</p> : data && <>
-        <div className="flex flex-wrap items-center justify-between gap-3"><p>Room: <strong className="font-mono text-[#e4d895]">{code}</strong></p><span role="status" className="text-sm text-[#a9d4ff]">{data.phase === "waiting" ? "Choose your team and ready up" : data.phase === "countdown" ? "Teams approaching · Countdown" : data.phase === "battle" ? "Battle in progress" : data.phase === "complete" ? "Battle complete" : "This room has ended"}</span></div>
+        <div className="flex flex-wrap items-center justify-between gap-3"><p>Room: <strong className="font-mono text-[#e4d895]">{code}</strong></p><span role="status" className="text-sm text-[#a9d4ff]">{data.phase === "waiting" ? "Choose your team and ready up" : data.phase === "countdown" ? "Starting positions · Countdown" : data.phase === "battle" ? "Battle in progress" : data.phase === "complete" ? "Battle complete" : "This room has ended"}</span></div>
         <div className="grid grid-cols-2 gap-3">{data.players.map((player, side) => <div key={side} className="min-w-0 rounded-xl border border-[#708360] bg-[#163a30] p-3 text-center">
           <h3 className="truncate font-semibold">{player ? `${player.name}${player.id === userId ? " (You)" : ""}` : "Waiting for player…"}</h3>
           <p className="mt-1 text-xs text-[#e4d895]">{player ? `${player.selectedCount ?? player.fighters.length} / 6 characters · ${player.ready ? "Ready" : "Choosing team"}` : "Share the room code"}</p>
@@ -96,11 +96,11 @@ export function PvpPanel({ onClose }: { onClose: () => void }) {
             </button>;
           })}</div> : <p className="text-sm text-[#c1cda9]">Create your starter character first.</p>}
           <button type="button" disabled={busy || !selected.length} className={button} onClick={() => action.mutate({ path: `/pvp/${code}/ready`, body: { ready: !me?.ready } })}>{me?.ready ? "Unready" : "Ready"}</button>
-          <p className="text-xs text-[#c1cda9]">Both players must be ready. Teams meet during the shared five-second countdown, then battle automatically. Opponent selections are hidden until both are ready.</p>
+          <p className="text-xs text-[#c1cda9]">Both players must be ready. Teams start at opposite ends after the five-second countdown. Ranged attacks reach farther; melee characters must close the gap. Opponent selections are hidden until both are ready.</p>
         </>}
-        {data.phase === "complete" && <div role="status" className="rounded-xl border border-[#b8a76d] bg-[#294a40] p-5 text-center"><p className="text-2xl font-semibold text-[#e4d895]">{data.result?.winnerId ? data.result.winnerId === userId ? "Victory!" : "Defeat" : "Draw"}</p><p className="mt-2 text-sm text-[#c1cda9]">PvE health, mana, gold, and progression are unchanged.</p><button type="button" disabled={busy} className={`${button} mt-4`} onClick={() => leave.mutate()}>Return to room</button></div>}
+        {data.phase === "complete" && <div role="status" className="rounded-xl border border-[#b8a76d] bg-[#294a40] p-5 text-center"><p className="text-2xl font-semibold text-[#e4d895]">{data.result?.winnerId ? data.result.winnerId === userId ? "Victory!" : "Defeat" : "Draw"}</p><p className="mt-2 text-sm text-[#c1cda9]">PvE health, mana, gold, and progression are unchanged.</p><button type="button" disabled={busy} className={`${button} mt-4`} onClick={() => action.mutate({ path: `/pvp/${code}/return` })}>Return to PvP room</button></div>}
         {["canceled", "closed", "expired"].includes(data.phase) && <p className="rounded-xl border border-[#708360] p-4 text-sm">The room was closed, canceled, or expired. Return to the room to start another match.</p>}
-        {!!recent.length && <ol className="space-y-1 rounded-xl border border-[#708360] bg-[#102e29] p-4 text-xs">{recent.map((step, index) => <li key={`${step.at}-${index}`} className={step.critical ? "text-[#c58aff]" : step.kind === "skill" ? "text-[#69b7ff]" : "text-[#c1cda9]"}>{step.at.toFixed(1)}s · {fighters[step.actor]?.name ?? data.players[step.side]?.name}: {step.label}{step.damage ? ` · −${step.damage} HP` : ""}{step.healing ? ` · +${step.healing} HP` : ""}</li>)}</ol>}
+        {!!fighters.length && <ol aria-label="PvP battle log" tabIndex={0} className="h-[clamp(8rem,22dvh,12rem)] space-y-1 overflow-y-auto overscroll-contain rounded-xl border border-[#708360] bg-[#102e29] p-4 text-xs break-words [scrollbar-gutter:stable] focus-visible:outline-2 focus-visible:outline-[#fff0b8]">{recent.length ? recent.map((step, index) => <li key={`${step.at}-${index}`} className={step.critical ? "text-[#c58aff]" : step.kind === "skill" ? "text-[#69b7ff]" : "text-[#c1cda9]"}>{step.at.toFixed(1)}s · {fighters[step.actor]?.name ?? data.players[step.side]?.name}: {step.label}{step.damage ? ` · −${step.damage} HP` : ""}{step.healing ? ` · +${step.healing} HP` : ""}</li>) : <li className="text-[#c1cda9]">Waiting for battle to begin…</li>}</ol>}
       </>}
     </div>
   </div></ResponsiveCanvasFrame>;

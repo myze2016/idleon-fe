@@ -20,8 +20,6 @@ export function PvpBattleCanvas(props: { fighters: DuelFighter[]; steps: DuelSte
       if (!ctx || !canvas) return;
       const state = current.current;
       const elapsed = state.elapsed + (state.playing ? Math.max(0, time - state.updatedAt) / 1000 : 0);
-      const approach = Math.max(0, Math.min(1, (elapsed + 5) / 3));
-      const walking = elapsed < -2;
       const ratio = Math.min(window.devicePixelRatio || 1, 2);
       if (canvas.width !== width * ratio || canvas.height !== height * ratio) { canvas.width = width * ratio; canvas.height = height * ratio; }
       ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
@@ -46,10 +44,17 @@ export function PvpBattleCanvas(props: { fighters: DuelFighter[]; steps: DuelSte
       for (let i = 0; i < 45; i++) ctx.fillRect(i * 29 % width, ground + 26 + i % 4 * 20, 9, 2);
       const steps = state.steps.filter((step) => step.at <= elapsed);
       const last = steps.at(-1);
+      const next = state.steps.find((step) => step.at > elapsed);
+      const blend = next ? Math.max(0, Math.min(1, (elapsed - (last?.at ?? 0)) / Math.max(0.001, next.at - (last?.at ?? 0)))) : 0;
+      const moving: boolean[] = [];
       const positions = state.fighters.map((fighter, index) => {
         const team = fighter.userId === state.hostId ? 0 : 1;
         const slot = state.fighters.slice(0, index).filter((other) => other.userId === fighter.userId).length;
-        return (team === 0 ? 520 - slot * 76 : 680 + slot * 76) + (team === 0 ? -470 : 470) * (1 - approach);
+        const count = state.fighters.filter((other) => other.userId === fighter.userId).length;
+        const start = fighter.startX ?? (team === 0 ? 60 + (count - 1 - slot) * 64 : 1140 - (count - 1 - slot) * 64);
+        const from = last?.x?.[index] ?? start, to = next?.x?.[index] ?? from;
+        moving[index] = elapsed >= 0 && Math.abs(to - from) > 0.01;
+        return elapsed < 0 ? start : from + (to - from) * blend;
       });
       ctx.textAlign = "center";
       for (let index = 0; index < state.fighters.length; index++) {
@@ -60,6 +65,7 @@ export function PvpBattleCanvas(props: { fighters: DuelFighter[]; steps: DuelSte
         const age = attack ? elapsed - attack.at : Infinity;
         const swing = age < 0.45 ? Math.sin(Math.max(0, age) / 0.45 * Math.PI) : 0;
         const x = positions[index] + (fighter.stats.range === "melee" ? direction * swing * 14 : 0);
+        const walking = moving[index];
         ctx.save(); ctx.translate(x, ground - (walking ? Math.abs(Math.sin(time / 130 + index)) * 3 : 0)); ctx.scale(1.05, 1.05);
         drawCharacter(ctx, fighter.weapon, { facing: direction, stride: walking ? Math.sin(time / 115 + index) : 0, swing }); ctx.restore();
         ctx.font = "600 11px system-ui"; ctx.fillStyle = "#17392e"; ctx.fillText(fighter.name, x, ground - 95, 72);
@@ -69,10 +75,10 @@ export function PvpBattleCanvas(props: { fighters: DuelFighter[]; steps: DuelSte
         ctx.fillStyle = "#73bdf0"; ctx.fillRect(x - 31, ground - 76, fighter.stats.mp ? 62 * mp / fighter.stats.mp : 0, 2);
         ctx.fillStyle = "#f4f0d2"; ctx.fillText(`${hp}/${fighter.stats.hp}`, x, ground + 29);
         ctx.fillStyle = "#b9ddf0"; ctx.fillText(`${mp} MP`, x, ground + 44);
-        const cast = steps.findLast((step) => step.actor === index && step.kind !== "mana");
+        const cast = steps.findLast((step) => step.actor === index && !["mana", "move"].includes(step.kind));
         if (cast?.kind === "cast" && elapsed - cast.at < 5) { ctx.fillStyle = "#3d4586"; ctx.fillText(cast.label.replace("Casting ", ""), x, ground - 108, 76); }
       }
-      for (const step of steps.filter((entry) => entry.kind !== "mana" && elapsed - entry.at < 0.9)) {
+      for (const step of steps.filter((entry) => !["mana", "move"].includes(entry.kind) && elapsed - entry.at < 0.9)) {
         const actor = step.actor ?? step.side, fighter = state.fighters[actor];
         if (!fighter) continue;
         for (const target of step.targets?.length ? step.targets : [actor]) {
@@ -84,12 +90,12 @@ export function PvpBattleCanvas(props: { fighters: DuelFighter[]; steps: DuelSte
         }
       }
       if (elapsed < 0) {
-        ctx.fillStyle = "#17392e"; ctx.font = "700 32px system-ui"; ctx.fillText(walking ? "Teams approaching" : "Get ready!", width / 2, 70);
+        ctx.fillStyle = "#17392e"; ctx.font = "700 32px system-ui"; ctx.fillText("Get ready!", width / 2, 70);
         ctx.font = "700 52px system-ui"; ctx.fillText(String(Math.max(1, Math.ceil(-elapsed))), width / 2, 135);
       }
       frame = requestAnimationFrame(draw);
     }
     frame = requestAnimationFrame(draw); return () => cancelAnimationFrame(frame);
   }, []);
-  return <div className="overflow-x-auto rounded-xl border border-[#708360]"><canvas ref={ref} width={1200} height={420} role="img" aria-label="Both PvP teams approach from opposite sides and fight automatically. Health and mana bars appear above every living character." className="block h-auto w-full min-w-[760px]" /></div>;
+  return <div className="overflow-x-auto rounded-xl border border-[#708360]"><canvas ref={ref} width={1200} height={420} role="img" aria-label="PvP teams start at opposite ends. Ranged units attack from a distance while melee units advance into reach. Health and mana bars appear above every living character." className="block h-auto w-full min-w-[760px]" /></div>;
 }
