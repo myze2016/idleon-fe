@@ -12,7 +12,7 @@ export class ApiError extends Error {
 export async function api<T>(path: string, options: RequestInit = {}): Promise<T> {
   let response: Response;
   try {
-    response = await fetch(`${process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000/api"}${path}`, {
+    response = await fetch(`${process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8020/api"}${path}`, {
       ...options,
       credentials: "include",
       cache: "no-store",

@@ -8,10 +8,11 @@ export interface CombatEffect {
 export function drawCombatEffect(ctx: CanvasRenderingContext2D, effect: CombatEffect, age: number,
   ground: number, scale: number, memberX: (id: string) => number | undefined) {
   const { step, source, target, weapon, ranged } = effect;
+  if (step.kind === "mana") return;
   const p = Math.min(1, age / 0.4), fade = Math.max(0, 1 - age / 0.9);
   const y = ground - 30 * scale, label = step.label ?? "";
-  const fire = /Fireball|Inferno/.test(label), support = step.kind === "heal" || step.kind === "buff";
-  const color = fire ? "#ff9b49" : step.kind === "poison" ? "#9be56b" : support ? step.kind === "heal" ? "#8fffb5" : "#cfadff" : "#fff0b8";
+  const fire = /Fireball|Inferno|Burn All/.test(label), support = step.kind === "heal" || step.kind === "buff";
+  const color = /Freeze/.test(label) ? "#8fdbff" : fire ? "#ff9b49" : step.kind === "bleed" ? "#ef7e89" : step.kind === "poison" ? "#9be56b" : support ? step.kind === "heal" ? "#8fffb5" : "#cfadff" : "#fff0b8";
   ctx.save(); ctx.globalAlpha = fade; ctx.lineCap = "round";
   function line(x1: number, y1: number, x2: number, y2: number, width = 3) {
     ctx.strokeStyle = color; ctx.lineWidth = width; ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.stroke();
@@ -19,7 +20,10 @@ export function drawCombatEffect(ctx: CanvasRenderingContext2D, effect: CombatEf
   function ring(x: number, radius: number) {
     ctx.strokeStyle = color; ctx.lineWidth = 2; ctx.beginPath(); ctx.ellipse(x, ground - 5, radius, radius * 0.35, 0, 0, Math.PI * 2); ctx.stroke();
   }
-  if (support || step.kind === "cast") {
+  if (support && step.actor === "enemy") {
+    ring(source, (15 + p * 22) * scale);
+    if (step.healing) { ctx.fillStyle = "#8fffb5"; ctx.font = "600 14px system-ui"; ctx.fillText(`+${step.healing}`, source, y - 24 - age * 20); }
+  } else if (support || step.kind === "cast") {
     const recipients = support ? step.targetIds ?? [step.characterId] : [step.characterId];
     for (const id of recipients) {
       const x = memberX(id); if (x === undefined) continue;
@@ -39,7 +43,7 @@ export function drawCombatEffect(ctx: CanvasRenderingContext2D, effect: CombatEf
   } else if (step.kind === "block") {
     ctx.strokeStyle = "#a8e6ff"; ctx.lineWidth = 5;
     ctx.beginPath(); ctx.arc(target, y, (22 + p * 6) * scale, -1.4, 1.4); ctx.stroke();
-  } else if (step.kind === "poison") {
+  } else if (step.kind === "poison" || step.kind === "bleed") {
     for (let i = 0; i < 5; i++) { ctx.fillStyle = color; ctx.beginPath(); ctx.arc(target + Math.sin(i * 4) * 17 * scale, y - p * 30 * scale + i * 5, 3 * scale, 0, Math.PI * 2); ctx.fill(); }
   } else if (/Shackle/.test(label)) {
     if (p < 1) {
@@ -55,7 +59,18 @@ export function drawCombatEffect(ctx: CanvasRenderingContext2D, effect: CombatEf
         const x = source + (target - source) * p, direction = Math.sign(target - source) || 1;
         const py = y - (weapon === "bow" || step.actor === "enemy" ? Math.sin(p * Math.PI) * 25 : 0);
         ctx.shadowColor = color; ctx.shadowBlur = fire ? 18 : 5;
-        if (step.actor === "enemy") {
+        if (step.actor === "team" && weapon === "glaive") {
+          ctx.save(); ctx.translate(x, py); ctx.rotate(age * 24 * direction); ctx.scale(scale, scale);
+          ctx.fillStyle = "#dce5e6"; ctx.strokeStyle = "#48656a"; ctx.lineWidth = 1.5;
+          ctx.beginPath();
+          for (let point = 0; point < 8; point++) {
+            const angle = point * Math.PI / 4, radius = point % 2 ? 4 : 14;
+            const sx = Math.cos(angle) * radius, sy = Math.sin(angle) * radius;
+            if (!point) ctx.moveTo(sx, sy); else ctx.lineTo(sx, sy);
+          }
+          ctx.closePath(); ctx.fill(); ctx.stroke();
+          ctx.fillStyle = "#48656a"; ctx.beginPath(); ctx.arc(0, 0, 2.5, 0, Math.PI * 2); ctx.fill(); ctx.restore();
+        } else if (step.actor === "enemy") {
           ctx.fillStyle = "#d8c29a"; ctx.beginPath(); ctx.arc(x, py, 5 * scale, 0, Math.PI * 2); ctx.fill();
           line(x - direction * 16 * scale, py + 3, x - direction * 6 * scale, py, 2);
         } else if (fire) { ctx.fillStyle = "#ffcf6b"; ctx.beginPath(); ctx.arc(x, py, 9 * scale, 0, Math.PI * 2); ctx.fill(); line(x - direction * 28 * scale, py, x, py, 6); }
@@ -75,7 +90,7 @@ export function drawCombatEffect(ctx: CanvasRenderingContext2D, effect: CombatEf
     }
   }
   if (step.damage) {
-    ctx.textAlign = "center"; ctx.font = `700 ${step.critical ? 21 : 16}px system-ui`; ctx.fillStyle = color;
+    ctx.textAlign = "center"; ctx.font = `700 ${step.critical ? 21 : 16}px system-ui`; ctx.fillStyle = step.critical ? "#c58aff" : step.kind === "skill" ? "#69b7ff" : color;
     ctx.fillText(step.healing ? `+${step.healing}` : `${step.critical ? "CRIT " : ""}-${step.damage}`, target, y - (35 + age * 28) * scale);
   }
   ctx.restore();

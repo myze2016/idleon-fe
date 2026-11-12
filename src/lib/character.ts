@@ -12,7 +12,12 @@ export const weapons = [
   { id: "dual-knife", label: "Dual knife", description: "Quick and elusive.", path: "M10 8l17 16-6 13-8-8ZM8 35l17 5m-9-3-3 16M54 8 37 24l6 13 8-8ZM56 35l-17 5m9-3 3 16" },
 ] as const;
 
-export type WeaponType = typeof weapons[number]["id"];
+export const specialWeapons = [
+  { id: "glaive", label: "Shuriken", description: "Kent · A bouncing throwing star that strikes multiple foes.", path: "M32 5 38 24 59 20 42 34 53 53 34 43 20 59 24 38 5 32 25 26ZM29 29h6v6h-6Z" },
+  { id: "ice-staff", label: "Ice staff", description: "Juan · Freezes enemies with ice magic.", path: "M30 58V23M30 4 43 15 30 28 17 15ZM17 15h26M30 4v24" },
+  { id: "dual-axe", label: "Dual axe", description: "Jeffrey · Relentless strikes leave stacking bleeds.", path: "M8 55 23 8M11 13 5 30l18 5 9-18ZM56 55 41 8M53 13l6 17-18 5-9-18Z" },
+] as const;
+export type WeaponType = typeof weapons[number]["id"] | typeof specialWeapons[number]["id"];
 export interface CharacterStats {
   hp: number; mp: number; atk: number; def: number;
   magic: number; magicDef: number; speed: number; range: "melee" | "range";
@@ -22,8 +27,10 @@ export interface CharacterSkill { id: string; name: string; description: string;
 export interface CharacterUpgrade { stat: Exclude<keyof CharacterStats, "range">; label: string; amount: number; cost: number }
 export interface Character { name: string; weapon: WeaponType; id?: string; isStarter?: boolean; stats?: CharacterStats; baseStats?: CharacterStats; artifactId?: string | null; upgradeLevel?: number; upgrade?: CharacterUpgrade | null; skill2Unlocked?: boolean; timing?: ActionTiming; skills?: CharacterSkill[] }
 export interface AccountProgress { level: number; totalExp: number; exp: number; expToNextLevel: number }
-export interface CharacterState { character: Character | null; characters: Character[]; artifacts: import("./artifact").Artifact[]; teamSlots: (string | null)[]; wishCurrency: number; gold: number; progression: AccountProgress }
+export interface QuestItem { id: string; name: string; description: string; quantity: 1 }
+
+export interface CharacterState { deepSeaFloor: number; deepSeaMothUnlocked: boolean; garnalandUnlocked: boolean; questItems: QuestItem[]; character: Character | null; characters: Character[]; artifacts: import("./artifact").Artifact[]; teamSlots: (string | null)[]; wishCurrency: number; gold: number; progression: AccountProgress }
 
 export function weaponDetails(id: WeaponType) {
-  return weapons.find((weapon) => weapon.id === id)!;
+  return [...weapons, ...specialWeapons].find((weapon) => weapon.id === id)!;
 }

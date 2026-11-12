@@ -7,5 +7,6 @@ export const artifactCatalog = [
   { stat: "magicDef", name: "Ward Rune", label: "Magic DEF", color: "#83d1c4" },
   { stat: "speed", name: "Wind Feather", label: "Speed", color: "#cae19c" },
 ] as const;
-export interface Artifact { id: string; stat: typeof artifactCatalog[number]["stat"]; characterId: string | null }
+export interface Artifact { id: string; stat: typeof artifactCatalog[number]["stat"]; characterId: string | null; enhancementLevel: number }
+export const artifactBonus = (level = 0) => 5 + level * 2;
 export const artifactDetails = (stat: string) => artifactCatalog.find((item) => item.stat === stat)!;

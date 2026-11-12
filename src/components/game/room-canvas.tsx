@@ -12,6 +12,8 @@ import { TeamScreen } from "./team-screen";
 import { RoomMenu } from "./room-menu";
 import { WishScreen } from "./wish-screen";
 import { CollectionPanel } from "./collection-panel";
+import { InventoryPanel } from "./inventory-panel";
+import { WikiPanel } from "./wiki-panel";
 
 const movementKeys = new Set(["KeyA", "KeyD", "KeyW", "KeyS", "ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown"]);
 
@@ -37,7 +39,7 @@ export function RoomCanvas({ character, characters, gold, progression }: { chara
     if (!store.getState().isPaused) canvasRef.current?.focus({ preventScroll: true });
   }
 
-  function togglePanel(panel: "character" | "wish" | "team" | "shop" | "artifacts") {
+  function togglePanel(panel: "character" | "wish" | "team" | "shop" | "artifacts" | "inventory" | "wiki") {
     input.current.clear(); destination.current = null;
     store.getState().togglePanel(panel);
     if (!store.getState().activePanel) canvasRef.current?.focus({ preventScroll: true });
@@ -149,20 +151,22 @@ export function RoomCanvas({ character, characters, gold, progression }: { chara
       drawCharacter(ctx, character.weapon, { facing: player.facing }); ctx.restore();
       // HUD is rendered in screen coordinates, keeping both corners anchored on resize.
       const controls = roomToolbarLayout(width);
-      const nameWidth = Math.max(70, Math.min(300, width >= 950 ? controls[0].x - 32 : width - 32));
+      const nameWidth = Math.max(70, Math.min(300, width >= 1060 ? controls[0].x - 32 : width - 32));
       box(16, 16, nameWidth, 62, "#102c26e8", "#708360", 10);
       text(character.name, 30, 42, "600 17px system-ui", "#f1ebce", nameWidth - 28);
       text(weaponDetails(character.weapon).label, 30, 62, "12px system-ui", "#c1cda9", nameWidth - 28);
       box(16, 86, nameWidth, 32, "#e4d895", "#b8a76d", 8);
       text("Id-leon City", 30, 107, "600 12px system-ui", "#19392d", nameWidth - 28);
       const progress = progressionRef.current;
-      const progressWidth = Math.max(100, Math.min(200, width - 176));
+      const progressWidth = Math.max(100, Math.min(200, width - 232));
+      ctx.save(); ctx.translate(56, 0);
       box(16, height - 126, progressWidth, 110, "#102c26ed", "#b8a76d", 10);
       text(`Gold: ${goldRef.current}`, 30, height - 100, "600 15px system-ui", "#e4d895", progressWidth - 28);
       text(`Account Lv. ${progress.level}`, 30, height - 76, "600 14px system-ui", "#f1ebce", progressWidth - 28);
       text(`EXP: ${progress.exp}/${progress.expToNextLevel}`, 30, height - 52, "12px system-ui", "#c1cda9", progressWidth - 28);
       box(30, height - 38, progressWidth - 28, 6, "#365642", undefined, 3);
       if (progress.exp > 0) box(30, height - 38, (progressWidth - 28) * progress.exp / progress.expToNextLevel, 6, "#d7c981", undefined, 3);
+      ctx.restore();
       for (const control of controls) {
         const label = control.id === "menu" && store.getState().isPaused ? "Close" : control.label;
         box(control.x, control.y, control.width, control.height, "#102c26e8", focus.current === control.id || store.getState().activePanel === control.id ? "#fff0b8" : "#708360", 10);
@@ -173,7 +177,7 @@ export function RoomCanvas({ character, characters, gold, progression }: { chara
       box(width - 144, height - 68, 128, 52, "#e4d895", focus.current === "start" ? "#ffffff" : "#b8a76d", 10);
       ctx.textAlign = "center";
       text("Map", width - 80, height - 130, "600 15px system-ui", "#f1ebce");
-      text(store.getState().selectedLocation === "meadow" ? "Meadow" : "Forest", width - 80, height - 89, "600 12px system-ui", "#dbe4ad");
+      text(({ meadow: "Meadow", forest: "Forest", harbor: "Harbor", tourney: "Zugwangs Battle Tourney", deepsea: "DeepSea Moot", "deepsea-2f": "DeepSea Moot 2F", "deepsea-palace": "DeepSea Moot Royal Palace" })[store.getState().selectedLocation], width - 80, height - 89, "600 12px system-ui", "#dbe4ad");
       text("Start", width - 80, height - 35, "700 17px system-ui", "#19392d");
       ctx.textAlign = "left";
       frame = requestAnimationFrame(draw);
@@ -205,7 +209,7 @@ export function RoomCanvas({ character, characters, gold, progression }: { chara
     <p id="room-controls" className="sr-only">Move with WASD or arrow keys, or click or tap the floor to walk. Open Menu to pause. Press Escape to close the menu.</p>
     <p className="sr-only">{character.name}, {weaponDetails(character.weapon).label}. Room location: Id-leon City.</p>
     <p role="status" className="sr-only">Account level {progression.level}. EXP {progression.exp} of {progression.expToNextLevel}. Total EXP {progression.totalExp}. Gold {gold}.</p>
-    <p role="status" className="sr-only">Selected location: {selectedLocation === "meadow" ? "Meadow" : "Forest"}</p>
+    <p role="status" className="sr-only">Selected location: {({ meadow: "Meadow", forest: "Forest", harbor: "Harbor", tourney: "Zugwangs Battle Tourney", deepsea: "DeepSea Moot", "deepsea-2f": "DeepSea Moot 2F", "deepsea-palace": "DeepSea Moot Royal Palace" })[selectedLocation]}</p>
     <button type="button" aria-label="Map" aria-expanded={mapOpen} onClick={() => roomAction("map")} onFocus={() => { focus.current = "map"; }} onBlur={() => { focus.current = ""; }} className="absolute right-4 bottom-[112px] h-12 w-32 cursor-pointer rounded-[10px] outline-none"><span className="sr-only">Map</span></button>
     <button type="button" onClick={() => store.getState().startExploring(characters.find((member) => member.isStarter) ?? character)} onFocus={() => { focus.current = "start"; }} onBlur={() => { focus.current = ""; }} className="absolute right-4 bottom-4 h-[52px] w-32 cursor-pointer rounded-[10px] outline-none"><span className="sr-only">Start</span></button>
     {toolbar.map((control) => <button key={control.id} type="button" aria-label={control.label} aria-expanded={control.id === "menu" ? menuOpen : activePanel === control.id} onClick={() => control.id === "menu" ? toggleMenu() : togglePanel(control.id)} onFocus={() => { focus.current = control.id; }} onBlur={() => { focus.current = ""; }} className="absolute cursor-pointer rounded-[10px] outline-none" style={{ left: control.x, top: control.y, width: control.width, height: control.height }}><span className="sr-only">{control.label}</span></button>)}
@@ -214,6 +218,8 @@ export function RoomCanvas({ character, characters, gold, progression }: { chara
     {menuOpen && <RoomMenu onClose={() => roomAction("start")} />}
     {activePanel === "character" && <CharacterRoster characters={characters} onClose={() => roomAction("start")} />}
     {activePanel === "team" && <TeamScreen characters={characters} onClose={() => roomAction("start")} />}
+    {activePanel === "wiki" && <WikiPanel onClose={() => roomAction("start")} />}
+    {activePanel === "inventory" && <InventoryPanel onClose={() => roomAction("start")} />}
     {activePanel === "wish" && <WishScreen onClose={() => roomAction("start")} />}
     {(activePanel === "shop" || activePanel === "artifacts") && <CollectionPanel title={activePanel === "shop" ? "Shop" : "Artifacts"} onClose={() => roomAction("start")} />}
   </div></ResponsiveCanvasFrame>;

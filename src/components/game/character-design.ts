@@ -1,6 +1,9 @@
 import { weaponDetails, type WeaponType } from "@/lib/character";
 
 const looks: Record<WeaponType, { coat: string; trim: string; hair: string; skin: string }> = {
+  glaive: { coat: "#426b68", trim: "#ddca83", hair: "#6d4230", skin: "#dab08a" },
+  "ice-staff": { coat: "#416b9b", trim: "#ade7f0", hair: "#dbe7f4", skin: "#c99879" },
+  "dual-axe": { coat: "#743e49", trim: "#cdad7b", hair: "#342a33", skin: "#a97759" },
   "sword-and-shield": { coat: "#829db3", trim: "#e9ca79", hair: "#664838", skin: "#dba982" },
   bow: { coat: "#447357", trim: "#c6dc8c", hair: "#a5673c", skin: "#ecc39d" },
   wand: { coat: "#e9e4d5", trim: "#67c9bf", hair: "#e6c779", skin: "#a77258" },
@@ -19,8 +22,8 @@ const paths = new Map<WeaponType, Path2D>();
 export function drawCharacter(ctx: CanvasRenderingContext2D, weapon: WeaponType,
   { stride = 0, swing = 0, facing = 1 }: { stride?: number; swing?: number; facing?: number } = {}) {
   const style = looks[weapon];
-  const robe = ["wand", "staff", "book"].includes(weapon);
-  const heavy = ["sword-and-shield", "great-sword", "axe"].includes(weapon);
+  const robe = ["wand", "staff", "book", "ice-staff"].includes(weapon);
+  const heavy = ["sword-and-shield", "great-sword", "axe", "dual-axe"].includes(weapon);
   const rect = (x: number, y: number, w: number, h: number, color: string) => { ctx.fillStyle = color; ctx.fillRect(x, y, w, h); };
   const shape = (points: number[][], color: string) => {
     ctx.fillStyle = color; ctx.beginPath(); points.forEach(([x, y], i) => i ? ctx.lineTo(x, y) : ctx.moveTo(x, y)); ctx.closePath(); ctx.fill();
@@ -53,15 +56,20 @@ export function drawCharacter(ctx: CanvasRenderingContext2D, weapon: WeaponType,
     case "wand":
       rect(-11, -51, 24, 5, "#f7f0d6"); rect(-3, -55, 7, 8, style.trim); rect(-1, -54, 3, 6, "#f7f0d6");
       rect(-8, -35, 17, 6, "#fbf5df"); break;
+    case "ice-staff":
     case "staff":
       shape([[-17, -47], [-4, -71], [8, -52], [16, -47]], style.coat); rect(-19, -48, 38, 5, style.trim);
       rect(-8, -33, 17, 7, "#e5dce7"); rect(-5, -27, 10, 4, "#e5dce7"); break;
     case "book":
       rect(-12, -54, 26, 6, style.coat); rect(-16, -56, 34, 3, style.trim); rect(10, -54, 2, 15, style.trim);
       ctx.strokeStyle = style.trim; ctx.lineWidth = 1.5; ctx.strokeRect(-2, -43, 7, 6); ctx.strokeRect(7, -43, 7, 6); break;
+    case "glaive":
+      rect(-12, -50, 25, 5, style.coat); rect(-13, -46, 28, 3, style.trim);
+      shape([[-12, -47], [-25, -41], [-23, -36], [-10, -43]], style.trim); break;
     case "spear":
       rect(-12, -53, 24, 8, "#9ab4b9"); shape([[-5, -53], [-1, -67], [6, -53]], "#c85a4f");
       rect(-12, -34, 25, 5, style.trim); break;
+    case "dual-axe":
     case "axe":
       rect(-12, -52, 25, 7, "#655b53"); shape([[-12, -50], [-23, -58], [-20, -45], [-12, -42]], style.trim);
       shape([[12, -50], [23, -58], [20, -45], [12, -42]], style.trim);
@@ -87,6 +95,6 @@ export function drawCharacter(ctx: CanvasRenderingContext2D, weapon: WeaponType,
   let path = paths.get(weapon); if (!path) { path = new Path2D(weaponDetails(weapon).path); paths.set(weapon, path); }
   ctx.translate(2, -14); ctx.scale(0.55, 0.55);
   ctx.strokeStyle = "#1c2736"; ctx.lineWidth = 7; ctx.stroke(path);
-  ctx.strokeStyle = ["wand", "staff", "book"].includes(weapon) ? style.trim : "#dce5e6"; ctx.lineWidth = 3.5; ctx.stroke(path);
+  ctx.strokeStyle = ["wand", "staff", "book", "ice-staff"].includes(weapon) ? style.trim : "#dce5e6"; ctx.lineWidth = 3.5; ctx.stroke(path);
   ctx.restore(); ctx.restore();
 }

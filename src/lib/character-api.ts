@@ -17,7 +17,8 @@ export function useUpgradeCharacter(userId?: string) {
 export function useArtifactAction(userId?: string) {
   const client = useQueryClient();
   return useMutation({
-    mutationFn: (input: { stat: string } | { characterId: string; artifactId: string | null }) => "stat" in input
+    mutationFn: (input: { stat: string } | { enhanceId: string } | { characterId: string; artifactId: string | null }) => "enhanceId" in input
+      ? api<CharacterState>(`/character/artifacts/${encodeURIComponent(input.enhanceId)}/enhance`, { method: "POST" }) : "stat" in input
       ? api<CharacterState>("/character/artifacts/buy", { method: "POST", body: JSON.stringify(input) })
       : api<CharacterState>(`/character/${encodeURIComponent(input.characterId)}/artifact`, { method: "POST", body: JSON.stringify({ artifactId: input.artifactId }) }),
     onSuccess: async (state) => { await client.cancelQueries({ queryKey: characterKey(userId) }); client.setQueryData(characterKey(userId), state); },
@@ -49,7 +50,8 @@ export function useDeleteCharacter(userId?: string) {
     mutationFn: () => api<void>("/character", { method: "DELETE" }),
     onSuccess: async () => {
       await client.cancelQueries({ queryKey });
-      client.setQueryData(queryKey, { character: null, characters: [], artifacts: [], teamSlots: [null, null, null, null, null, null], wishCurrency: 0, gold: 0, progression: { level: 1, totalExp: 0, exp: 0, expToNextLevel: 10 } });
+      const previous = client.getQueryData<CharacterState>(queryKey);
+      client.setQueryData(queryKey, { deepSeaFloor: previous?.deepSeaFloor ?? 1, deepSeaMothUnlocked: previous?.deepSeaMothUnlocked ?? false, garnalandUnlocked: previous?.garnalandUnlocked ?? false, questItems: previous?.questItems ?? [], character: null, characters: [], artifacts: [], teamSlots: [null, null, null, null, null, null], wishCurrency: 0, gold: 0, progression: { level: 1, totalExp: 0, exp: 0, expToNextLevel: 10 } });
     },
   });
 }
@@ -79,11 +81,11 @@ export function useCreateCharacter(userId?: string) {
   });
 }
 
-export function useWish(userId?: string) {
+export function useWish(userId?: string, pool: "normal" | "special" = "normal") {
   const client = useQueryClient();
   const queryKey = characterKey(userId);
   return useMutation({
-    mutationFn: () => api<CharacterState & { reward: Character }>("/character/wish", { method: "POST" }),
+    mutationFn: () => api<CharacterState & { reward: Character }>(pool === "special" ? "/character/wish/special" : "/character/wish", { method: "POST" }),
     onSuccess: async (state) => {
       await client.cancelQueries({ queryKey });
       client.setQueryData(queryKey, state);

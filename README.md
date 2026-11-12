@@ -46,10 +46,10 @@ Multiple monsters can approach or wait on screen. Ready monsters fight in groups
 after the current battle finishes; each has its own HP and attack timing, and
 Inferno hits all living enemies in the group. The canvas removes defeated groups.
 Meadow shows progress toward a saved random 38–45-monster boss threshold. Mutant
-Boar is drawn larger with a Boss label and awards 40 gold.
+Boar is drawn larger with a Boss label and awards 80 gold.
 Defeating the boss starts a new cycle; returning to the room resets both location counters to zero and rolls fresh boss targets on the next expedition.
 Forest has its own independent 38–45-kill boss cycle and progress indicator.
-Coco Klan Chief has 500 HP, 40 ATK, 10 DEF, ranged attacks, and rewards 10 gold.
+Coco Klan Chief has 500 HP, 40 ATK, 10 DEF, ranged attacks, and rewards 20 gold.
 Its larger crowned sprite uses ranged attack effects. Neither boss directly grants wishes.
 
 Every defeated monster also awards 1 account EXP. The room shows account level,
@@ -60,7 +60,7 @@ Progression belongs to the account and is shared
 by the whole roster; wishing and changing the team do not reset it.
 
 Wish opens a full-screen canvas with the database balance and reward result.
-Creating a starter grants 1 wish currency; each wish costs 100 and adds a random
+Creating a starter grants 100 wish currency; each wish costs 100 and adds a random
 weapon-type character to the saved roster. Character and Team both use the full
 owned roster. Wishes exclude types already owned, including the starter. The Wish
 screen shows collection progress and disables wishing once all 11 types are owned.
@@ -68,7 +68,7 @@ Team assignments identify characters by database ID.
 Selecting a card in Character opens its full-screen canvas base-stat view. In the
 team picker, selecting a card still assigns it directly to the chosen slot.
 The stats screen also shows Attack (Melee/Ranged), Skill 1, and Skill 2 with actual
-descriptions, resource costs, casting times, and cooldowns. Skill 2 can be unlocked for that character using 10,000 account gold;
+descriptions, resource costs, casting times, and cooldowns. Skill 2 can be unlocked for that character using 1,000 account gold;
 the updated gold balance and unlock status are saved on the backend. The details
 canvas scrolls on shorter screens to keep all stats and abilities accessible.
 Attack and spell timing is shown in seconds. Speed reduces both using
@@ -79,11 +79,11 @@ skill labels, poison, healing, blocks, projectiles, and critical-hit text. Buffs
 stuns, passives, and resource consumption are resolved by the backend.
 
 Run `npm.cmd run dev` here and in `../idleon-be` in separate terminals.
-Visit http://localhost:3000/login. Development account: `admin` / `Admin123!`.
+Visit http://localhost:3020/login. Development account: `admin` / `Admin123!`.
 Successful login opens `/game` directly. New players see character creation drawn
 on the canvas; saved characters enter their room immediately. The name field and keyboard
 controls use native accessible inputs over the canvas. `/dashboard` remains available.
-The API URL defaults to http://localhost:8000/api. Set `NEXT_PUBLIC_API_URL` in
+The API URL defaults to http://localhost:8020/api. Set `NEXT_PUBLIC_API_URL` in
 `.env.local` if needed (see `.env.example`). Use `localhost` for both applications.
 
 ## Getting Started
@@ -100,7 +100,7 @@ pnpm dev
 bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open [http://localhost:3020](http://localhost:3020) with your browser to see the result.
 
 You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
 
@@ -123,7 +123,7 @@ Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/bui
 
 Team assignments save to the database before updating the displayed slot. All six slots restore when reopening the game or logging back in, and returning to the room preserves the saved formation. Failed saves show an error and allow retrying the character selection.
 
-Shop lists seven +5 stat artifacts, each priced at 1,000 gold. Purchased copies appear in Artifacts with their equipment status. Open Character, select a character, then select its Artifact slot to equip, replace, or unequip one owned copy. Each character has one slot; each copy can equip one character. Inventory and equipment persist in the database. Character stats include artifact bonuses; battle HUD updates without resetting expedition progress. Equipment changes apply to the next resolved battle.
+Shop lists seven +5 stat artifacts, each priced at 500 gold. Purchased copies appear in Artifacts with their equipment status. Open Character, select a character, then select its Artifact slot to equip, replace, or unequip one owned copy. Each character has one slot; each copy can equip one character. Inventory and equipment persist in the database. Character stats include artifact bonuses; battle HUD updates without resetting expedition progress. Equipment changes apply to the next resolved battle.
 
 Character stats has a repeatable Upgrade option below the Artifact slot. Each purchase costs 1,000 gold and shows its class bonus and current upgrade count. Upgrades are permanent and save per character, stack with artifacts, and update combat stats and speed timing. Changes during battle apply to the next resolved battle.
 
