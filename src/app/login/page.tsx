@@ -5,17 +5,21 @@ import { useRouter } from "next/navigation";
 import { ArrowRight, Eye, EyeOff, LoaderCircle, Sprout, ShieldCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { useLogin, useSession } from "@/lib/auth";
+import { useLogin, useRegister, useSession } from "@/lib/auth";
 
 export default function LoginPage() {
   const router = useRouter();
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [visible, setVisible] = useState(false);
+  const [registering, setRegistering] = useState(false);
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [formError, setFormError] = useState("");
   const session = useSession();
   const login = useLogin();
-  const pending = login.isPending;
-  const error = login.error?.message ?? "";
+  const register = useRegister();
+  const pending = login.isPending || register.isPending;
+  const error = formError || (registering ? register.error?.message : login.error?.message) || "";
 
   useEffect(() => {
     if (session.data) router.replace("/game");
@@ -23,6 +27,12 @@ export default function LoginPage() {
 
   function signIn(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    setFormError("");
+    if (registering) {
+      if (password !== confirmPassword) { setFormError("Passwords do not match"); return; }
+      register.mutate({ username, password, confirmPassword }, { onSuccess: () => router.replace("/game") });
+      return;
+    }
     login.mutate({ username, password }, { onSuccess: () => router.replace("/game") });
   }
   return <main className="grid min-h-dvh bg-[#fafbf8] text-[#172e27] lg:grid-cols-2">
@@ -42,15 +52,17 @@ export default function LoginPage() {
       <div className="mx-auto my-auto w-full max-w-[380px] py-12">
         <div className="mb-8 flex size-12 items-center justify-center rounded-2xl border border-[#dce4d8] bg-[#edf2e8]"><Sprout className="size-6 text-[#426649]" /></div>
         <p className="mb-3 text-[11px] font-semibold uppercase tracking-[0.2em] text-[#748475]">Welcome to your workspace</p>
-        <h2 className="text-3xl font-semibold tracking-tight sm:text-4xl">Good to have you back.</h2>
-        <p className="mt-3 text-sm leading-6 text-[#778078]">Enter your details below to sign in.</p>
+        <h2 className="text-3xl font-semibold tracking-tight sm:text-4xl">{registering ? "Create your account." : "Good to have you back."}</h2>
+        <p className="mt-3 text-sm leading-6 text-[#778078]">{registering ? "Register, choose your starter, and begin your adventure." : "Enter your details below to sign in."}</p>
         <form onSubmit={signIn} className="mt-9 space-y-5" aria-busy={pending}>
-          <div className="space-y-2"><label htmlFor="username" className="text-sm font-medium">Username</label><Input id="username" name="username" autoComplete="username" placeholder="Enter your username" value={username} onChange={(e) => setUsername(e.target.value)} required maxLength={100} disabled={pending} /></div>
-          <div className="space-y-2"><label htmlFor="password" className="text-sm font-medium">Password</label><div className="relative"><Input id="password" name="password" type={visible ? "text" : "password"} autoComplete="current-password" placeholder="Enter your password" className="pr-12" value={password} onChange={(e) => setPassword(e.target.value)} required maxLength={256} disabled={pending} /><button type="button" onClick={() => setVisible(!visible)} aria-label={visible ? "Hide password" : "Show password"} aria-pressed={visible} className="absolute inset-y-0 right-0 flex w-12 items-center justify-center rounded-r-lg text-[#778078] outline-offset-2 focus-visible:outline-2 focus-visible:outline-emerald-700">{visible ? <EyeOff className="size-4" /> : <Eye className="size-4" />}</button></div></div>
+          <div className="space-y-2"><label htmlFor="username" className="text-sm font-medium">Username</label><Input id="username" name="username" autoComplete="username" autoCapitalize="none" spellCheck={false} placeholder="Enter your username" value={username} onChange={(e) => setUsername(e.target.value)} required minLength={registering ? 3 : undefined} maxLength={registering ? 30 : 100} pattern={registering ? "[a-zA-Z0-9_]{3,30}" : undefined} aria-describedby={registering ? "username-help" : undefined} disabled={pending} />{registering && <p id="username-help" className="text-xs text-[#778078]">3–30 letters, numbers, or underscores.</p>}</div>
+          <div className="space-y-2"><label htmlFor="password" className="text-sm font-medium">Password</label><div className="relative"><Input id="password" name="password" type={visible ? "text" : "password"} autoComplete={registering ? "new-password" : "current-password"} placeholder="Enter your password" className="pr-12" value={password} onChange={(e) => setPassword(e.target.value)} required minLength={registering ? 8 : undefined} maxLength={256} aria-describedby={registering ? "password-help" : undefined} disabled={pending} /><button type="button" onClick={() => setVisible(!visible)} aria-label={visible ? "Hide password" : "Show password"} aria-pressed={visible} className="absolute inset-y-0 right-0 flex w-12 items-center justify-center rounded-r-lg text-[#778078] outline-offset-2 focus-visible:outline-2 focus-visible:outline-emerald-700">{visible ? <EyeOff className="size-4" /> : <Eye className="size-4" />}</button></div></div>
+          {registering && <div className="space-y-2"><p id="password-help" className="text-xs text-[#778078]">Use at least 8 characters for your password.</p><label htmlFor="confirm-password" className="text-sm font-medium">Confirm password</label><Input id="confirm-password" name="confirmPassword" type={visible ? "text" : "password"} autoComplete="new-password" value={confirmPassword} onChange={(event) => setConfirmPassword(event.target.value)} required minLength={8} maxLength={256} disabled={pending} /></div>}
           {error && <p role="alert" className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">{error}</p>}
-          <Button type="submit" disabled={pending} className="h-12 w-full justify-between bg-[#204d3c] px-4 text-white hover:bg-[#153d2d]">{pending ? "Signing in…" : "Sign in"}{pending ? <LoaderCircle className="size-4 animate-spin" /> : <ArrowRight className="size-4" />}</Button>
+          <Button type="submit" disabled={pending} className="h-12 w-full justify-between bg-[#204d3c] px-4 text-white hover:bg-[#153d2d]">{registering ? pending ? "Creating account…" : "Create account" : pending ? "Signing in…" : "Sign in"}{pending ? <LoaderCircle className="size-4 animate-spin" /> : <ArrowRight className="size-4" />}</Button>
         </form>
-        {process.env.NODE_ENV !== "production" && <div className="mt-7 rounded-xl border border-[#dce4d8] bg-[#f0f3eb] p-4"><div className="flex items-center justify-between"><p className="text-xs font-semibold text-[#4d664c]">Try the admin account</p><button type="button" disabled={pending} onClick={() => { setUsername("admin"); setPassword("Admin123!"); login.reset(); }} className="text-xs font-medium underline underline-offset-4 disabled:opacity-50">Fill details</button></div><p className="mt-2 text-xs text-[#6e7b6b]">Username: <code>admin</code><span className="mx-2">·</span>Password: <code>Admin123!</code></p></div>}
+        <p className="mt-6 text-center text-sm text-[#778078]">{registering ? "Already have an account? " : "New to IdleOn? "}<button type="button" disabled={pending} onClick={() => { setRegistering(!registering); setPassword(""); setConfirmPassword(""); setVisible(false); setFormError(""); login.reset(); register.reset(); }} className="font-semibold text-[#204d3c] underline underline-offset-4 disabled:opacity-50">{registering ? "Sign in" : "Create account"}</button></p>
+        {!registering && process.env.NODE_ENV !== "production" && <div className="mt-7 rounded-xl border border-[#dce4d8] bg-[#f0f3eb] p-4"><div className="flex items-center justify-between"><p className="text-xs font-semibold text-[#4d664c]">Try the admin account</p><button type="button" disabled={pending} onClick={() => { setUsername("admin"); setPassword("Admin123!"); login.reset(); }} className="text-xs font-medium underline underline-offset-4 disabled:opacity-50">Fill details</button></div><p className="mt-2 text-xs text-[#6e7b6b]">Username: <code>admin</code><span className="mx-2">·</span>Password: <code>Admin123!</code></p></div>}
         <p className="mt-8 text-center text-xs text-[#8b938a]"><ShieldCheck className="mr-1.5 inline size-3.5" />A secure space to keep moving forward.</p>
       </div>
       <footer className="text-center text-[11px] text-[#92998e]">IdleOn Workspace · A fresh start, every time.</footer>

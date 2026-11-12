@@ -80,11 +80,25 @@ stuns, passives, and resource consumption are resolved by the backend.
 
 Run `npm.cmd run dev` here and in `../idleon-be` in separate terminals.
 Visit http://localhost:3020/login. Development account: `admin` / `Admin123!`.
+Choose Create account to register with a username, password, and confirmation.
+Registration signs you in automatically and opens starter creation. Usernames
+allow 3–30 letters, numbers, or underscores; passwords require at least 8 characters.
 Successful login opens `/game` directly. New players see character creation drawn
 on the canvas; saved characters enter their room immediately. The name field and keyboard
 controls use native accessible inputs over the canvas. `/dashboard` remains available.
-The API URL defaults to http://localhost:8020/api. Set `NEXT_PUBLIC_API_URL` in
-`.env.local` if needed (see `.env.example`). Use `localhost` for both applications.
+The API URL defaults to the browser's current hostname on port 8020, allowing LAN
+devices to open `http://<server-PC-private-IPv4>:3020/login`. Set
+`NEXT_PUBLIC_API_URL` in `.env.local` to override it (see `.env.example`).
+
+PvP in the room opens a two-player lobby: create/join a room, choose 1–6 owned
+characters each, and press Ready. Uneven teams such as 6v1 are allowed. Use room
+team copies your saved formation; click roster cards to add/remove characters.
+Both ready starts a shared five-second countdown. Teams walk toward each other
+in the expedition-style battlefield, then fight automatically with health/mana
+bars, attack animations, projectiles, and skill effects. Fallen units disappear.
+Use `player2` / `Player123!` for the second account after the
+backend seed; create its starter on first login. Use separate devices or incognito
+for separate sessions. PvP preserves PvE progress and grants no rewards.
 
 ## Getting Started
 

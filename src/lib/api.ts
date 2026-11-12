@@ -2,7 +2,7 @@ export interface User {
   id: string;
   username: string;
   name: string;
-  role: "admin";
+  role: "admin" | "player";
 }
 
 export class ApiError extends Error {
@@ -12,7 +12,8 @@ export class ApiError extends Error {
 export async function api<T>(path: string, options: RequestInit = {}): Promise<T> {
   let response: Response;
   try {
-    response = await fetch(`${process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8020/api"}${path}`, {
+    const baseUrl = process.env.NEXT_PUBLIC_API_URL ?? (typeof window === "undefined" ? "http://localhost:8020/api" : `${window.location.protocol}//${window.location.hostname}:8020/api`);
+    response = await fetch(`${baseUrl}${path}`, {
       ...options,
       credentials: "include",
       cache: "no-store",

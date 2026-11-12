@@ -14,6 +14,7 @@ import { WishScreen } from "./wish-screen";
 import { CollectionPanel } from "./collection-panel";
 import { InventoryPanel } from "./inventory-panel";
 import { WikiPanel } from "./wiki-panel";
+import { PvpPanel } from "./pvp-panel";
 
 const movementKeys = new Set(["KeyA", "KeyD", "KeyW", "KeyS", "ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown"]);
 
@@ -39,7 +40,7 @@ export function RoomCanvas({ character, characters, gold, progression }: { chara
     if (!store.getState().isPaused) canvasRef.current?.focus({ preventScroll: true });
   }
 
-  function togglePanel(panel: "character" | "wish" | "team" | "shop" | "artifacts" | "inventory" | "wiki") {
+  function togglePanel(panel: "character" | "wish" | "team" | "shop" | "artifacts" | "inventory" | "wiki" | "pvp") {
     input.current.clear(); destination.current = null;
     store.getState().togglePanel(panel);
     if (!store.getState().activePanel) canvasRef.current?.focus({ preventScroll: true });
@@ -218,6 +219,7 @@ export function RoomCanvas({ character, characters, gold, progression }: { chara
     {menuOpen && <RoomMenu onClose={() => roomAction("start")} />}
     {activePanel === "character" && <CharacterRoster characters={characters} onClose={() => roomAction("start")} />}
     {activePanel === "team" && <TeamScreen characters={characters} onClose={() => roomAction("start")} />}
+    {activePanel === "pvp" && <PvpPanel onClose={() => roomAction("start")} />}
     {activePanel === "wiki" && <WikiPanel onClose={() => roomAction("start")} />}
     {activePanel === "inventory" && <InventoryPanel onClose={() => roomAction("start")} />}
     {activePanel === "wish" && <WishScreen onClose={() => roomAction("start")} />}

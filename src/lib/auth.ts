@@ -31,3 +31,16 @@ export function useLogout() {
     },
   });
 }
+
+export function useRegister() {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: (credentials: { username: string; password: string; confirmPassword: string }) =>
+      api<{ user: User }>("/auth/register", { method: "POST", body: JSON.stringify(credentials) }),
+    onSuccess: async (session) => {
+      await client.cancelQueries();
+      client.clear();
+      client.setQueryData(sessionKey, session);
+    },
+  });
+}

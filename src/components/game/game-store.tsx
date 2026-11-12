@@ -12,8 +12,8 @@ interface GameState {
   assignCharacter: (slot: number, character: Character) => void;
   isPaused: boolean;
   isMapOpen: boolean;
-  activePanel: "character" | "wish" | "team" | "shop" | "artifacts" | "inventory" | "wiki" | null;
-  togglePanel: (panel: "character" | "wish" | "team" | "shop" | "artifacts" | "inventory" | "wiki") => void;
+  activePanel: "character" | "wish" | "team" | "shop" | "artifacts" | "inventory" | "wiki" | "pvp" | null;
+  togglePanel: (panel: "character" | "wish" | "team" | "shop" | "artifacts" | "inventory" | "wiki" | "pvp") => void;
   selectedLocation: "meadow" | "forest" | "harbor" | "tourney" | "deepsea" | "deepsea-2f" | "deepsea-palace";
   selectLocation: (location: "meadow" | "forest" | "harbor" | "tourney" | "deepsea" | "deepsea-2f" | "deepsea-palace") => void;
   togglePause: () => void;
