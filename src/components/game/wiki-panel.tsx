@@ -6,6 +6,7 @@ import { BookOpen, Search, X } from "lucide-react";
 import { api } from "@/lib/api";
 import type { CharacterStats } from "@/lib/character";
 import { ResponsiveCanvasFrame } from "./responsive-canvas-frame";
+import { CharacterWikiPanel } from "./character-wiki-panel";
 
 interface WikiEnemy {
   id: string; name: string; boss: boolean; locations: string[]; stats: CharacterStats; gold: number; experience: number; attackInterval: number; note: string | null;
@@ -15,15 +16,17 @@ const statLabels = [["hp", "HP"], ["mp", "MP"], ["atk", "Attack"], ["def", "Defe
 
 export function WikiPanel({ onClose }: { onClose: () => void }) {
   const searchRef = useRef<HTMLInputElement>(null);
+  const [category, setCategory] = useState<"enemies" | "characters">("enemies");
   const [search, setSearch] = useState(""), [location, setLocation] = useState("all"), [kind, setKind] = useState("all");
   const query = useQuery({ queryKey: ["enemy-wiki"], queryFn: () => api<WikiEnemy[]>("/wiki/enemies") });
-  useEffect(() => { searchRef.current?.focus({ preventScroll: true }); }, []);
+  useEffect(() => { searchRef.current?.focus({ preventScroll: true }); }, [category]);
   const entries = query.data ?? [];
   const locations = [...new Set(entries.flatMap((enemy) => enemy.locations))].sort();
   const filtered = entries.filter((enemy) => (location === "all" || enemy.locations.includes(location))
     && (kind === "all" || enemy.boss === (kind === "boss"))
     && `${enemy.name} ${enemy.locations.join(" ")} ${enemy.skills.map((skill) => `${skill.name} ${skill.description}`).join(" ")}`.toLowerCase().includes(search.trim().toLowerCase()));
   const inputClass = "min-w-0 rounded-lg border border-[#708360] bg-[#163a30] px-3 py-2 text-sm text-[#f1ebce] outline-none focus-visible:ring-2 focus-visible:ring-[#e4d895]";
+  if (category === "characters") return <CharacterWikiPanel onClose={onClose} onEnemies={() => setCategory("enemies")} />;
   return <ResponsiveCanvasFrame><div role="dialog" aria-modal="true" aria-labelledby="wiki-title" className="absolute inset-0 z-40 overflow-auto bg-gradient-to-b from-[#102e29] to-[#3d5e47] text-[#f1ebce]" onKeyDown={(event) => {
     if (event.key === "Escape") { event.preventDefault(); event.stopPropagation(); onClose(); }
     if (event.key === "Tab") {
@@ -35,6 +38,7 @@ export function WikiPanel({ onClose }: { onClose: () => void }) {
     <header className="sticky top-0 z-10 space-y-3 border-b border-[#708360] bg-[#102e29] p-5">
       <h2 id="wiki-title" className="flex items-center gap-2 pr-14 text-2xl font-semibold"><BookOpen size={24} /> Enemy Wiki</h2>
       <button type="button" aria-label="Close wiki" onClick={onClose} className="absolute top-4 right-4 grid size-11 cursor-pointer place-items-center rounded-xl border border-[#708360] outline-none focus-visible:ring-2 focus-visible:ring-[#e4d895]"><X size={20} /></button>
+      <div role="group" aria-label="Wiki category" className="flex gap-2"><button type="button" className={`${inputClass} cursor-pointer border-[#e4d895]`} aria-pressed={true}>Enemies</button><button type="button" onClick={() => setCategory("characters")} className={`${inputClass} cursor-pointer`} aria-pressed={false}>Characters</button></div>
       <div className="flex flex-wrap gap-2">
         <label className="relative min-w-[180px] flex-1"><Search size={16} aria-hidden="true" className="absolute top-3 left-3 text-[#c1cda9]" /><input ref={searchRef} aria-label="Search enemies or skills" placeholder="Search enemies or skills…" value={search} onChange={(event) => setSearch(event.target.value)} className={`${inputClass} w-full pl-9`} /></label>
         <select aria-label="Filter by location" value={location} onChange={(event) => setLocation(event.target.value)} className={`${inputClass} max-w-full`}><option value="all">All locations</option>{locations.map((name) => <option key={name} value={name}>{name}</option>)}</select>

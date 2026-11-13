@@ -18,6 +18,10 @@ of 11 weapon types; returning players load their saved character from the API.
 Character name and weapon are saved in MariaDB through the Prisma-backed API.
 Run the backend migrations and seed first (see `../idleon-be/README.md`).
 Room position resets when you leave; your saved character is kept.
+Open Wiki and select Characters to browse every class and special character,
+including ones you do not own. Search by name, weapon, or skill, and filter normal
+or special types. Entries show base stats, range, skills, damage formulas, costs,
+timing, and character upgrade bonuses. Enemies switches back to the enemy wiki.
 Scene rendering and the animation loop live in `src/components/game/room-canvas.tsx`.
 
 Start launches an endless side-scrolling expedition in the selected Meadow or
@@ -104,6 +108,10 @@ for separate sessions. PvP preserves PvE progress and grants no rewards.
 After a battle, Return to PvP room reopens the same custom room with both players
 and their team selections. Both must ready again for a rematch. Use the close
 button to leave PvP for your personal room.
+Room chat is available in each custom room, including during and after battles.
+Messages refresh every second and stay across rematches. Enter or Send posts a
+message of up to 300 characters. The fixed-height chat scrolls independently and
+follows new messages only when you are near the bottom or send a message yourself.
 
 ## Getting Started
 

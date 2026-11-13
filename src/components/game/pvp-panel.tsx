@@ -9,6 +9,7 @@ import { useCharacter } from "@/lib/character-api";
 import { weaponDetails } from "@/lib/character";
 import { ResponsiveCanvasFrame } from "./responsive-canvas-frame";
 import { PvpBattleCanvas } from "./pvp-battle-canvas";
+import { PvpChat } from "./pvp-chat";
 import type { RoomState } from "./pvp-types";
 
 export function PvpPanel({ onClose }: { onClose: () => void }) {
@@ -101,6 +102,7 @@ export function PvpPanel({ onClose }: { onClose: () => void }) {
         {data.phase === "complete" && <div role="status" className="rounded-xl border border-[#b8a76d] bg-[#294a40] p-5 text-center"><p className="text-2xl font-semibold text-[#e4d895]">{data.result?.winnerId ? data.result.winnerId === userId ? "Victory!" : "Defeat" : "Draw"}</p><p className="mt-2 text-sm text-[#c1cda9]">PvE health, mana, gold, and progression are unchanged.</p><button type="button" disabled={busy} className={`${button} mt-4`} onClick={() => action.mutate({ path: `/pvp/${code}/return` })}>Return to PvP room</button></div>}
         {["canceled", "closed", "expired"].includes(data.phase) && <p className="rounded-xl border border-[#708360] p-4 text-sm">The room was closed, canceled, or expired. Return to the room to start another match.</p>}
         {!!fighters.length && <ol aria-label="PvP battle log" tabIndex={0} className="h-[clamp(8rem,22dvh,12rem)] space-y-1 overflow-y-auto overscroll-contain rounded-xl border border-[#708360] bg-[#102e29] p-4 text-xs break-words [scrollbar-gutter:stable] focus-visible:outline-2 focus-visible:outline-[#fff0b8]">{recent.length ? recent.map((step, index) => <li key={`${step.at}-${index}`} className={step.critical ? "text-[#c58aff]" : step.kind === "skill" ? "text-[#69b7ff]" : "text-[#c1cda9]"}>{step.at.toFixed(1)}s · {fighters[step.actor]?.name ?? data.players[step.side]?.name}: {step.label}{step.damage ? ` · −${step.damage} HP` : ""}{step.healing ? ` · +${step.healing} HP` : ""}</li>) : <li className="text-[#c1cda9]">Waiting for battle to begin…</li>}</ol>}
+        <PvpChat key={code} code={code} userId={userId!} ended={["canceled", "closed", "expired"].includes(data.phase)} />
       </>}
     </div>
   </div></ResponsiveCanvasFrame>;
