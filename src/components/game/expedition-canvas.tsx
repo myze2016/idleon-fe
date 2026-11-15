@@ -78,6 +78,10 @@ export function ExpeditionCanvas({ location, team, gold, characterName, characte
     const tourney = location === "tourney";
     const deepsea = location.startsWith("deepsea");
     const deepSeaName = location === "deepsea-palace" ? "DeepSea Moot Royal Palace" : location === "deepsea-2f" ? "DeepSea Moot 2F" : "DeepSea Moot";
+    const assassinSprite = new Image();
+    let assassinSpriteLoaded = false;
+    assassinSprite.onload = () => { assassinSpriteLoaded = true; };
+    assassinSprite.src = "/sprites/assassin-moe-walk-sheet.png";
     let period: "day" | "night" = "day";
     const members = team.flatMap((character, slot) => character ? [{ character: charactersRef.current.find((owned) => owned.id === character.id) ?? character, slot }] : []);
     let width = 1, height = 1, ratio = 1, frame = 0, last = 0, distance = 0, elapsed = 0;
@@ -470,14 +474,20 @@ export function ExpeditionCanvas({ location, team, gold, characterName, characte
         } else if (tourney) {
           const assassin = foe.data.type === "assassin", boss = foe.data.boss;
           const demon = foe.data.type === "demon-prince";
-          rect(-11 + stride * 3, -12, 7, 13, "#3b3335"); rect(4 - stride * 3, -12, 7, 13, "#3b3335");
-          rect(-15, -40, 30, 29, demon ? "#512d4c" : assassin ? "#494553" : boss ? "#864c56" : "#9c9790");
-          ctx.fillStyle = demon ? "#b75b55" : "#c49e7d"; ctx.beginPath(); ctx.arc(0, -49, 12, 0, Math.PI * 2); ctx.fill();
-          rect(-13, -60, 26, 10, assassin ? "#363444" : "#777c83"); rect(-6, -49, 15, 4, "#292c32");
-          ctx.save(); ctx.translate(17, -31); ctx.rotate(strike * 1.6);
-          rect(-2, -18, 4, 40, "#d5d8cd"); rect(-7, 10, 15, 4, "#bca76e");
-          if (foe.data.type === "spearman") rect(-1, 17, 3, 25, "#7c563a");
-          ctx.restore();
+          if (assassin && assassinSpriteLoaded) {
+            const frameIndex = strike > 0 ? 3 : foe.moving ? 1 + Math.floor(elapsed * 8) % 2 : 0;
+            const frameWidth = assassinSprite.naturalWidth / 4;
+            ctx.drawImage(assassinSprite, frameIndex * frameWidth, 0, frameWidth, assassinSprite.naturalHeight, -34, -82, 68, 82);
+          } else {
+            rect(-11 + stride * 3, -12, 7, 13, "#3b3335"); rect(4 - stride * 3, -12, 7, 13, "#3b3335");
+            rect(-15, -40, 30, 29, demon ? "#512d4c" : assassin ? "#494553" : boss ? "#864c56" : "#9c9790");
+            ctx.fillStyle = demon ? "#b75b55" : "#c49e7d"; ctx.beginPath(); ctx.arc(0, -49, 12, 0, Math.PI * 2); ctx.fill();
+            rect(-13, -60, 26, 10, assassin ? "#363444" : "#777c83"); rect(-6, -49, 15, 4, "#292c32");
+            ctx.save(); ctx.translate(17, -31); ctx.rotate(strike * 1.6);
+            rect(-2, -18, 4, 40, "#d5d8cd"); rect(-7, 10, 15, 4, "#bca76e");
+            if (foe.data.type === "spearman") rect(-1, 17, 3, 25, "#7c563a");
+            ctx.restore();
+          }
           if (boss) { rect(-15, -66, 30, 6, "#d7b762"); rect(-9, -73, 5, 8, "#d7b762"); rect(5, -73, 5, 8, "#d7b762"); }
           if (demon) {
             ctx.fillStyle = "#e5c7a1";

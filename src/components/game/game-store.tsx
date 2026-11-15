@@ -9,7 +9,7 @@ interface GameState {
   startExploring: (starter: Character) => void;
   returnToRoom: () => void;
   teamSlots: (Character | null)[];
-  assignCharacter: (slot: number, character: Character) => void;
+  assignCharacter: (slot: number, character: Character | null) => void;
   isPaused: boolean;
   isMapOpen: boolean;
   activePanel: "character" | "wish" | "team" | "shop" | "artifacts" | "inventory" | "wiki" | "pvp" | null;
@@ -33,7 +33,7 @@ function createGameStore(initialTeam: (Character | null)[]) {
     assignCharacter: (slot, character) => set((state) => {
       if (!Number.isInteger(slot) || slot < 0 || slot >= 6) return {};
       return { teamSlots: state.teamSlots.map((member, index) => index === slot ? character
-        : member && (member.id && character.id ? member.id === character.id : member.name === character.name && member.weapon === character.weapon) ? null : member) };
+        : member && character && (member.id && character.id ? member.id === character.id : member.name === character.name && member.weapon === character.weapon) ? null : member) };
     }),
     isPaused: false,
     isMapOpen: false,

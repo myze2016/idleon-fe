@@ -101,6 +101,7 @@ export function RoomCanvas({ character, characters, gold, progression }: { chara
       const pad = Math.min(40, width * 0.08);
       const minY = wall + 40, maxY = Math.max(minY, height - 30);
       const speed = Math.min(width, height) * 0.4;
+      let playerMoving = false;
       if (!store.getState().isPaused && !store.getState().isMapOpen && !store.getState().activePanel && !document.hidden) {
         let dx = Number(input.current.has("KeyD") || input.current.has("ArrowRight")) - Number(input.current.has("KeyA") || input.current.has("ArrowLeft"));
         let dy = Number(input.current.has("KeyS") || input.current.has("ArrowDown")) - Number(input.current.has("KeyW") || input.current.has("ArrowUp"));
@@ -110,7 +111,11 @@ export function RoomCanvas({ character, characters, gold, progression }: { chara
           if (Math.hypot(dx, dy) <= speed * dt) { player.x = target.x; player.y = target.y; destination.current = null; dx = 0; dy = 0; }
         }
         const length = Math.hypot(dx, dy);
-        if (length) { player.x += dx / length * speed * dt / width; player.y += dy / length * speed * dt / height; if (dx) player.facing = Math.sign(dx); }
+        if (length) {
+          playerMoving = true;
+          player.x += dx / length * speed * dt / width; player.y += dy / length * speed * dt / height;
+          if (dx) player.facing = Math.sign(dx);
+        }
       }
       player.x = Math.max(pad / width, Math.min(1 - pad / width, player.x));
       player.y = Math.max(minY / height, Math.min(maxY / height, player.y));
@@ -148,8 +153,10 @@ export function RoomCanvas({ character, characters, gold, progression }: { chara
 
       const px = player.x * width, py = player.y * height;
       const avatarScale = Math.max(1, Math.min(2, Math.min(width, height) / 320));
-      ctx.save(); ctx.translate(px, py); ctx.scale(avatarScale, avatarScale);
-      drawCharacter(ctx, character.weapon, { facing: player.facing }); ctx.restore();
+      const stride = playerMoving ? Math.sin(time / 95) : 0;
+      const bob = playerMoving ? Math.abs(stride) * 2 : 0;
+      ctx.save(); ctx.translate(px, py - bob * avatarScale); ctx.scale(avatarScale, avatarScale);
+      drawCharacter(ctx, character.weapon, { facing: player.facing, stride }); ctx.restore();
       // HUD is rendered in screen coordinates, keeping both corners anchored on resize.
       const controls = roomToolbarLayout(width);
       const nameWidth = Math.max(70, Math.min(300, width >= 1060 ? controls[0].x - 32 : width - 32));

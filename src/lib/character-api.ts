@@ -28,7 +28,7 @@ export function useArtifactAction(userId?: string) {
 export function useAssignTeamSlot(userId?: string) {
   const client = useQueryClient();
   return useMutation({
-    mutationFn: (input: { slot: number; characterId: string }) => api<CharacterState>("/character/team", { method: "POST", body: JSON.stringify(input) }),
+    mutationFn: (input: { slot: number; characterId: string | null }) => api<CharacterState>("/character/team", { method: "POST", body: JSON.stringify(input) }),
     onSuccess: async (state) => { await client.cancelQueries({ queryKey: characterKey(userId) }); client.setQueryData(characterKey(userId), state); },
   });
 }
