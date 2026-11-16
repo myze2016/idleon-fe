@@ -83,6 +83,12 @@ export function ExpeditionCanvas({ location, team, gold, characterName, characte
     const harbor = location === "harbor";
     const tourney = location === "tourney";
     const deepsea = location.startsWith("deepsea");
+    const deepseaBackground = new Image();
+    deepseaBackground.src = "/maps/deepsea-floors-harbor-v3.png";
+    const deepseaSprites = new Image();
+    deepseaSprites.src = "/sprites/deepsea-enemies-simple-v2.png";
+    const deepseaFeet = new Map<number, number>();
+    const deepseaCells: Record<string, number> = { "fishpeople-guard": 0, "fishpeople-archer": 1, "fishpeople-rider": 2, "fishpeople-guardian": 3, baracudon: 5, "fishpeople-cleric": 6, "fishpeople-researcher": 7, "fishpeople-knight": 8, "fishpeople-rifler": 9, "fishpeople-baron": 10, "fishpeople-lord": 11 };
     const meadowEffects = new Image();
     meadowEffects.src = "/sprites/meadow-hit-death.png";
     const meadowAnimation = new Map<string, { hp: number; hurtAt: number; diedAt?: number }>();
@@ -281,10 +287,32 @@ export function ExpeditionCanvas({ location, team, gold, characterName, characte
           ctx.strokeStyle = "#84b8bb33"; ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x + 110, ground); ctx.stroke();
         }
         rect(0, ground, width, height - ground, "#45635e"); rect(0, ground, width, 6, "#789083");
+        if (deepseaBackground.complete && deepseaBackground.naturalWidth > 0) {
+          const floor = location === "deepsea-palace" ? 2 : location === "deepsea-2f" ? 1 : 0;
+          const panelHeight = deepseaBackground.naturalHeight / 3;
+          // Preserve the wide panel's proportions rather than stretching it
+          // vertically to fill the battle viewport. Mirror adjacent tiles for
+          // continuous scenery while the party travels.
+          const tileWidth = Math.max(width, height * deepseaBackground.naturalWidth / panelHeight);
+          const offset = distance % tileWidth;
+          const firstTile = Math.floor(distance / tileWidth);
+          const horizon = Math.round(panelHeight * 0.75);
+          ctx.imageSmoothingEnabled = true;
+          ctx.imageSmoothingQuality = "high";
+          for (let i = 0; i < 2; i++) {
+            const mirrored = (firstTile + i) % 2 !== 0;
+            ctx.save();
+            ctx.translate(i * tileWidth - offset + (mirrored ? tileWidth : 0), 0);
+            if (mirrored) ctx.scale(-1, 1);
+            ctx.drawImage(deepseaBackground, 0, floor * panelHeight, deepseaBackground.naturalWidth, horizon, 0, 0, tileWidth, ground);
+            ctx.drawImage(deepseaBackground, 0, floor * panelHeight + horizon, deepseaBackground.naturalWidth, panelHeight - horizon, 0, ground, tileWidth, height - ground);
+            ctx.restore();
+          }
+        }
         for (let i = 0; i < 20; i++) { const x = (i * 83 - distance * 0.4 + width * 2) % width, y = ground - ((elapsed * 16 + i * 39) % ground); ctx.strokeStyle = "#9ed5d455"; ctx.beginPath(); ctx.arc(x, y, 2 + i % 3, 0, Math.PI * 2); ctx.stroke(); }
       }
       const tile = 70, shift = distance % tile, first = Math.floor(distance / tile);
-      for (let i = -1; i <= Math.ceil(width / tile) + 1; i++) {
+      for (let i = -1; !deepsea && i <= Math.ceil(width / tile) + 1; i++) {
         const seed = first + i, x = i * tile - shift, y = ground + 24 + random(seed + 40) * Math.max(10, height - ground - 40);
         rect(x, y, 10 + random(seed) * 12, 3, forest ? "#3d4230" : "#756441");
         if (seed % 2 === 0 || !forest) {
@@ -505,6 +533,31 @@ export function ExpeditionCanvas({ location, team, gold, characterName, characte
         const stride = foe.hp > 0 && foe.moving ? Math.sin(elapsed * 10) : 0;
         if ((location === "meadow" || forest || harbor || tourney) && drawMonster(ctx, foe.data.type, elapsed, !!foe.moving, strike)) {
           // Generated poses replace the procedural fallback once loaded.
+        } else if (deepsea && deepseaSprites.complete && deepseaSprites.naturalWidth > 0 && deepseaCells[foe.data.type] !== undefined) {
+          const cell = foe.data.type === "fishpeople-rider" && location === "deepsea-2f" ? 4 : deepseaCells[foe.data.type];
+          const cw = deepseaSprites.naturalWidth / 4, ch = deepseaSprites.naturalHeight / 3;
+          ctx.save();
+          // Atlas faces right; the enemy canvas mirrors it toward the party.
+          let feet = deepseaFeet.get(cell);
+          if (feet === undefined) {
+            const sample = document.createElement("canvas");
+            sample.width = Math.ceil(cw); sample.height = Math.ceil(ch);
+            const sampleCtx = sample.getContext("2d", { willReadFrequently: true });
+            feet = ch;
+            if (sampleCtx) {
+              sampleCtx.drawImage(deepseaSprites, cell % 4 * cw, Math.floor(cell / 4) * ch, cw, ch, 0, 0, sample.width, sample.height);
+              const pixels = sampleCtx.getImageData(0, 0, sample.width, sample.height).data;
+              outer: for (let y = sample.height - 1; y >= 0; y--) {
+                let solid = 0;
+                for (let sx = 0; sx < sample.width; sx++) if (pixels[(y * sample.width + sx) * 4 + 3] > 180) solid++;
+                if (solid >= 4) { feet = (y + 1) / sample.height * ch; break outer; }
+              }
+            }
+            deepseaFeet.set(cell, feet);
+          }
+          ctx.fillStyle = "#152c3655"; ctx.beginPath(); ctx.ellipse(0, 0, 23, 4, 0, 0, Math.PI * 2); ctx.fill();
+          ctx.drawImage(deepseaSprites, cell % 4 * cw, Math.floor(cell / 4) * ch, cw, ch, -40, -feet / ch * 78, 80, 78);
+          ctx.restore();
         } else if (deepsea) {
           const fish = !["baracudon", "fishpeople-rider"].includes(foe.data.type);
           if (!fish) {

@@ -19,6 +19,19 @@ const metrics = new Map<string, { feet: number[]; scale: number }>();
 
 /** Returns false while loading so the original monster drawing remains available. */
 export function drawMonster(ctx: CanvasRenderingContext2D, type: string, time: number, moving: boolean, strike: number) {
+  if (type === "assassin") {
+    const src = "/sprites/tourney-assassin-v2.png";
+    let image = atlases.get(src);
+    if (!image) { image = new Image(); image.onload = loaded; image.onerror = loaded; image.src = src; atlases.set(src, image); }
+    if (!image.complete || !image.naturalWidth) return false;
+    ctx.save();
+    ctx.fillStyle = "#2b241c44"; ctx.beginPath(); ctx.ellipse(0, 0, 18, 4, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.translate(strike * 5, 0);
+    ctx.rotate(strike * 0.12 + (moving ? Math.sin(time * 8) * 0.025 : 0));
+    ctx.drawImage(image, image.naturalWidth * 0.18, image.naturalHeight * 0.11, image.naturalWidth * 0.57, image.naturalHeight * 0.79, -22, -60, 44, 60);
+    ctx.restore();
+    return true;
+  }
   if (type === "crab-night") type = "crab-day";
   const sheet = sheets.find((entry) => entry.rows.includes(type));
   if (!sheet) return false;
@@ -44,6 +57,12 @@ export function drawMonster(ctx: CanvasRenderingContext2D, type: string, time: n
           top = Math.min(top, y); bottom = Math.max(bottom, y + 1);
           left = Math.min(left, x); right = Math.max(right, x + 1);
         }
+      }
+      // Ignore isolated opaque flecks below the character when anchoring feet.
+      for (let y = bottom - 1; y >= top; y--) {
+        let solid = 0;
+        for (let x = 0; x < cellWidth; x++) if (pixels[(y * sample.width + Math.floor(frame * cellWidth + x)) * 4 + 3] > 180) solid++;
+        if (solid >= 4) { bottom = y + 1; break; }
       }
       feet.push(bottom);
       maxHeight = Math.max(maxHeight, bottom - top); maxWidth = Math.max(maxWidth, right - left);
