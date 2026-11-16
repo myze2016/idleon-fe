@@ -1,7 +1,7 @@
 "use client";
 import { drawPaperPanel } from "./paper-panel";
 import { ResponsiveCanvasFrame } from "./responsive-canvas-frame";
-import { drawCharacter } from "./character-design";
+import { drawCharacter, useCharacterSprites } from "./character-design";
 
 import { useEffect, useRef, useState } from "react";
 import { weaponDetails, type Character } from "@/lib/character";
@@ -11,6 +11,7 @@ export function CharacterRoster({ characters, onClose, onSelect, selectionLabel 
   characters: Character[]; onClose: () => void;
   onSelect?: (character: Character) => void; selectionLabel?: string;
 }) {
+  const spriteVersion = useCharacterSprites();
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const closeRef = useRef<HTMLButtonElement>(null);
   const [focus, setFocus] = useState("");
@@ -82,7 +83,7 @@ export function CharacterRoster({ characters, onClose, onSelect, selectionLabel 
     window.addEventListener("paper-art-ready", draw);
     const observer = new ResizeObserver(draw); observer.observe(canvas); draw();
     return () => { observer.disconnect(); window.removeEventListener("paper-art-ready", draw); };
-  }, [characters, focus, page, selectionMode, selectionLabel, inspected]);
+  }, [characters, focus, page, selectionMode, selectionLabel, inspected, spriteVersion]);
 
   if (inspected) return <CharacterStatsScreen character={inspected} onClose={() => setInspected(null)} />;
 

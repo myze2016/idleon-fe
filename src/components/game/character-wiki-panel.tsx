@@ -6,6 +6,7 @@ import { BookOpen, Search, X } from "lucide-react";
 import { api } from "@/lib/api";
 import { weaponDetails, type CharacterStats, type WeaponType, type ActionTiming, type CharacterUpgrade } from "@/lib/character";
 import { ResponsiveCanvasFrame } from "./responsive-canvas-frame";
+import { WikiPortrait } from "./wiki-portrait";
 
 interface WikiCharacter {
   id: WeaponType; name: string; special: boolean; stats: CharacterStats; timing: ActionTiming; upgrade: CharacterUpgrade | null;
@@ -44,8 +45,10 @@ export function CharacterWikiPanel({ onClose, onEnemies }: { onClose: () => void
       {query.isPending && <p role="status">Loading character wiki…</p>}
       {query.isError && <div role="alert" className="text-[#a13725]"><p>{query.error.message}</p><button type="button" onClick={() => void query.refetch()} className={`${inputClass} mt-2 cursor-pointer`}>Retry</button></div>}
       {filtered.map((entry) => <article key={entry.id} className="rounded-xl border border-[#a38358] paper-card bg-[#e9d4a7] p-4">
+        <div className="mb-4 flex flex-col gap-4 sm:flex-row sm:items-center"><WikiPortrait subject={{ character: entry.id }} name={entry.name} /><div className="min-w-0">
         <div className="flex flex-wrap items-center gap-2"><h3 className="text-lg font-semibold">{entry.name}</h3>{entry.special && <span className="rounded paper-card bg-[#e4d895] px-2 py-0.5 text-xs font-semibold text-[#43311f]">Special</span>}</div>
         <p className="mt-1 text-xs text-[#a9ced0]">Weapon: {weaponDetails(entry.id).label} · {entry.special ? "Special wish · 200 currency" : "Starter selection or normal wish · 100 currency"}</p>
+        </div></div>
         <dl className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-4">
           {statLabels.map(([stat, label]) => <div key={stat} className="rounded paper-card bg-[#ddc292] px-3 py-2"><dt className="text-xs text-[#71583c]">{label}</dt><dd className="font-semibold">{entry.stats[stat]}</dd></div>)}
           <div className="rounded paper-card bg-[#ddc292] px-3 py-2"><dt className="text-xs text-[#71583c]">Basic attack range</dt><dd className="font-semibold">{entry.stats.range === "range" ? "Ranged" : "Melee"}</dd></div>

@@ -352,13 +352,14 @@ export function ExpeditionCanvas({ location, team, gold, characterName, characte
         if (monster.stage === "approach" && monster.x * width <= leadingX + rangedReach) monster.stage = "ready";
       });
       const memberMoving: boolean[] = [];
-      members.forEach(({ character }, index) => {
+      const hasLivingFront = members.some(({ slot }, index) => slot < 3 && teamHp[index] > 0);
+      members.forEach(({ character, slot }, index) => {
         const home = width * 0.16 + (members.length - 1 - index) * spacing;
         const nextAction = foe?.battle?.steps.slice(foe.step).find((step) => step.actor === "team" && step.characterId === character.id && step.kind !== "poison" && step.kind !== "bleed" && step.kind !== "mana");
         const castingAtRange = isRangedSkill(foe?.casts[index]?.name) || isRangedSkill(nextAction?.label);
         const attacking = upcoming?.actor === "team" && upcoming.characterId === character.id ? activeGroup[upcoming.enemyIndex ?? 0] : undefined;
         const target = attacking ?? monsters.find((monster) => monster.hp > 0 && monster.stage !== "approach" && monster.stage !== "result");
-        const desired = castingAtRange ? memberPositions[index] ?? home : target && character.stats?.range !== "range" && teamHp[index] > 0
+        const desired = slot >= 3 && hasLivingFront ? home : castingAtRange ? memberPositions[index] ?? home : target && character.stats?.range !== "range" && teamHp[index] > 0
           ? Math.max(home, target.x * width - contactReach) : home;
         const current = memberPositions[index] ?? home;
         memberMoving[index] = Math.abs(desired - current) > 2;

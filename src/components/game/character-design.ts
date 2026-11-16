@@ -1,4 +1,5 @@
 import { weaponDetails, type WeaponType } from "@/lib/character";
+import { useSyncExternalStore } from "react";
 
 const looks: Record<WeaponType, { coat: string; trim: string; hair: string; skin: string }> = {
   glaive: { coat: "#426b68", trim: "#ddca83", hair: "#6d4230", skin: "#dab08a" },
@@ -18,6 +19,16 @@ const looks: Record<WeaponType, { coat: string; trim: string; hair: string; skin
 };
 const paths = new Map<WeaponType, Path2D>();
 const spriteProfiles: Partial<Record<WeaponType, { src: string; bounds: number[][] }>> = {
+  "dual-axe": { src: "/sprites/jeffrey-chibi-v1.png", bounds: [[0, 0.23], [0.23, 0.46], [0.46, 0.695], [0.695, 1]] },
+  "ice-staff": { src: "/sprites/juan-chibi-v1.png", bounds: [[0, 0.23], [0.23, 0.46], [0.46, 0.695], [0.695, 1]] },
+  glaive: { src: "/sprites/kent-chibi-v1.png", bounds: [[0, 0.23], [0.23, 0.46], [0.46, 0.695], [0.695, 1]] },
+  "sword-and-shield": { src: "/sprites/sword-and-shield-chibi-v1.png", bounds: [[0, 0.23], [0.23, 0.46], [0.46, 0.695], [0.695, 1]] },
+  wand: { src: "/sprites/wand-chibi-v1.png", bounds: [[0, 0.23], [0.23, 0.46], [0.46, 0.695], [0.695, 1]] },
+  axe: { src: "/sprites/axe-chibi-v1.png", bounds: [[0, 0.23], [0.23, 0.46], [0.46, 0.695], [0.695, 1]] },
+  spear: { src: "/sprites/spear-chibi-v2.png", bounds: [[0, 0.23], [0.23, 0.46], [0.46, 0.695], [0.695, 1]] },
+  rifle: { src: "/sprites/rifle-chibi-v1.png", bounds: [[0, 0.23], [0.23, 0.46], [0.46, 0.695], [0.695, 1]] },
+  staff: { src: "/sprites/staff-chibi-v1.png", bounds: [[0, 0.23], [0.23, 0.46], [0.46, 0.695], [0.695, 1]] },
+  book: { src: "/sprites/book-chibi-v1.png", bounds: [[0, 0.23], [0.23, 0.46], [0.46, 0.695], [0.695, 1]] },
   bow: { src: "/sprites/bow-ranger-v1.png", bounds: [[0.025, 0.19], [0.255, 0.44], [0.49, 0.67], [0.695, 1]] },
   "dual-knife": { src: "/sprites/assassin-moe-walk-sheet.png", bounds: [[0.025, 0.19], [0.27, 0.44], [0.505, 0.67], [0.705, 1]] },
   "great-sword": { src: "/sprites/greatsword-v1.png", bounds: [[0.025, 0.19], [0.25, 0.445], [0.49, 0.65], [0.69, 1]] },
@@ -25,10 +36,17 @@ const spriteProfiles: Partial<Record<WeaponType, { src: string; bounds: number[]
 };
 const sprites = new Map<WeaponType, HTMLImageElement>();
 const footRows = new Map<string, number>();
+const spriteListeners = new Set<() => void>();
+let spriteRevision = 0;
+const spriteSnapshot = () => spriteRevision;
+const serverSpriteSnapshot = () => 0;
+function subscribeSprites(listener: () => void) { spriteListeners.add(listener); return () => { spriteListeners.delete(listener); }; }
+function spriteLoaded() { spriteRevision++; spriteListeners.forEach((listener) => listener()); }
+export function useCharacterSprites() { return useSyncExternalStore(subscribeSprites, spriteSnapshot, serverSpriteSnapshot); }
 function playableSprite(weapon: WeaponType, src: string) {
   if (typeof Image === "undefined") return null;
   let sprite = sprites.get(weapon);
-  if (!sprite) { sprite = new Image(); sprite.src = src; sprites.set(weapon, sprite); }
+  if (!sprite) { sprite = new Image(); sprite.onload = spriteLoaded; sprite.onerror = spriteLoaded; sprite.src = src; sprites.set(weapon, sprite); }
   return sprite.complete && sprite.naturalWidth > 0 ? sprite : null;
 }
 

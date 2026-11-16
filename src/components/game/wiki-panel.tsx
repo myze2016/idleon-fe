@@ -7,6 +7,7 @@ import { api } from "@/lib/api";
 import type { CharacterStats } from "@/lib/character";
 import { ResponsiveCanvasFrame } from "./responsive-canvas-frame";
 import { CharacterWikiPanel } from "./character-wiki-panel";
+import { WikiPortrait } from "./wiki-portrait";
 
 interface WikiEnemy {
   id: string; name: string; boss: boolean; locations: string[]; stats: CharacterStats; gold: number; experience: number; attackInterval: number; note: string | null;
@@ -51,9 +52,11 @@ export function WikiPanel({ onClose }: { onClose: () => void }) {
       {query.isPending && <p role="status">Loading enemy wiki…</p>}
       {query.isError && <div role="alert" className="text-[#a13725]"><p>{query.error.message}</p><button type="button" onClick={() => void query.refetch()} className={`${inputClass} mt-2 cursor-pointer`}>Retry</button></div>}
       {filtered.map((enemy) => <article key={enemy.id} className="rounded-xl border border-[#a38358] paper-card bg-[#e9d4a7] p-4">
+        <div className="mb-4 flex flex-col gap-4 sm:flex-row sm:items-center"><WikiPortrait subject={{ enemy: enemy.id }} name={enemy.name} /><div className="min-w-0">
         <div className="flex flex-wrap items-center gap-2"><h3 className="text-lg font-semibold">{enemy.name}</h3>{enemy.boss && <span className="rounded paper-card bg-[#e4d895] px-2 py-0.5 text-xs font-semibold text-[#43311f]">Boss</span>}</div>
         <p className="mt-1 text-xs text-[#a9ced0]">{enemy.locations.join(" · ")}</p>
         {enemy.note && <p className="mt-1 text-xs text-[#71583c]">{enemy.note}</p>}
+        </div></div>
         <dl className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-4">
           {statLabels.map(([stat, label]) => <div key={stat} className="rounded paper-card bg-[#ddc292] px-3 py-2"><dt className="text-xs text-[#71583c]">{label}</dt><dd className="font-semibold">{enemy.stats[stat]}</dd></div>)}
           <div className="rounded paper-card bg-[#ddc292] px-3 py-2"><dt className="text-xs text-[#71583c]">Range</dt><dd className="font-semibold">{enemy.stats.range === "range" ? "Ranged" : "Melee"}</dd></div>

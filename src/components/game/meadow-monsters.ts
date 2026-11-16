@@ -1,3 +1,5 @@
+import { useSyncExternalStore } from "react";
+
 const sheets = [
   { src: "/sprites/tourney-enemies-v1.png", rows: ["gladiator", "spearman", "zugwang", "demon-prince"], heights: [60, 60, 62, 62] },
   { src: "/sprites/harbor-monsters-v1.png", rows: ["crab-day", "hermit", "starfish", "fishpeople-guide"], heights: [32, 38, 40, 52] },
@@ -6,6 +8,13 @@ const sheets = [
   { src: "/sprites/forest-monsters-v1.png", rows: ["warrior", "slinger", "coco-klan-chief"], heights: [48, 46, 52] },
 ];
 const atlases = new Map<string, HTMLImageElement>();
+const listeners = new Set<() => void>();
+let revision = 0;
+const snapshot = () => revision;
+const serverSnapshot = () => 0;
+function subscribe(listener: () => void) { listeners.add(listener); return () => { listeners.delete(listener); }; }
+function loaded() { revision++; listeners.forEach((listener) => listener()); }
+export function useMonsterSprites() { return useSyncExternalStore(subscribe, snapshot, serverSnapshot); }
 const metrics = new Map<string, { feet: number[]; scale: number }>();
 
 /** Returns false while loading so the original monster drawing remains available. */
@@ -15,7 +24,7 @@ export function drawMonster(ctx: CanvasRenderingContext2D, type: string, time: n
   if (!sheet) return false;
   const row = sheet.rows.indexOf(type);
   let atlas = atlases.get(sheet.src);
-  if (!atlas) { atlas = new Image(); atlas.src = sheet.src; atlases.set(sheet.src, atlas); }
+  if (!atlas) { atlas = new Image(); atlas.onload = loaded; atlas.onerror = loaded; atlas.src = sheet.src; atlases.set(sheet.src, atlas); }
   if (!atlas.complete || !atlas.naturalWidth) return false;
   const cellWidth = atlas.naturalWidth / 4, cellHeight = atlas.naturalHeight / sheet.rows.length;
   let sizing = metrics.get(type);

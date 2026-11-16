@@ -1,6 +1,6 @@
 "use client";
 import { ResponsiveCanvasFrame } from "./responsive-canvas-frame";
-import { drawCharacter } from "./character-design";
+import { drawCharacter, useCharacterSprites } from "./character-design";
 
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { weapons, type Character, type WeaponType } from "@/lib/character";
@@ -8,6 +8,7 @@ import { weapons, type Character, type WeaponType } from "@/lib/character";
 export function CharacterCreation({ onCreate, pending, error }: {
   onCreate: (character: Character) => void; pending: boolean; error?: string;
 }) {
+  const spriteVersion = useCharacterSprites();
   const host = useRef<HTMLDivElement>(null);
   const canvas = useRef<HTMLCanvasElement>(null);
   const [width, setWidth] = useState(960);
@@ -77,7 +78,7 @@ export function CharacterCreation({ onCreate, pending, error }: {
       }
       text(line, left, y, "12px system-ui", "#ffcebb");
     }
-  }, [width, height, left, area, cell, cols, footer, weapon, focus, pending, message]);
+  }, [width, height, left, area, cell, cols, footer, weapon, focus, pending, message, spriteVersion]);
 
   function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();

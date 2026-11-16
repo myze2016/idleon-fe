@@ -1,7 +1,7 @@
 "use client";
 import { drawPaperPanel } from "./paper-panel";
 import { ResponsiveCanvasFrame } from "./responsive-canvas-frame";
-import { drawCharacter } from "./character-design";
+import { drawCharacter, useCharacterSprites } from "./character-design";
 
 import { useEffect, useRef, useState } from "react";
 import { useSession } from "@/lib/auth";
@@ -9,6 +9,7 @@ import { useCharacter, useWish } from "@/lib/character-api";
 import { weaponDetails, weapons, specialWeapons } from "@/lib/character";
 
 export function WishScreen({ onClose }: { onClose: () => void }) {
+  const spriteVersion = useCharacterSprites();
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const closeRef = useRef<HTMLButtonElement>(null);
   const [focus, setFocus] = useState("");
@@ -79,7 +80,7 @@ export function WishScreen({ onClose }: { onClose: () => void }) {
     window.addEventListener("paper-art-ready", draw);
     const observer = new ResizeObserver(draw); observer.observe(canvas); draw();
     return () => { observer.disconnect(); window.removeEventListener("paper-art-ready", draw); };
-  }, [balance, reward, error, enabled, focus, wish.isPending, ownedCount, complete, pool, cost, catalog.length]);
+  }, [balance, reward, error, enabled, focus, wish.isPending, ownedCount, complete, pool, cost, catalog.length, spriteVersion]);
 
   return <ResponsiveCanvasFrame minHeight={520}><div role="dialog" aria-modal="true" aria-label="Wish for a character" className="paper-menu absolute inset-0 z-30 bg-[#eddbb1]" onKeyDown={(event) => {
     if (event.key === "Escape") { event.preventDefault(); event.stopPropagation(); if (!wish.isPending) onClose(); }
