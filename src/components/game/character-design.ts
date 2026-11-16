@@ -18,6 +18,7 @@ const looks: Record<WeaponType, { coat: string; trim: string; hair: string; skin
 };
 const paths = new Map<WeaponType, Path2D>();
 const spriteProfiles: Partial<Record<WeaponType, { src: string; bounds: number[][] }>> = {
+  bow: { src: "/sprites/bow-ranger-v1.png", bounds: [[0.025, 0.19], [0.255, 0.44], [0.49, 0.67], [0.695, 1]] },
   "dual-knife": { src: "/sprites/assassin-moe-walk-sheet.png", bounds: [[0.025, 0.19], [0.27, 0.44], [0.505, 0.67], [0.705, 1]] },
   "great-sword": { src: "/sprites/greatsword-v1.png", bounds: [[0.025, 0.19], [0.25, 0.445], [0.49, 0.65], [0.69, 1]] },
   "dual-gun": { src: "/sprites/dual-gun-v1.png", bounds: [[0.015, 0.20], [0.25, 0.445], [0.49, 0.675], [0.70, 1]] },

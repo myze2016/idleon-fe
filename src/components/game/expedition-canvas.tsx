@@ -78,7 +78,7 @@ export function ExpeditionCanvas({ location, team, gold, characterName, characte
     const canvas = canvasRef.current, ctx = canvas?.getContext("2d");
     if (!canvas || !ctx) return;
     const buttonIcons = new Image(); buttonIcons.src = "/ui/adventure-button-icons-v2.png";
-    const meadowArtwork = new Image(); meadowArtwork.src = location === "harbor" ? "/maps/harbor-painted-v1.png" : location === "forest" ? "/maps/forest-painted-v1.png" : "/maps/meadow-painted-v1.png";
+    const meadowArtwork = new Image(); meadowArtwork.src = location === "tourney" ? "/maps/tourney-painted-v1.png" : location === "harbor" ? "/maps/harbor-painted-v1.png" : location === "forest" ? "/maps/forest-painted-v1.png" : "/maps/meadow-painted-v1.png";
     const forest = location === "forest";
     const harbor = location === "harbor";
     const tourney = location === "tourney";
@@ -243,7 +243,7 @@ export function ExpeditionCanvas({ location, team, gold, characterName, characte
       if (spectatorButton.current) {
         const spectatorX = Math.floor(width * 0.82 / 36) * 36 + 4 - crowdOffset;
         spectatorButton.current.style.left = `${spectatorX}px`;
-        spectatorButton.current.style.top = `${height * 0.78 * 0.35 + 68}px`;
+        spectatorButton.current.style.top = `${height * 0.57 - 5}px`;
         spectatorButton.current.style.visibility = spectatorX < -20 ? "hidden" : "visible";
       }
       if (!spawning && !summonBusy && elapsed >= nextSpawn && !document.hidden && !monsters.some((monster) => monster.data.boss)) void spawn();
@@ -260,26 +260,6 @@ export function ExpeditionCanvas({ location, team, gold, characterName, characte
       rect(0, ground, width, height - ground, forest ? "#514c36" : "#8b7750");
       rect(0, ground, width, 8, forest ? "#72844e" : "#9ab56c");
       rect(0, ground + 8, width, 4, forest ? "#465f37" : "#6a8c4d");
-      if (tourney) {
-        rect(0, 0, width, ground, "#b6a28a");
-        rect(0, ground * 0.35, width, ground * 0.65, "#62594e");
-        for (let row = 0; row < 4; row++) {
-          rect(0, ground * 0.35 + row * 28, width, 4, "#a3967c");
-          for (let x = -36; x < width + 36; x += 36) {
-            const seat = Math.floor((x + crowdOffset) / 36) + crowdGroup * 31;
-            const sx = x + (row % 2) * 12 - crowdOffset % 36, sy = ground * 0.35 + row * 28 + 9;
-            const cheer = Math.sin(elapsed * 2.5 + x + row) * 2;
-            ctx.fillStyle = ["#b58e72", "#c2af8c", "#8c9f93", "#a08b87"][((seat + row) % 4 + 4) % 4];
-            const yellowX = Math.floor(width * 0.82 / 36) * 36 + 4 - crowdOffset;
-            if (spectatorAvailable && row === 2 && Math.abs(sx + 4 - yellowX) < 1) ctx.fillStyle = "#ffe347";
-            ctx.beginPath(); ctx.arc(sx + 4, sy - 2, 4, 0, Math.PI * 2); ctx.fill();
-            rect(sx, sy + 2, 8, 9, row % 2 ? "#45495b" : "#555147");
-            rect(sx - 3, sy + 2 + cheer, 3, 7, "#aa9275"); rect(sx + 8, sy + 2 - cheer, 3, 7, "#aa9275");
-          }
-        }
-        rect(0, ground - 14, width, 14, "#8c7960");
-        rect(0, ground, width, height - ground, "#c2a477");
-      }
       if (harbor) {
         rect(0, 0, width, ground, period === "night" ? "#142e48" : "#a9dce6");
         ctx.fillStyle = period === "night" ? "#eee8b8" : "#fff1b3"; ctx.beginPath(); ctx.arc(width * 0.8, height * 0.23, 24, 0, Math.PI * 2); ctx.fill();
@@ -310,7 +290,7 @@ export function ExpeditionCanvas({ location, team, gold, characterName, characte
           ctx.beginPath(); ctx.arc(x + 26, ground - 11, 3, 0, Math.PI * 2); ctx.fill();
         }
       }
-      if ((location === "meadow" || forest || harbor) && meadowArtwork.complete && meadowArtwork.naturalWidth > 0) {
+      if ((location === "meadow" || forest || harbor || tourney) && meadowArtwork.complete && meadowArtwork.naturalWidth > 0) {
         const horizon = Math.round(meadowArtwork.naturalHeight * 0.75);
         const tileWidth = Math.max(width, height * meadowArtwork.naturalWidth / meadowArtwork.naturalHeight);
         const firstTile = Math.floor(distance / tileWidth);
@@ -326,6 +306,23 @@ export function ExpeditionCanvas({ location, team, gold, characterName, characte
           ctx.drawImage(meadowArtwork, 0, horizon, meadowArtwork.naturalWidth, meadowArtwork.naturalHeight - horizon,
             0, ground, tileWidth, height - ground);
           ctx.restore();
+        }
+      }
+      if (tourney) {
+        for (let row = 0; row < 3; row++) {
+          for (let column = -1; column <= Math.ceil(width / 36); column++) {
+            const sx = column * 36 - crowdOffset % 36;
+            const sy = height * (0.46 + row * 0.055);
+            ctx.fillStyle = ["#b99577", "#aa997f", "#8e9c85"][(column + row + crowdGroup + 30) % 3];
+            ctx.beginPath(); ctx.arc(sx, sy - 5, 4, 0, Math.PI * 2); ctx.fill();
+            rect(sx - 4, sy, 8, 9, row % 2 ? "#665b63" : "#68715b");
+          }
+        }
+        if (spectatorAvailable) {
+          const sx = Math.floor(width * 0.82 / 36) * 36 + 4 - crowdOffset;
+          const sy = height * 0.57;
+          ctx.fillStyle = "#ffe347"; ctx.beginPath(); ctx.arc(sx, sy - 5, 5, 0, Math.PI * 2); ctx.fill();
+          rect(sx - 4, sy, 8, 10, "#866145");
         }
       }
       if (harbor && period === "night") {
@@ -477,7 +474,7 @@ export function ExpeditionCanvas({ location, team, gold, characterName, characte
         ctx.rotate(strike * (ranged ? -0.08 : 0.16));
         if (foe.data.type === "slime") ctx.scale(1 + strike * 0.22, 1 - strike * 0.16);
         const stride = foe.hp > 0 && foe.moving ? Math.sin(elapsed * 10) : 0;
-        if ((location === "meadow" || forest || harbor) && drawMonster(ctx, foe.data.type, elapsed, !!foe.moving, strike)) {
+        if ((location === "meadow" || forest || harbor || tourney) && drawMonster(ctx, foe.data.type, elapsed, !!foe.moving, strike)) {
           // Generated poses replace the procedural fallback once loaded.
         } else if (deepsea) {
           const fish = !["baracudon", "fishpeople-rider"].includes(foe.data.type);

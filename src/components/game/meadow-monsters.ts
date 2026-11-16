@@ -1,4 +1,5 @@
 const sheets = [
+  { src: "/sprites/tourney-enemies-v1.png", rows: ["gladiator", "spearman", "zugwang", "demon-prince"], heights: [60, 60, 62, 62] },
   { src: "/sprites/harbor-monsters-v1.png", rows: ["crab-day", "hermit", "starfish", "fishpeople-guide"], heights: [32, 38, 40, 52] },
   { src: "/sprites/harbor-night-monsters-v1.png", rows: ["fishpeople-spearman", "fishpeople-hunter", "fishpeople-magos"], heights: [50, 48, 52] },
   { src: "/sprites/meadow-monsters-v1.png", rows: ["boar", "slime", "plant", "mutant-boar"], heights: [42, 32, 50, 48] },
