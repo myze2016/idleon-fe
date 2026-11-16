@@ -83,6 +83,9 @@ export function ExpeditionCanvas({ location, team, gold, characterName, characte
     const harbor = location === "harbor";
     const tourney = location === "tourney";
     const deepsea = location.startsWith("deepsea");
+    const meadowEffects = new Image();
+    meadowEffects.src = "/sprites/meadow-hit-death.png";
+    const meadowAnimation = new Map<string, { hp: number; hurtAt: number; diedAt?: number }>();
     const deepSeaName = location === "deepsea-palace" ? "DeepSea Moot Royal Palace" : location === "deepsea-2f" ? "DeepSea Moot 2F" : "DeepSea Moot";
     let period: "day" | "night" = "day";
     const members = team.flatMap((character, slot) => character ? [{ character: charactersRef.current.find((owned) => owned.id === character.id) ?? character, slot }] : []);
@@ -465,6 +468,26 @@ export function ExpeditionCanvas({ location, team, gold, characterName, characte
         if (monster.spawned === false) continue;
         const foe = monster;
         const x = foe.x * width, size = Math.max(1, Math.min(2, height / 300)) * (foe.data.boss ? 1.45 : 1);
+        if (location === "meadow") {
+          let animation = meadowAnimation.get(foe.data.id);
+          if (!animation) {
+            animation = { hp: foe.data.stats.hp, hurtAt: -10 };
+            meadowAnimation.set(foe.data.id, animation);
+          }
+          if (foe.hp < animation.hp) animation.hurtAt = elapsed;
+          if (foe.hp <= 0 && animation.diedAt === undefined) animation.diedAt = elapsed;
+          animation.hp = foe.hp;
+          const dead = animation.diedAt !== undefined;
+          const age = elapsed - (animation.diedAt ?? animation.hurtAt);
+          const duration = dead ? 0.85 : 0.28;
+          if (age >= 0 && age < duration && meadowEffects.complete && meadowEffects.naturalWidth > 0) {
+            const progress = age / duration;
+            const extent = (dead ? 65 + progress * 35 : 42 + progress * 18) * size;
+            ctx.save(); ctx.globalAlpha = 1 - progress;
+            ctx.drawImage(meadowEffects, dead ? meadowEffects.naturalWidth / 2 : 0, 0, meadowEffects.naturalWidth / 2, meadowEffects.naturalHeight, x - extent / 2, ground - 30 * size - extent / 2, extent, extent);
+            ctx.restore();
+          }
+        }
         if (foe.hp > 0) {
         const attack = [...effects].reverse().find((effect) => effect.enemyId === foe.data.id && effect.step.actor === "enemy" && elapsed - effect.startedAt < 0.45);
         const attackProgress = attack ? Math.min(1, (elapsed - attack.startedAt) / 0.45) : 0;
@@ -472,6 +495,11 @@ export function ExpeditionCanvas({ location, team, gold, characterName, characte
         const ranged = foe.data.stats.range === "range";
         ctx.save(); ctx.translate(x + strike * (ranged ? 3 : -14) * size, ground - 1 - (foe.data.type === "slime" ? strike * 7 * size : 0)); ctx.scale(-size, size);
         ctx.rotate(strike * (ranged ? -0.08 : 0.16));
+        const hurtAge = elapsed - (meadowAnimation.get(foe.data.id)?.hurtAt ?? -10);
+        if (location === "meadow" && hurtAge < 0.28) {
+          ctx.translate(-Math.sin(hurtAge / 0.28 * Math.PI) * 7, 0);
+          ctx.rotate(-Math.sin(hurtAge / 0.28 * Math.PI) * 0.15);
+        }
         if (foe.data.type === "slime") ctx.scale(1 + strike * 0.22, 1 - strike * 0.16);
         const stride = foe.hp > 0 && foe.moving ? Math.sin(elapsed * 10) : 0;
         if ((location === "meadow" || forest || harbor || tourney) && drawMonster(ctx, foe.data.type, elapsed, !!foe.moving, strike)) {
