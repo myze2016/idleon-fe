@@ -17,6 +17,8 @@ const locations = [
 
 export function WorldMap({ onClose }: { onClose: () => void }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const viewportRef = useRef<HTMLDivElement>(null);
+  const drag = useRef<{ x: number; y: number; left: number; top: number } | null>(null);
   const closeRef = useRef<HTMLButtonElement>(null);
   const selected = useGameState((state) => state.selectedLocation);
   const store = useGameStoreApi();
@@ -37,7 +39,10 @@ export function WorldMap({ onClose }: { onClose: () => void }) {
     requestAnimationFrame(() => target.current?.focus());
   }
 
-  useEffect(() => { closeRef.current?.focus({ preventScroll: true }); }, []);
+  useEffect(() => {
+    closeRef.current?.focus({ preventScroll: true });
+    if (viewportRef.current) viewportRef.current.scrollLeft = 2400;
+  }, [garnalandOpen, deepSeaOpen]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -51,8 +56,7 @@ export function WorldMap({ onClose }: { onClose: () => void }) {
       const ratio = Math.min(window.devicePixelRatio || 1, 2);
       canvas.width = Math.round(w * ratio); canvas.height = Math.round(h * ratio);
       ctx.scale(ratio, ratio);
-      ctx.fillStyle = "#c9b68d"; ctx.fillRect(0, 0, w, h);
-      if (mapArtwork.complete && mapArtwork.naturalWidth > 0) ctx.drawImage(mapArtwork, 0, 0, w, h);
+      ctx.clearRect(0, 0, w, h);
       function box(x: number, y: number, width: number, height: number, fill: string, border: string) {
         ctx!.save();
         ctx!.globalAlpha = fill === "#626853" || fill === "#52696c" ? 0.82 : 1;
@@ -128,13 +132,51 @@ export function WorldMap({ onClose }: { onClose: () => void }) {
       </div> : <p className="text-sm text-[#e4d895]">Coming soon — this location is a placeholder.</p>}
       <button ref={backRef} type="button" onClick={closePlaceholder} className="cursor-pointer rounded-xl border border-[#b8a76d] bg-[#654e35] px-5 py-3 outline-none focus-visible:ring-2 focus-visible:ring-[#fff0b8]">Back to world map</button>
     </div> : <>
+    <div ref={viewportRef} tabIndex={0} aria-label="Scrollable world map. Drag the map or use arrow keys to explore." className="absolute inset-0 overflow-auto cursor-grab active:cursor-grabbing" style={{ touchAction: "pan-x pan-y" }} onPointerDown={(event) => {
+      if (event.pointerType !== "mouse" || event.button !== 0 || (event.target as HTMLElement).closest("button")) return;
+      const view = event.currentTarget;
+      drag.current = { x: event.clientX, y: event.clientY, left: view.scrollLeft, top: view.scrollTop };
+      view.setPointerCapture(event.pointerId);
+    }} onPointerMove={(event) => {
+      const start = drag.current;
+      if (!start) return;
+      event.currentTarget.scrollLeft = start.left - (event.clientX - start.x);
+      event.currentTarget.scrollTop = start.top - (event.clientY - start.y);
+    }} onPointerUp={() => { drag.current = null; }} onPointerCancel={() => { drag.current = null; }}>
+    <div className="relative" style={{ width: 2400, height: 1600, backgroundColor: "#c9b68d", backgroundImage: "url('/maps/world-map-expanded-v1.png')", backgroundSize: "100% 100%" }}>
+    <svg aria-hidden="true" className="hidden" viewBox="0 0 2400 1600" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <pattern id="map-waves" width="90" height="60" patternUnits="userSpaceOnUse"><path d="M12 30q12-8 24 0t24 0" fill="none" stroke="#648c8d" strokeWidth="2" opacity=".3" /></pattern>
+        <pattern id="map-trees" width="58" height="64" patternUnits="userSpaceOnUse"><path d="M29 8 13 36h10l-14 16h40L35 36h10Z" fill="#657b52" stroke="#4c6344" strokeWidth="2"/><path d="M29 52v8" stroke="#695238" strokeWidth="3"/></pattern>
+      </defs>
+      <rect width="2400" height="1600" fill="#94b2ad"/>
+      <rect width="2400" height="1600" fill="url(#map-waves)"/>
+      <path d="M0 0H1640l-70 170-115 80 25 130-130 90-45 180-170 70-40 150-190 35-60 180-170 40-80 195-200 30-130 170H0Z" fill="#d1c197" stroke="#857b58" strokeWidth="8"/>
+      <path d="m0 1250 200-80 170 60 95 140 170 35 90 195H0Z" fill="#c6b889" stroke="#857b58" strokeWidth="6"/>
+      <path d="m1600 1120 110-95 150 25 80 120-65 130-170 25-105-90Z M2070 800l85-70 100 45 35 100-110 65-100-40Z" fill="#d1c197" stroke="#857b58" strokeWidth="6"/>
+      <path d="M120 130q220 90 320 280t310 160q180-50 340 100" fill="none" stroke="#a9b9a0" strokeWidth="16"/>
+      <path d="M120 130q220 90 320 280t310 160q180-50 340 100" fill="none" stroke="#739c9a" strokeWidth="9"/>
+      <path d="m90 170 270-70 180 130-80 130-210 30-160-90Z M700 80l300 40 170 140-170 110-270-80Z M180 650l260-100 150 160-100 190-260-20Z" fill="url(#map-trees)" opacity=".8"/>
+      <g fill="#a69b78" stroke="#756b50" strokeWidth="4" strokeLinejoin="round">
+        <path d="m590 470 65-125 70 125-36-20-34 16-30-20Z"/><path d="m680 490 80-175 90 175-47-33-40 27-39-23Z"/><path d="m800 510 60-120 70 120-35-18-33 11-30-20Z"/>
+        <path d="m140 1100 70-140 80 140-40-25-40 20-35-20Z"/><path d="m230 1130 80-180 90 180-45-30-43 22-40-24Z"/>
+      </g>
+      <g fill="none" stroke="#a3936b" strokeWidth="3" opacity=".45"><path d="M60 50q500 150 1050 0M70 930q240 70 480-20M1610 1410q250 70 410-30"/></g>
+      <g transform="translate(2140 1390)" stroke="#6d654f" fill="#e1d0a5"><circle r="68" fill="none" strokeWidth="2"/><path d="M0-90 18-18 70 0 18 18 0 90-18 18-70 0-18-18Z" strokeWidth="3"/><path d="M0-90V90M-70 0H70"/><text y="-105" textAnchor="middle" fill="#6d654f" stroke="none" fontFamily="serif" fontSize="25">N</text></g>
+    </svg>
+    <div className="absolute right-0 top-0" style={{ width: 960, height: 640 }}>
     <canvas ref={canvasRef} aria-hidden="true" className="block h-full w-full" />
-    <button ref={closeRef} type="button" aria-label="Close map" onClick={onClose} onFocus={() => setFocus("close")} onBlur={() => setFocus("")} className="absolute top-4 right-4 size-12 cursor-pointer rounded-xl outline-none"><span className="sr-only">Close map</span></button>
     <div role="group" aria-label="Destinations">
       {locations.map((location) => <button key={location.id} type="button" aria-pressed={selected === location.id} onClick={() => store.getState().selectLocation(location.id)} onPointerEnter={() => setFocus(location.id)} onPointerLeave={() => setFocus("")} onFocus={() => setFocus(location.id)} onBlur={() => setFocus("")} className="absolute h-[88px] w-32 -translate-x-1/2 -translate-y-1/2 cursor-pointer rounded-xl outline-none" style={{ left: `${location.x * 100}%`, top: `${location.y * 100}%` }}><span className="sr-only">{location.name}</span></button>)}
       <button ref={garnalandRef} type="button" disabled={!garnalandUnlocked} onClick={() => setGarnalandOpen(true)} onFocus={() => setFocus("garnaland")} onBlur={() => setFocus("")} aria-label={garnalandUnlocked ? "Garnaland, unlocked, coming soon" : "Garnaland locked. Defeat Demon Prince to unlock"} className="absolute left-1/4 top-[87%] h-[72px] w-32 -translate-x-1/2 -translate-y-1/2 cursor-pointer rounded-xl outline-none disabled:cursor-default"><span className="sr-only">Garnaland</span></button>
       <button ref={deepSeaRef} type="button" disabled={!deepSeaUnlocked} onClick={() => setDeepSeaOpen(true)} onFocus={() => setFocus("deep-sea-moth")} onBlur={() => setFocus("")} aria-label={deepSeaUnlocked ? "DeepSea Moot, choose floor" : "DeepSea Moot locked. Obtain Deepsea Moth Map from Fishpeople Guide"} className="absolute left-[80%] top-[90%] h-16 w-32 -translate-x-1/2 -translate-y-1/2 cursor-pointer rounded-xl outline-none disabled:cursor-default"><span className="sr-only">DeepSea Moot</span></button>
     </div>
+    </div>
+    <p className="absolute left-[560px] top-[850px] font-serif text-3xl italic tracking-widest text-[#71583c]">Uncharted lands</p>
+    </div>
+    </div>
+    <button ref={closeRef} type="button" aria-label="Close map" onClick={onClose} className="absolute top-4 right-4 z-20 size-12 cursor-pointer rounded-xl border border-[#71583c] bg-[#efdfb8] text-2xl text-[#43311f] focus-visible:ring-2 focus-visible:ring-[#805523]">×</button>
+    <p className="pointer-events-none absolute bottom-3 left-3 rounded border border-[#a38358] bg-[#efdfb8] px-3 py-2 text-xs text-[#43311f]">Drag or scroll to explore · Arrow keys also move the map</p>
     <p role="status" className="sr-only">{selected ? `Selected destination: ${selected}` : "Select Meadow, Forest, Harbor, or Zugwangs Battle Tourney."}</p>
     </>}
   </div></ResponsiveCanvasFrame>;

@@ -8,6 +8,14 @@ import { useSession } from "@/lib/auth";
 import { useArtifactAction, useCharacter } from "@/lib/character-api";
 import { artifactCatalog, artifactDetails, artifactBonus, artifactStatText } from "@/lib/artifact";
 
+function enhancementColor(level: number) {
+  if (level >= 20) return "#a13725";
+  if (level >= 15) return "#956000";
+  if (level >= 10) return "#7535a0";
+  if (level >= 5) return "#245fa0";
+  return "#287044";
+}
+
 export function CollectionPanel({ title, onClose, characterId }: { title: "Shop" | "Artifacts"; onClose: () => void; characterId?: string }) {
   const closeRef = useRef<HTMLButtonElement>(null), busy = useRef(false);
   const session = useSession(), state = useCharacter(session.data?.user.id), action = useArtifactAction(session.data?.user.id);
@@ -54,10 +62,10 @@ export function CollectionPanel({ title, onClose, characterId }: { title: "Shop"
         const equipped = !!characterId && item.id === character?.artifactId;
         const owned = state.data?.artifacts.filter((artifact) => artifact.stat === item.stat).length ?? 0;
         const enhancing = action.isPending && action.variables && "enhanceId" in action.variables && action.variables.enhanceId === item.id;
-        return <article key={item.id} className={`rounded-xl border paper-card bg-[#e9d4a7] p-4 ${equipped ? "border-[#e4d895]" : "border-[#a38358]"}`}>
+        return <article key={item.id} style={{ borderRadius: 0, borderStyle: "solid", borderWidth: 2 }} className={`paper-card bg-[#e9d4a7] p-4 ${equipped ? "border-[#805523]" : "border-[#a38358]"}`}>
           <div className="flex items-center gap-4">
-            <ArtifactIcon stat={item.stat} />
-            <div className="min-w-0"><h3 className="font-semibold">{item.name}{item.enhancementLevel > 0 ? ` · Enhance +${item.enhancementLevel}` : ""}</h3>
+            <div className="shrink-0 border-2 border-solid border-[#a38358] bg-[#efdfb8] p-2"><ArtifactIcon stat={item.stat} /></div>
+            <div className="min-w-0"><h3 className="font-semibold">{item.name}{item.enhancementLevel > 0 && <span style={{ color: enhancementColor(item.enhancementLevel) }}> · Enhance +{item.enhancementLevel}</span>}</h3>
               <p className="mt-1 text-sm" style={{ color: "#70502e" }}>{artifactStatText(item.stat, item.enhancementLevel)}</p>
               <p className="mt-1 text-xs text-[#71583c]">{title === "Shop" ? `Owned: ${owned}` : owner ? `Equipped: ${owner.name}${equipped ? " · Selected" : ""}` : "Not equipped"}</p>
             </div>
