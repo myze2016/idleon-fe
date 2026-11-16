@@ -1,5 +1,8 @@
 "use client";
 import { ResponsiveCanvasFrame } from "./responsive-canvas-frame";
+import { drawCabinFireplace } from "./cabin-fireplace";
+import { drawPaperPanel } from "./paper-panel";
+import { drawRpgButton } from "./rpg-button";
 import { drawCharacter } from "./character-design";
 
 import { useEffect, useRef, useState } from "react";
@@ -29,6 +32,8 @@ export function RoomCanvas({ character, characters, gold, progression }: { chara
   const input = useRef(new Set<string>());
   const focus = useRef("");
   const destination = useRef<{ x: number; y: number } | null>(null);
+  const charactersRef = useRef(characters);
+  useEffect(() => { charactersRef.current = characters; }, [characters]);
   const goldRef = useRef(gold);
   const progressionRef = useRef(progression);
   useEffect(() => { progressionRef.current = progression; }, [progression]);
@@ -58,11 +63,21 @@ export function RoomCanvas({ character, characters, gold, progression }: { chara
     const ctx = canvas?.getContext("2d");
     if (!canvas || !ctx) return;
 
+    const buttonIcons = new Image();
+    buttonIcons.src = "/ui/adventure-button-icons-v2.png";
+    const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
+    const roomArtwork = new Image();
+    roomArtwork.src = "/room/cozy-cabin-v5.png";
+
     const player = { x: 0.5, y: 0.7, facing: 1 };
     let width = 0, height = 0, ratio = 1, last = 0, frame = 0;
+    let idleClock = 0, idleBlend = 0;
+    let trailKey = "";
+    const trail: { x: number; y: number; facing: number }[] = [];
     function resize() {
       if (!canvas) return;
       width = canvas.clientWidth; height = canvas.clientHeight;
+      trail.length = 0;
       setToolbar(roomToolbarLayout(width));
       ratio = Math.min(window.devicePixelRatio || 1, 2);
       canvas.width = Math.round(width * ratio); canvas.height = Math.round(height * ratio);
@@ -98,8 +113,23 @@ export function RoomCanvas({ character, characters, gold, progression }: { chara
       if (!ctx || !canvas || !width || !height) { frame = requestAnimationFrame(draw); return; }
       const dt = Math.min((time - (last || time)) / 1000, 0.04); last = time;
       const wall = height * 0.38;
-      const pad = Math.min(40, width * 0.08);
-      const minY = wall + 40, maxY = Math.max(minY, height - 30);
+      const savedTeam = store.getState().teamSlots.filter((member): member is Character => !!member)
+        .map((member) => charactersRef.current.find((owned) => member.id && owned.id === member.id) ?? member);
+      const roomTeam = savedTeam.length ? savedTeam : [character];
+      const leader = roomTeam[0];
+      const partyScale = Math.max(0.5, Math.min(2, Math.min(width, height) / 420, (width - 40) / (roomTeam.length * 52)));
+      const spacing = Math.min(62 * partyScale, (width - 64) / Math.max(1, roomTeam.length - 1));
+      const pad = 24;
+      const teamKey = roomTeam.map((member) => member.id ?? member.weapon).join(":");
+      if (!trail.length || trailKey !== teamKey) {
+        trailKey = teamKey; trail.length = 0;
+        player.x = Math.min(1 - pad / width, Math.max(player.x, (pad + (roomTeam.length - 1) * spacing) / width));
+        for (let index = 0; index < roomTeam.length + 1; index++) {
+          trail.push({ x: Math.max(pad / width, player.x - index * spacing / width), y: player.y, facing: 1 });
+        }
+      }
+      const minY = wall + 40;
+      const maxY = Math.max(minY, height - 30);
       const speed = Math.min(width, height) * 0.4;
       let playerMoving = false;
       if (!store.getState().isPaused && !store.getState().isMapOpen && !store.getState().activePanel && !document.hidden) {
@@ -121,72 +151,87 @@ export function RoomCanvas({ character, characters, gold, progression }: { chara
       player.y = Math.max(minY / height, Math.min(maxY / height, player.y));
 
       ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
-      const light = ctx.createLinearGradient(0, 0, 0, wall);
-      light.addColorStop(0, "#193d35"); light.addColorStop(1, "#31574a");
-      ctx.fillStyle = light; ctx.fillRect(0, 0, width, wall);
-      for (let x = 24; x < width; x += 90) box(x, 0, 3, wall, "#15392f");
-      box(0, wall, width, height - wall, "#8a6e4d");
-      for (let y = wall; y < height; y += 48) {
-        box(0, y, width, 2, "#68533d");
-        for (let x = ((Math.floor((y - wall) / 48) % 2) * 90); x < width; x += 180) box(x, y, 2, Math.min(48, height - y), "#715a40");
+      // Render wall and floor separately so the horizon remains aligned with
+      // the walkable area at every canvas aspect ratio, without cropping props.
+      ctx.fillStyle = "#59432f"; ctx.fillRect(0, 0, width, wall);
+      ctx.fillStyle = "#654a32"; ctx.fillRect(0, wall, width, height - wall);
+      if (roomArtwork.complete && roomArtwork.naturalWidth > 0) {
+        const horizon = Math.round(roomArtwork.naturalHeight * 0.51);
+        ctx.drawImage(roomArtwork, 0, 0, roomArtwork.naturalWidth, horizon, 0, 0, width, wall);
+        ctx.drawImage(roomArtwork, 0, horizon, roomArtwork.naturalWidth, roomArtwork.naturalHeight - horizon,
+          0, wall, width, height - wall);
       }
-      box(0, wall - 14, width, 18, "#1b332a", "#506748");
-      // Furnishings remain against the wall, leaving a clear floor to explore.
-      const scale = Math.min(width / 800, height / 500, 1.3);
-      ctx.save(); ctx.translate(width * 0.2, wall - 14); ctx.scale(scale, scale);
-      box(-60, -136, 120, 110, "#8d7752", "#bba273", 4);
-      box(-48, -124, 96, 86, "#86afa3");
-      ctx.fillStyle = "#e5d9a3"; ctx.beginPath(); ctx.arc(22, -99, 16, 0, Math.PI * 2); ctx.fill();
-      box(-4, -124, 8, 86, "#8d7752"); box(-48, -85, 96, 7, "#8d7752");
-      ctx.restore();
-      ctx.save(); ctx.translate(width * 0.76, wall - 10); ctx.scale(scale, scale);
-      box(-50, -126, 100, 126, "#142a25", "#877456", 8);
-      box(-39, -113, 78, 113, "#654e36", "#92774f", 4);
-      box(23, -51, 6, 6, "#e7c67e", undefined, 3); ctx.restore();
-      ctx.save(); ctx.translate(width * 0.48, wall - 8); ctx.scale(scale, scale);
-      box(-52, -66, 104, 22, "#9b7d52", "#4d4031", 3);
-      box(-46, -44, 9, 44, "#4d4031"); box(37, -44, 9, 44, "#4d4031");
-      box(-31, -77, 35, 10, "#b9bd93", "#455741", 2);
-      box(17, -88, 15, 22, "#bf9566", undefined, 3); ctx.restore();
-      box(width * 0.27, wall + (height - wall) * 0.3, width * 0.46, (height - wall) * 0.46, "#536c56", "#c3ae78", 10);
-      box(width * 0.29, wall + (height - wall) * 0.3 + 10, width * 0.42, Math.max(4, (height - wall) * 0.46 - 20), "#61765a", "#94a17a", 6);
-
+      if (roomArtwork.complete && roomArtwork.naturalWidth > 0) {
+        drawCabinFireplace(ctx, width, wall, reducedMotion.matches ? 0 : time);
+      }
       const px = player.x * width, py = player.y * height;
-      const avatarScale = Math.max(1, Math.min(2, Math.min(width, height) / 320));
-      const stride = playerMoving ? Math.sin(time / 95) : 0;
-      const bob = playerMoving ? Math.abs(stride) * 2 : 0;
-      ctx.save(); ctx.translate(px, py - bob * avatarScale); ctx.scale(avatarScale, avatarScale);
-      drawCharacter(ctx, character.weapon, { facing: player.facing, stride }); ctx.restore();
+      const avatarScale = partyScale;
+      const stride = playerMoving ? Math.sin(time / 190) : 0;
+      const idleEnabled = !reducedMotion.matches && !document.hidden && !store.getState().isPaused && !store.getState().isMapOpen && !store.getState().activePanel;
+      if (idleEnabled) idleClock += dt;
+      idleBlend += ((playerMoving || !idleEnabled ? 0 : 1) - idleBlend) * Math.min(1, dt * 8);
+      const idle = reducedMotion.matches ? 0 : Math.sin(idleClock * 2.2) * idleBlend;
+      // Each follower occupies an earlier point on the leader's path.
+      if (Math.hypot((player.x - trail[0].x) * width, (player.y - trail[0].y) * height) > 0.5) {
+        trail.unshift({ x: player.x, y: player.y, facing: player.facing });
+      }
+      let covered = 0;
+      for (let index = 1; index < trail.length; index++) {
+        covered += Math.hypot((trail[index - 1].x - trail[index].x) * width, (trail[index - 1].y - trail[index].y) * height);
+        if (covered > roomTeam.length * spacing + 40) { trail.length = index + 1; break; }
+      }
+      const party = roomTeam.map((member, index) => {
+        let remaining = index * spacing;
+        for (let point = 1; point < trail.length; point++) {
+          const newer = trail[point - 1], older = trail[point];
+          const length = Math.hypot((newer.x - older.x) * width, (newer.y - older.y) * height);
+          if (remaining <= length && length > 0) {
+            const fraction = remaining / length;
+            return { member, index, x: (newer.x + (older.x - newer.x) * fraction) * width,
+              y: (newer.y + (older.y - newer.y) * fraction) * height, facing: newer.facing };
+          }
+          remaining -= length;
+        }
+        const end = trail[trail.length - 1];
+        return { member, index, x: end.x * width, y: end.y * height, facing: end.facing };
+      });
+      party[0] = { member: leader, index: 0, x: px, y: py, facing: player.facing };
+      for (const actor of party) {
+        const memberIdle = actor.index ? (reducedMotion.matches ? 0 : Math.sin(idleClock * 2.2 + actor.index * 0.8) * idleBlend) : idle;
+        const memberStride = playerMoving ? Math.sin(time / 190 + actor.index * 0.65) : stride;
+        ctx.save(); ctx.translate(actor.x, actor.y); ctx.scale(avatarScale, avatarScale);
+        drawCharacter(ctx, actor.member.weapon, { facing: actor.facing, stride: memberStride, idle: memberIdle });
+        ctx.restore();
+      }
       // HUD is rendered in screen coordinates, keeping both corners anchored on resize.
       const controls = roomToolbarLayout(width);
       const nameWidth = Math.max(70, Math.min(300, width >= 1060 ? controls[0].x - 32 : width - 32));
-      box(16, 16, nameWidth, 62, "#102c26e8", "#708360", 10);
-      text(character.name, 30, 42, "600 17px system-ui", "#f1ebce", nameWidth - 28);
-      text(weaponDetails(character.weapon).label, 30, 62, "12px system-ui", "#c1cda9", nameWidth - 28);
-      box(16, 86, nameWidth, 32, "#e4d895", "#b8a76d", 8);
-      text("Id-leon City", 30, 107, "600 12px system-ui", "#19392d", nameWidth - 28);
+      drawPaperPanel(ctx, 16, 16, nameWidth, 62);
+      text(leader.name, 38, 42, "600 17px system-ui", "#43311f", nameWidth - 44);
+      text(weaponDetails(leader.weapon).label, 38, 62, "12px system-ui", "#66513b", nameWidth - 44);
+      drawPaperPanel(ctx, 16, 86, nameWidth, 32);
+      text("Id-leon City", 38, 107, "600 12px system-ui", "#43311f", nameWidth - 44);
       const progress = progressionRef.current;
       const progressWidth = Math.max(100, Math.min(200, width - 232));
-      ctx.save(); ctx.translate(56, 0);
-      box(16, height - 126, progressWidth, 110, "#102c26ed", "#b8a76d", 10);
-      text(`Gold: ${goldRef.current}`, 30, height - 100, "600 15px system-ui", "#e4d895", progressWidth - 28);
-      text(`Account Lv. ${progress.level}`, 30, height - 76, "600 14px system-ui", "#f1ebce", progressWidth - 28);
-      text(`EXP: ${progress.exp}/${progress.expToNextLevel}`, 30, height - 52, "12px system-ui", "#c1cda9", progressWidth - 28);
-      box(30, height - 38, progressWidth - 28, 6, "#365642", undefined, 3);
-      if (progress.exp > 0) box(30, height - 38, (progressWidth - 28) * progress.exp / progress.expToNextLevel, 6, "#d7c981", undefined, 3);
+      ctx.save();
+      drawPaperPanel(ctx, 16, height - 126, progressWidth, 110);
+      text(`Gold: ${goldRef.current}`, 38, height - 100, "600 15px system-ui", "#68491e", progressWidth - 44);
+      text(`Account Lv. ${progress.level}`, 38, height - 76, "600 14px system-ui", "#43311f", progressWidth - 44);
+      text(`EXP: ${progress.exp}/${progress.expToNextLevel}`, 38, height - 52, "12px system-ui", "#66513b", progressWidth - 44);
+      box(38, height - 38, progressWidth - 44, 6, "#8d7455", undefined, 3);
+      if (progress.exp > 0) box(38, height - 38, (progressWidth - 44) * progress.exp / progress.expToNextLevel, 6, "#8c6231", undefined, 3);
       ctx.restore();
       for (const control of controls) {
         const label = control.id === "menu" && store.getState().isPaused ? "Close" : control.label;
-        box(control.x, control.y, control.width, control.height, "#102c26e8", focus.current === control.id || store.getState().activePanel === control.id ? "#fff0b8" : "#708360", 10);
-        ctx.textAlign = "center"; text(label, control.x + control.width / 2, control.y + 29, `600 ${control.width < 90 ? 12 : 14}px system-ui`, "#f1ebce"); ctx.textAlign = "left";
+        drawRpgButton(ctx, buttonIcons, label === "Close" ? "close" : control.id, label,
+          control.x, control.y, control.width, control.height,
+          focus.current === control.id || (control.id === "menu" ? store.getState().isPaused : store.getState().activePanel === control.id));
       }
-      box(width - 144, height - 160, 128, 48, "#102c26ed", focus.current === "map" || store.getState().isMapOpen ? "#fff0b8" : "#708360", 10);
-      box(width - 144, height - 108, 128, 28, "#102c26ed", undefined, 6);
-      box(width - 144, height - 68, 128, 52, "#e4d895", focus.current === "start" ? "#ffffff" : "#b8a76d", 10);
+      drawRpgButton(ctx, buttonIcons, "map", "Map", width - 192, height - 104, 88, 88, focus.current === "map" || store.getState().isMapOpen);
+      drawRpgButton(ctx, buttonIcons, "start", "Start", width - 104, height - 104, 88, 88, focus.current === "start");
+      drawPaperPanel(ctx, width - 192, height - 142, 176, 34);
       ctx.textAlign = "center";
-      text("Map", width - 80, height - 130, "600 15px system-ui", "#f1ebce");
-      text(({ meadow: "Meadow", forest: "Forest", harbor: "Harbor", tourney: "Zugwangs Battle Tourney", deepsea: "DeepSea Moot", "deepsea-2f": "DeepSea Moot 2F", "deepsea-palace": "DeepSea Moot Royal Palace" })[store.getState().selectedLocation], width - 80, height - 89, "600 12px system-ui", "#dbe4ad");
-      text("Start", width - 80, height - 35, "700 17px system-ui", "#19392d");
+      text(({ meadow: "Meadow", forest: "Forest", harbor: "Harbor", tourney: "Zugwangs Battle Tourney", deepsea: "DeepSea Moot", "deepsea-2f": "DeepSea Moot 2F", "deepsea-palace": "DeepSea Moot Royal Palace" })[store.getState().selectedLocation], width - 104, height - 120, "600 12px system-ui", "#43311f", 132);
       ctx.textAlign = "left";
       frame = requestAnimationFrame(draw);
     }
@@ -199,9 +244,9 @@ export function RoomCanvas({ character, characters, gold, progression }: { chara
     };
   }, [character, store]);
 
-  return <ResponsiveCanvasFrame overlay={false} minHeight={420} narrowMinHeight={520}><div className="relative h-full w-full overflow-hidden bg-[#193d35]">
+  return <ResponsiveCanvasFrame overlay={false} minHeight={560} narrowMinHeight={600}><div className="relative h-full w-full overflow-hidden bg-[#59432f]">
     <div inert={menuOpen || mapOpen || activePanel !== null} className="h-full w-full">
-    <canvas ref={canvasRef} tabIndex={0} aria-label={`${character.name}'s room`} aria-describedby="room-controls" className="block h-full w-full touch-none outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[#dbe4ad]" onPointerDown={(event) => {
+    <canvas ref={canvasRef} tabIndex={0} aria-label={`${character.name}'s room`} aria-describedby="room-controls" className="block h-full w-full touch-none outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[#d6aa4e]" onPointerDown={(event) => {
       if (store.getState().isPaused || store.getState().isMapOpen || store.getState().activePanel) return;
       event.currentTarget.focus({ preventScroll: true });
       const bounds = event.currentTarget.getBoundingClientRect();
@@ -218,9 +263,9 @@ export function RoomCanvas({ character, characters, gold, progression }: { chara
     <p className="sr-only">{character.name}, {weaponDetails(character.weapon).label}. Room location: Id-leon City.</p>
     <p role="status" className="sr-only">Account level {progression.level}. EXP {progression.exp} of {progression.expToNextLevel}. Total EXP {progression.totalExp}. Gold {gold}.</p>
     <p role="status" className="sr-only">Selected location: {({ meadow: "Meadow", forest: "Forest", harbor: "Harbor", tourney: "Zugwangs Battle Tourney", deepsea: "DeepSea Moot", "deepsea-2f": "DeepSea Moot 2F", "deepsea-palace": "DeepSea Moot Royal Palace" })[selectedLocation]}</p>
-    <button type="button" aria-label="Map" aria-expanded={mapOpen} onClick={() => roomAction("map")} onFocus={() => { focus.current = "map"; }} onBlur={() => { focus.current = ""; }} className="absolute right-4 bottom-[112px] h-12 w-32 cursor-pointer rounded-[10px] outline-none"><span className="sr-only">Map</span></button>
-    <button type="button" onClick={() => store.getState().startExploring(characters.find((member) => member.isStarter) ?? character)} onFocus={() => { focus.current = "start"; }} onBlur={() => { focus.current = ""; }} className="absolute right-4 bottom-4 h-[52px] w-32 cursor-pointer rounded-[10px] outline-none"><span className="sr-only">Start</span></button>
-    {toolbar.map((control) => <button key={control.id} type="button" aria-label={control.label} aria-expanded={control.id === "menu" ? menuOpen : activePanel === control.id} onClick={() => control.id === "menu" ? toggleMenu() : togglePanel(control.id)} onFocus={() => { focus.current = control.id; }} onBlur={() => { focus.current = ""; }} className="absolute cursor-pointer rounded-[10px] outline-none" style={{ left: control.x, top: control.y, width: control.width, height: control.height }}><span className="sr-only">{control.label}</span></button>)}
+    <button type="button" aria-label="Map" aria-expanded={mapOpen} onClick={() => roomAction("map")} title="World map" onPointerEnter={() => { focus.current = "map"; }} onPointerLeave={() => { focus.current = ""; }} onFocus={() => { focus.current = "map"; }} onBlur={() => { focus.current = ""; }} className="absolute right-[104px] bottom-4 h-[88px] w-[88px] cursor-pointer rounded-[10px] outline-none"><span className="sr-only">Map</span></button>
+    <button type="button" onClick={() => store.getState().startExploring(characters.find((member) => member.isStarter) ?? character)} title="Start adventure" onPointerEnter={() => { focus.current = "start"; }} onPointerLeave={() => { focus.current = ""; }} onFocus={() => { focus.current = "start"; }} onBlur={() => { focus.current = ""; }} className="absolute right-4 bottom-4 h-[88px] w-[88px] cursor-pointer rounded-[10px] outline-none"><span className="sr-only">Start</span></button>
+    {toolbar.map((control) => <button key={control.id} type="button" aria-label={control.id === "menu" && menuOpen ? "Close menu" : control.label} title={control.label} aria-expanded={control.id === "menu" ? menuOpen : activePanel === control.id} onClick={() => control.id === "menu" ? toggleMenu() : togglePanel(control.id)} onPointerEnter={() => { focus.current = control.id; }} onPointerLeave={() => { focus.current = ""; }} onFocus={() => { focus.current = control.id; }} onBlur={() => { focus.current = ""; }} className="absolute cursor-pointer rounded-[10px] outline-none" style={{ left: control.x, top: control.y, width: control.width, height: control.height }}><span className="sr-only">{control.label}</span></button>)}
     </div>
     {mapOpen && <WorldMap onClose={() => roomAction("start")} />}
     {menuOpen && <RoomMenu onClose={() => roomAction("start")} />}

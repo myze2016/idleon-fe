@@ -1,4 +1,7 @@
 "use client";
+import { drawRpgButton } from "./rpg-button";
+import { drawPaperPanel } from "./paper-panel";
+import { drawMonster } from "./meadow-monsters";
 import { drawCharacter } from "./character-design";
 
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -29,6 +32,7 @@ export function ExpeditionCanvas({ location, team, gold, characterName, characte
   const returnRef = useRef<HTMLButtonElement>(null);
   const focused = useRef(false);
   const characterFocused = useRef(false);
+  const focusedControl = useRef("");
   const summonAction = useRef<(() => Promise<void>) | null>(null);
   const spectatorButton = useRef<HTMLButtonElement>(null);
   const [yellowSpectator, setYellowSpectator] = useState(false);
@@ -73,15 +77,13 @@ export function ExpeditionCanvas({ location, team, gold, characterName, characte
   useEffect(() => {
     const canvas = canvasRef.current, ctx = canvas?.getContext("2d");
     if (!canvas || !ctx) return;
+    const buttonIcons = new Image(); buttonIcons.src = "/ui/adventure-button-icons-v2.png";
+    const meadowArtwork = new Image(); meadowArtwork.src = location === "harbor" ? "/maps/harbor-painted-v1.png" : location === "forest" ? "/maps/forest-painted-v1.png" : "/maps/meadow-painted-v1.png";
     const forest = location === "forest";
     const harbor = location === "harbor";
     const tourney = location === "tourney";
     const deepsea = location.startsWith("deepsea");
     const deepSeaName = location === "deepsea-palace" ? "DeepSea Moot Royal Palace" : location === "deepsea-2f" ? "DeepSea Moot 2F" : "DeepSea Moot";
-    const assassinSprite = new Image();
-    let assassinSpriteLoaded = false;
-    assassinSprite.onload = () => { assassinSpriteLoaded = true; };
-    assassinSprite.src = "/sprites/assassin-moe-walk-sheet.png";
     let period: "day" | "night" = "day";
     const members = team.flatMap((character, slot) => character ? [{ character: charactersRef.current.find((owned) => owned.id === character.id) ?? character, slot }] : []);
     let width = 1, height = 1, ratio = 1, frame = 0, last = 0, distance = 0, elapsed = 0;
@@ -194,9 +196,10 @@ export function ExpeditionCanvas({ location, team, gold, characterName, characte
     function rect(x: number, y: number, w: number, h: number, color: string) {
       ctx!.fillStyle = color; ctx!.fillRect(x, y, w, h);
     }
-    function box(x: number, y: number, w: number, h: number, fill: string, border: string) {
-      ctx!.beginPath(); ctx!.roundRect(x, y, w, h, 10); ctx!.fillStyle = fill; ctx!.fill(); ctx!.strokeStyle = border; ctx!.lineWidth = 2; ctx!.stroke();
+    function box(x: number, y: number, w: number, h: number) {
+      drawPaperPanel(ctx!, x, y, w, h);
     }
+
     function text(value: string, x: number, y: number, font: string, color: string, maxWidth?: number) {
       ctx!.font = font; ctx!.fillStyle = color; ctx!.fillText(value, x, y, maxWidth);
     }
@@ -307,6 +310,27 @@ export function ExpeditionCanvas({ location, team, gold, characterName, characte
           ctx.beginPath(); ctx.arc(x + 26, ground - 11, 3, 0, Math.PI * 2); ctx.fill();
         }
       }
+      if ((location === "meadow" || forest || harbor) && meadowArtwork.complete && meadowArtwork.naturalWidth > 0) {
+        const horizon = Math.round(meadowArtwork.naturalHeight * 0.75);
+        const tileWidth = Math.max(width, height * meadowArtwork.naturalWidth / meadowArtwork.naturalHeight);
+        const firstTile = Math.floor(distance / tileWidth);
+        const offset = distance % tileWidth;
+        // Alternate mirrored copies: matching edges loop without jumps or gaps.
+        // Distance advances only during travel, so scenery stops for combat.
+        for (let i = 0; i < 2; i++) {
+          const left = i * tileWidth - offset;
+          const mirrored = (firstTile + i) % 2 !== 0;
+          ctx.save(); ctx.translate(left + (mirrored ? tileWidth : 0), 0);
+          if (mirrored) ctx.scale(-1, 1);
+          ctx.drawImage(meadowArtwork, 0, 0, meadowArtwork.naturalWidth, horizon, 0, 0, tileWidth, ground);
+          ctx.drawImage(meadowArtwork, 0, horizon, meadowArtwork.naturalWidth, meadowArtwork.naturalHeight - horizon,
+            0, ground, tileWidth, height - ground);
+          ctx.restore();
+        }
+      }
+      if (harbor && period === "night") {
+        ctx.fillStyle = "#10234288"; ctx.fillRect(0, 0, width, height);
+      }
       const spacing = Math.min(68, width * 0.34 / Math.max(1, members.length - 1));
       const avatarScale = Math.max(0.55, Math.min(2, height / 300, spacing / 43));
       const leadingX = width * 0.16 + (members.length - 1) * spacing;
@@ -415,8 +439,8 @@ export function ExpeditionCanvas({ location, team, gold, characterName, characte
         const action = [...effects].reverse().find((effect) => effect.step.characterId === character.id && effect.step.actor === "team" && effect.step.kind !== "poison" && effect.step.kind !== "bleed" && elapsed - effect.startedAt < 0.4);
         const swing = action ? Math.sin(Math.min(1, (elapsed - action.startedAt) / 0.4) * Math.PI) : 0;
         const rangedAction = action?.ranged || action?.step.kind === "cast";
-        const phase = elapsed * 9 + index * 0.7, stride = health <= 0 || (battling && !memberMoving[index]) ? 0 : Math.sin(phase), bob = Math.abs(stride) * 1.6;
-        ctx.save(); ctx.translate(x + swing * (rangedAction ? -3 : 12) * avatarScale, ground - 1 - bob * avatarScale); ctx.scale(avatarScale, avatarScale);
+        const phase = elapsed * 5.25 + index * 0.7, stride = health <= 0 || (battling && !memberMoving[index]) ? 0 : Math.sin(phase);
+        ctx.save(); ctx.translate(x + swing * (rangedAction ? -3 : 12) * avatarScale, ground); ctx.scale(avatarScale, avatarScale);
         drawCharacter(ctx, character.weapon, { stride, swing: swing * (rangedAction ? -0.2 : 1) }); ctx.restore();
         ctx.globalAlpha = 1;
         ctx.textAlign = "center";
@@ -453,7 +477,9 @@ export function ExpeditionCanvas({ location, team, gold, characterName, characte
         ctx.rotate(strike * (ranged ? -0.08 : 0.16));
         if (foe.data.type === "slime") ctx.scale(1 + strike * 0.22, 1 - strike * 0.16);
         const stride = foe.hp > 0 && foe.moving ? Math.sin(elapsed * 10) : 0;
-        if (deepsea) {
+        if ((location === "meadow" || forest || harbor) && drawMonster(ctx, foe.data.type, elapsed, !!foe.moving, strike)) {
+          // Generated poses replace the procedural fallback once loaded.
+        } else if (deepsea) {
           const fish = !["baracudon", "fishpeople-rider"].includes(foe.data.type);
           if (!fish) {
             ctx.fillStyle = "#6599a0"; ctx.beginPath(); ctx.ellipse(0, -21, 37, 13, 0, 0, Math.PI * 2); ctx.fill();
@@ -474,10 +500,8 @@ export function ExpeditionCanvas({ location, team, gold, characterName, characte
         } else if (tourney) {
           const assassin = foe.data.type === "assassin", boss = foe.data.boss;
           const demon = foe.data.type === "demon-prince";
-          if (assassin && assassinSpriteLoaded) {
-            const frameIndex = strike > 0 ? 3 : foe.moving ? 1 + Math.floor(elapsed * 8) % 2 : 0;
-            const frameWidth = assassinSprite.naturalWidth / 4;
-            ctx.drawImage(assassinSprite, frameIndex * frameWidth, 0, frameWidth, assassinSprite.naturalHeight, -34, -82, 68, 82);
+          if (assassin) {
+            drawCharacter(ctx, "dual-knife", { stride: foe.moving ? Math.sin(elapsed * 5.25) : 0, swing: strike });
           } else {
             rect(-11 + stride * 3, -12, 7, 13, "#3b3335"); rect(4 - stride * 3, -12, 7, 13, "#3b3335");
             rect(-15, -40, 30, 29, demon ? "#512d4c" : assassin ? "#494553" : boss ? "#864c56" : "#9c9790");
@@ -590,33 +614,33 @@ export function ExpeditionCanvas({ location, team, gold, characterName, characte
       });
       const layout = battleHudLayout(width, height);
       const nameX = layout.pad + 12, nameTop = layout.pad;
-      box(layout.pad, nameTop, layout.nameWidth, layout.nameHeight, "#102c26e8", "#708360");
-      text(nameRef.current, nameX, nameTop + (layout.compact ? layout.nameHeight * 0.31 : 27), `600 ${layout.compact ? 14 : 17}px system-ui`, "#f1ebce", layout.nameWidth - 24);
-      text(`${deepsea ? deepSeaName : tourney ? "Zugwangs Battle Tourney" : harbor ? `Harbor · ${period}` : forest ? "Forest" : "Meadow"} · ${Math.floor(distance / 16)} m`, nameX, nameTop + (layout.compact ? layout.nameHeight * 0.59 : 49), `${layout.compact ? 10 : 12}px system-ui`, "#c1cda9", layout.nameWidth - 24);
-      text(`Boss: ${meadowProgress.defeated}/${meadowProgress.target ?? (deepsea ? "30–40" : tourney ? "50–70" : "38–45")}`, nameX, nameTop + (layout.compact ? layout.nameHeight * 0.84 : 70), `${layout.compact ? 10 : 12}px system-ui`, "#e4d895", layout.nameWidth - 24);
+      box(layout.pad, nameTop, layout.nameWidth, layout.nameHeight);
+      text(nameRef.current, nameX, nameTop + (layout.compact ? layout.nameHeight * 0.31 : 27), `600 ${layout.compact ? 14 : 17}px system-ui`, "#43311f", layout.nameWidth - 24);
+      text(`${deepsea ? deepSeaName : tourney ? "Zugwangs Battle Tourney" : harbor ? `Harbor · ${period}` : forest ? "Forest" : "Meadow"} · ${Math.floor(distance / 16)} m`, nameX, nameTop + (layout.compact ? layout.nameHeight * 0.59 : 49), `${layout.compact ? 10 : 12}px system-ui`, "#66513b", layout.nameWidth - 24);
+      text(`Boss: ${meadowProgress.defeated}/${meadowProgress.target ?? (deepsea ? "30–40" : tourney ? "50–70" : "38–45")}`, nameX, nameTop + (layout.compact ? layout.nameHeight * 0.84 : 70), `${layout.compact ? 10 : 12}px system-ui`, "#68491e", layout.nameWidth - 24);
       if (!layout.compact) battleLog.forEach((entry, index) => {
         const y = layout.logY + index * (layout.rowHeight + layout.rowGap);
-        box(layout.pad, y, layout.nameWidth, layout.rowHeight, "#102c26e8", "#708360");
-        text(`${entry.actor}: ${entry.detail}`, nameX, y + layout.rowHeight / 2 + 3, `600 ${layout.compact ? 10 : 12}px system-ui`, index === 0 ? "#e4d895" : "#c1cda9", layout.nameWidth - 24);
+        box(layout.pad, y, layout.nameWidth, layout.rowHeight);
+        text(`${entry.actor}: ${entry.detail}`, nameX, y + layout.rowHeight / 2 + 3, `600 ${layout.compact ? 10 : 12}px system-ui`, index === 0 ? "#68491e" : "#66513b", layout.nameWidth - 24);
       });
       const progress = progressRef.current, progressWidth = Math.min(220, width - layout.pad * 2 - 56);
       const hudTop = layout.progressY, compactHud = layout.compact;
       ctx.save(); ctx.translate(56, 0);
-      box(layout.pad, hudTop, progressWidth, layout.progressHeight, "#102c26ed", "#b8a76d");
-      text(`Gold: ${goldRef.current}`, nameX, hudTop + (compactHud ? layout.progressHeight * 0.28 : 26), `600 ${compactHud ? 11 : 15}px system-ui`, "#e4d895", compactHud ? 100 : progressWidth - 28);
-      text(compactHud ? `Lv. ${progress.level}` : `Account Lv. ${progress.level}`, compactHud ? layout.pad + 126 : nameX, hudTop + (compactHud ? layout.progressHeight * 0.28 : 50), `600 ${compactHud ? 11 : 14}px system-ui`, "#f1ebce", compactHud ? 76 : progressWidth - 28);
-      text(`EXP: ${progress.exp}/${progress.expToNextLevel}`, nameX, hudTop + (compactHud ? layout.progressHeight * 0.58 : 74), `${compactHud ? 10 : 12}px system-ui`, "#c1cda9", progressWidth - 28);
-      rect(nameX, hudTop + (compactHud ? layout.progressHeight * 0.72 : 88), progressWidth - 28, 6, "#365642");
-      rect(nameX, hudTop + (compactHud ? layout.progressHeight * 0.72 : 88), (progressWidth - 28) * progress.exp / progress.expToNextLevel, 6, "#d7c981");
+      box(layout.pad, hudTop, progressWidth, layout.progressHeight);
+      text(`Gold: ${goldRef.current}`, nameX, hudTop + (compactHud ? layout.progressHeight * 0.28 : 26), `600 ${compactHud ? 11 : 15}px system-ui`, "#68491e", compactHud ? 100 : progressWidth - 28);
+      text(compactHud ? `Lv. ${progress.level}` : `Account Lv. ${progress.level}`, compactHud ? layout.pad + 126 : nameX, hudTop + (compactHud ? layout.progressHeight * 0.28 : 50), `600 ${compactHud ? 11 : 14}px system-ui`, "#43311f", compactHud ? 76 : progressWidth - 28);
+      text(`EXP: ${progress.exp}/${progress.expToNextLevel}`, nameX, hudTop + (compactHud ? layout.progressHeight * 0.58 : 74), `${compactHud ? 10 : 12}px system-ui`, "#66513b", progressWidth - 28);
+      rect(nameX, hudTop + (compactHud ? layout.progressHeight * 0.72 : 88), progressWidth - 28, 6, "#8d7455");
+      rect(nameX, hudTop + (compactHud ? layout.progressHeight * 0.72 : 88), (progressWidth - 28) * progress.exp / progress.expToNextLevel, 6, "#8c6231");
       ctx.restore();
       if (message && elapsed < messageUntil) text(message, layout.pad, height - layout.progressHeight - 24, "11px system-ui", "#ffcebb", width - 32);
       const controls = [...layout.controls, { ...layout.returnButton, label: "Return to room" }];
       for (const control of controls) {
-        const active = control.label === "Character" ? characterFocused.current : control.label === "Return to room" ? focused.current : false;
-        box(control.x, control.y, control.width, control.height, "#102c26ed", active ? "#fff0b8" : "#708360");
-        ctx.textAlign = "center";
-        text(control.label, control.x + control.width / 2, control.y + control.height / 2 + 4, `600 ${layout.fontSize}px system-ui`, "#f1ebce", control.width - 12);
-        ctx.textAlign = "left";
+        const active = control.label === "Character" ? characterFocused.current : control.label === "Return to room" ? focused.current : focusedControl.current === control.label;
+        drawRpgButton(ctx, buttonIcons, control.label === "Return to room" ? "map" : control.label.toLowerCase(),
+          control.label === "Return to room" ? "Room" : control.label,
+          control.x, control.y, control.width, control.height, active);
+
       }
       frame = requestAnimationFrame(draw);
     }
@@ -634,11 +658,11 @@ export function ExpeditionCanvas({ location, team, gold, characterName, characte
       className="absolute left-[82%] top-[41%] z-10 h-7 w-6 -translate-x-1/2 -translate-y-1/2 cursor-pointer rounded outline-none focus-visible:ring-2 focus-visible:ring-yellow-200 disabled:cursor-wait">
       <span className="sr-only">{summoning ? "Summoning Demon Prince…" : "A yellow-headed person hidden among the spectators"}</span>
     </button>}
-    <button ref={returnRef} type="button" style={{ left: hud.returnButton.x, top: hud.returnButton.y, width: hud.returnButton.width, height: hud.returnButton.height }} onClick={() => void returnToRoom()} onFocus={() => { focused.current = true; }} onBlur={() => { focused.current = false; }} className="absolute cursor-pointer rounded-xl outline-none"><span className="sr-only">Return to room</span></button>
+    <button ref={returnRef} type="button" style={{ left: hud.returnButton.x, top: hud.returnButton.y, width: hud.returnButton.width, height: hud.returnButton.height }} onClick={() => void returnToRoom()} title="Return to room" onPointerEnter={() => { focused.current = true; }} onPointerLeave={() => { focused.current = false; }} onFocus={() => { focused.current = true; }} onBlur={() => { focused.current = false; }} className="absolute cursor-pointer rounded-xl outline-none"><span className="sr-only">Return to room</span></button>
     {returnError && <p role="alert" className="absolute top-40 left-4 rounded bg-[#102c26] p-3 text-sm text-red-200">{returnError} Use Return to room to retry.</p>}
-    <button type="button" style={{ left: hud.controls[0].x, top: hud.controls[0].y, width: hud.controls[0].width, height: hud.controls[0].height }} aria-label="Character" aria-expanded={rosterOpen} onClick={() => { paused.current = true; setRosterOpen(true); }} onFocus={() => { characterFocused.current = true; }} onBlur={() => { characterFocused.current = false; }} className="absolute cursor-pointer rounded-xl outline-none"><span className="sr-only">Character</span></button>
+    <button type="button" style={{ left: hud.controls[0].x, top: hud.controls[0].y, width: hud.controls[0].width, height: hud.controls[0].height }} aria-label="Character" aria-expanded={rosterOpen} onClick={() => { paused.current = true; setRosterOpen(true); }} title="Character" onPointerEnter={() => { characterFocused.current = true; }} onPointerLeave={() => { characterFocused.current = false; }} onFocus={() => { characterFocused.current = true; }} onBlur={() => { characterFocused.current = false; }} className="absolute cursor-pointer rounded-xl outline-none"><span className="sr-only">Character</span></button>
     <p role="status" className="sr-only">{characterName}. Gold {gold}. Account level {progression.level}. EXP {progression.exp} of {progression.expToNextLevel}.</p>
-    {hud.controls.slice(1).map((control) => <button key={control.label} type="button" style={{ left: control.x, top: control.y, width: control.width, height: control.height }} aria-label={control.label} aria-expanded={collectionOpen === control.label} onClick={() => { if (control.label === "Shop" || control.label === "Artifacts" || control.label === "Inventory" || control.label === "Wiki") { paused.current = true; setCollectionOpen(control.label); } }} className="absolute cursor-pointer rounded-xl outline-none focus-visible:ring-2 focus-visible:ring-[#fff0b8]"><span className="sr-only">{control.label}</span></button>)}
+    {hud.controls.slice(1).map((control) => <button key={control.label} type="button" style={{ left: control.x, top: control.y, width: control.width, height: control.height }} aria-label={control.label} title={control.label} onPointerEnter={() => { focusedControl.current = control.label; }} onPointerLeave={() => { focusedControl.current = ""; }} onFocus={() => { focusedControl.current = control.label; }} onBlur={() => { focusedControl.current = ""; }} aria-expanded={collectionOpen === control.label} onClick={() => { if (control.label === "Shop" || control.label === "Artifacts" || control.label === "Inventory" || control.label === "Wiki") { paused.current = true; setCollectionOpen(control.label); } }} className="absolute cursor-pointer rounded-xl outline-none focus-visible:ring-2 focus-visible:ring-[#fff0b8]"><span className="sr-only">{control.label}</span></button>)}
     </div>
     {rosterOpen && <CharacterRoster characters={characters} onClose={closeRoster} />}
     {collectionOpen === "Wiki" && <WikiPanel onClose={closeCollection} />}

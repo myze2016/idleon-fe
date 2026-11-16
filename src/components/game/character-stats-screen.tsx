@@ -1,4 +1,6 @@
 "use client";
+import { drawArtifactIcon } from "./artifact-icon";
+import { drawPaperPanel } from "./paper-panel";
 import { ResponsiveCanvasFrame } from "./responsive-canvas-frame";
 
 import { useEffect, useRef, useState } from "react";
@@ -40,9 +42,9 @@ export function CharacterStatsScreen({ character: initialCharacter, onClose }: {
       if (!canvas || !ctx) return;
       const w = canvas.clientWidth, h = canvas.clientHeight, ratio = Math.min(window.devicePixelRatio || 1, 2);
       canvas.width = Math.round(w * ratio); canvas.height = Math.round(h * ratio); ctx.scale(ratio, ratio);
-      const background = ctx.createLinearGradient(0, 0, 0, h); background.addColorStop(0, "#102e29"); background.addColorStop(1, "#3d5e47");
-      ctx.fillStyle = background; ctx.fillRect(0, 0, w, h);
-      function text(value: string, x: number, y: number, font: string, color = "#f1ebce", maxWidth?: number) {
+      const background = ctx.createLinearGradient(0, 0, 0, h); background.addColorStop(0, "#efdfb8"); background.addColorStop(1, "#d7bc8c");
+      ctx.fillStyle = background; ctx.fillRect(0, 0, w, h); drawPaperPanel(ctx, 0, 0, w, h);
+      function text(value: string, x: number, y: number, font: string, color = "#43311f", maxWidth?: number) {
         ctx!.font = font; ctx!.fillStyle = color; ctx!.fillText(value, x, y, maxWidth);
       }
       function wrap(value: string, x: number, y: number, maxWidth: number, lines: number) {
@@ -50,14 +52,14 @@ export function CharacterStatsScreen({ character: initialCharacter, onClose }: {
         let line = "", row = 0;
         for (const word of value.split(" ")) {
           if (line && ctx!.measureText(`${line} ${word}`).width > maxWidth) {
-            text(line, x, y + row * 18, "12px system-ui", "#c1cda9"); line = word; row++;
+            text(line, x, y + row * 18, "12px system-ui", "#71583c"); line = word; row++;
             if (row >= lines) return;
           } else line = line ? `${line} ${word}` : word;
         }
-        if (line) text(line, x, y + row * 18, "12px system-ui", "#c1cda9");
+        if (line) text(line, x, y + row * 18, "12px system-ui", "#71583c");
       }
-      text(character.name, 24, 48, "600 26px system-ui", "#f1ebce", w - 112);
-      text(`${weaponDetails(character.weapon).label} / Stats${equipped || character.upgradeLevel ? " (includes bonuses)" : ""}`, 24, 76, "13px system-ui", "#c1cda9", w - 48);
+      text(character.name, 24, 48, "600 26px system-ui", "#43311f", w - 112);
+      text(`${weaponDetails(character.weapon).label} / Stats${equipped || character.upgradeLevel ? " (includes bonuses)" : ""}`, 24, 76, "13px system-ui", "#71583c", w - 48);
       const top = 106;
       const area = Math.min(720, w - 48), left = (w - area) / 2, cellWidth = (area - 12) / 2;
       const cellHeight = 44;
@@ -65,11 +67,11 @@ export function CharacterStatsScreen({ character: initialCharacter, onClose }: {
       const rows = stats ? [["HP", stats.hp], ["MP", stats.mp], ["ATK", stats.atk], ["DEF", stats.def], ["Magic", stats.magic], ["Magic DEF", stats.magicDef], ["Speed", stats.speed], ["Range", stats.range]] : [];
       rows.forEach(([label, value], i) => {
         const x = left + i % 2 * (cellWidth + 12), y = top + Math.floor(i / 2) * (cellHeight + 10);
-        ctx.beginPath(); ctx.roundRect(x, y, cellWidth, cellHeight, 8); ctx.fillStyle = "#14372e"; ctx.fill(); ctx.strokeStyle = "#708360"; ctx.lineWidth = 1; ctx.stroke();
-        text(String(label), x + 12, y + cellHeight / 2 + 5, "12px system-ui", "#c1cda9");
-        ctx.textAlign = "right"; text(String(value), x + cellWidth - 12, y + cellHeight / 2 + 5, "600 16px system-ui", "#f1ebce"); ctx.textAlign = "left";
+        ctx.beginPath(); ctx.roundRect(x, y, cellWidth, cellHeight, 8); ctx.fillStyle = "#e9d4a7"; ctx.fill(); drawPaperPanel(ctx, x, y, cellWidth, cellHeight); ctx.strokeStyle = "#a38358"; ctx.lineWidth = 1; ctx.stroke();
+        text(String(label), x + 12, y + cellHeight / 2 + 5, "12px system-ui", "#71583c");
+        ctx.textAlign = "right"; text(String(value), x + cellWidth - 12, y + cellHeight / 2 + 5, "600 16px system-ui", "#43311f"); ctx.textAlign = "left";
       });
-      if (!stats) text("Stats unavailable. Refresh to load them.", 24, top + 30, "14px system-ui", "#c1cda9", w - 48);
+      if (!stats) text("Stats unavailable. Refresh to load them.", 24, top + 30, "14px system-ui", "#71583c", w - 48);
       const abilityTop = 332;
       const abilities = [
         { title: `Attack: ${stats?.range === "range" ? "Ranged" : "Melee"}`, detail: character.timing ? `Every ${character.timing.attackInterval.toFixed(2)}s` : "Basic attack", y: abilityTop, height: 66, skill: undefined },
@@ -80,44 +82,47 @@ export function CharacterStatsScreen({ character: initialCharacter, onClose }: {
       ];
       abilities.forEach((ability, i) => {
         const y = ability.y;
-        ctx.beginPath(); ctx.roundRect(left, y, area, ability.height, 8); ctx.fillStyle = "#14372e"; ctx.fill(); ctx.strokeStyle = "#708360"; ctx.stroke();
-        text(ability.title, left + 12, y + 24, "600 15px system-ui", "#f1ebce", area - 24);
+        ctx.beginPath(); ctx.roundRect(left, y, area, ability.height, 8); ctx.fillStyle = "#e9d4a7"; ctx.fill(); drawPaperPanel(ctx, left, y, area, ability.height); ctx.strokeStyle = "#a38358"; ctx.stroke();
+        text(ability.title, left + 12, y + 24, "600 15px system-ui", "#43311f", area - 24);
         wrap(ability.detail, left + 12, y + 47, area - 24, i === 0 ? 1 : i === 1 ? 4 : 5);
         if (ability.skill) {
           const skill = ability.skill;
           const timing = (character.timing?.spellCastTime ?? 1) * skill.baseCastTime;
           const metadata = skill.passive ? "Passive · No mana cost" : `${skill.mpCost} MP${skill.hpCost ? ` · ${skill.hpCost} HP` : ""} · Cast ${timing.toFixed(2)}s · Cooldown ${skill.cooldown}s`;
-          text(metadata, left + 12, y + (i === 1 ? 133 : 146), "11px system-ui", "#e4d895", area - 24);
+          text(metadata, left + 12, y + (i === 1 ? 133 : 146), "11px system-ui", "#805523", area - 24);
         }
       });
       const buttonWidth = area - 24, buttonX = left + 12, buttonY = 742;
       setUnlockRect({ x: buttonX, y: buttonY, width: buttonWidth });
-      ctx.beginPath(); ctx.roundRect(buttonX, buttonY, buttonWidth, 44, 8); ctx.fillStyle = canUnlock ? "#e4d895" : "#365642"; ctx.fill(); ctx.strokeStyle = focused === "unlock" ? "#fff" : "#8f9c72"; ctx.stroke();
+      ctx.beginPath(); ctx.roundRect(buttonX, buttonY, buttonWidth, 44, 8); ctx.fillStyle = canUnlock ? "#e4d895" : "#ddc292"; ctx.fill(); drawPaperPanel(ctx, buttonX, buttonY, buttonWidth, 44); ctx.strokeStyle = focused === "unlock" ? "#fff" : "#a38358"; ctx.stroke();
       ctx.textAlign = "center";
-      text(unlocked ? "Unlocked" : unlock.isPending ? "Unlocking..." : "Unlock · 1,000 gold", buttonX + buttonWidth / 2, buttonY + 27, "600 12px system-ui", canUnlock ? "#17392e" : "#e4d895", buttonWidth - 12);
+      text(unlocked ? "Unlocked" : unlock.isPending ? "Unlocking..." : "Unlock · 1,000 gold", buttonX + buttonWidth / 2, buttonY + 27, "600 12px system-ui", canUnlock ? "#43311f" : "#805523", buttonWidth - 12);
       ctx.textAlign = "left";
-      text(`Gold: ${gold.toLocaleString()}`, left, 830, "600 14px system-ui", "#e4d895", area);
-      text(error ?? (!unlocked && gold < 1000 ? `Need ${(1000 - gold).toLocaleString()} more gold to unlock Skill 2.` : "Available skills are used automatically during combat."), left, 854, "12px system-ui", error ? "#ffcebb" : "#c1cda9", area);
-      ctx.beginPath(); ctx.roundRect(left, 880, area, 66, 8); ctx.fillStyle = "#14372e"; ctx.fill(); ctx.strokeStyle = focused === "artifact" ? "#fff0b8" : "#708360"; ctx.stroke();
-      text("Artifact · Select to equip or unequip", left + 12, 903, "600 14px system-ui", "#e4d895", area - 24);
-      text(equipped ? `${artifactDetails(equipped.stat).name} · ${artifactStatText(equipped.stat, equipped.enhancementLevel)}` : "Empty · Buy artifacts in the Shop", left + 12, 927, "13px system-ui", "#c1cda9", area - 24);
-      text(`Character upgrades: ${character.upgradeLevel ?? 0}`, left, 974, "600 15px system-ui", "#e4d895", area);
-      text(upgradeDefinition ? `Each upgrade: +${upgradeDefinition.amount} ${upgradeDefinition.label}. Permanent and repeatable.` : "Upgrades are not available for this class yet.", left, 995, "12px system-ui", "#c1cda9", area);
-      ctx.beginPath(); ctx.roundRect(buttonX, 1010, buttonWidth, 44, 8); ctx.fillStyle = canUpgrade ? "#e4d895" : "#365642"; ctx.fill(); ctx.strokeStyle = focused === "upgrade" ? "#fff" : "#8f9c72"; ctx.stroke();
+      text(`Gold: ${gold.toLocaleString()}`, left, 830, "600 14px system-ui", "#805523", area);
+      text(error ?? (!unlocked && gold < 1000 ? `Need ${(1000 - gold).toLocaleString()} more gold to unlock Skill 2.` : "Available skills are used automatically during combat."), left, 854, "12px system-ui", error ? "#a13725" : "#71583c", area);
+      ctx.beginPath(); ctx.roundRect(left, 880, area, 66, 8); ctx.fillStyle = "#e9d4a7"; ctx.fill(); drawPaperPanel(ctx, left, 880, area, 66); ctx.strokeStyle = focused === "artifact" ? "#fff0b8" : "#a38358"; ctx.stroke();
+      text("Artifact · Select to equip or unequip", left + 12, 903, "600 14px system-ui", "#805523", area - 24);
+      if (equipped) drawArtifactIcon(ctx, equipped.stat, left + area - 58, 889, 46);
+      text(equipped ? `${artifactDetails(equipped.stat).name} · ${artifactStatText(equipped.stat, equipped.enhancementLevel)}` : "Empty · Buy artifacts in the Shop", left + 12, 927, "13px system-ui", "#71583c", area - (equipped ? 76 : 24));
+      text(`Character upgrades: ${character.upgradeLevel ?? 0}`, left, 974, "600 15px system-ui", "#805523", area);
+      text(upgradeDefinition ? `Each upgrade: +${upgradeDefinition.amount} ${upgradeDefinition.label}. Permanent and repeatable.` : "Upgrades are not available for this class yet.", left, 995, "12px system-ui", "#71583c", area);
+      ctx.beginPath(); ctx.roundRect(buttonX, 1010, buttonWidth, 44, 8); ctx.fillStyle = canUpgrade ? "#e4d895" : "#ddc292"; ctx.fill(); drawPaperPanel(ctx, buttonX, 1010, buttonWidth, 44); ctx.strokeStyle = focused === "upgrade" ? "#fff" : "#a38358"; ctx.stroke();
       ctx.textAlign = "center";
-      text(upgrade.isPending ? "Upgrading..." : upgradeDefinition ? `Upgrade +${upgradeDefinition.amount} ${upgradeDefinition.label} · 1,000 gold` : "Upgrade unavailable", buttonX + buttonWidth / 2, 1038, "600 12px system-ui", canUpgrade ? "#17392e" : "#e4d895", buttonWidth - 12);
+      text(upgrade.isPending ? "Upgrading..." : upgradeDefinition ? `Upgrade +${upgradeDefinition.amount} ${upgradeDefinition.label} · 1,000 gold` : "Upgrade unavailable", buttonX + buttonWidth / 2, 1038, "600 12px system-ui", canUpgrade ? "#43311f" : "#805523", buttonWidth - 12);
       ctx.textAlign = "left";
-      if (upgrade.error) text(upgrade.error.message, left, 1080, "12px system-ui", "#ffcebb", area);
-      ctx.beginPath(); ctx.roundRect(w - 64, 16, 48, 48, 12); ctx.fillStyle = "#163a30"; ctx.fill(); ctx.strokeStyle = focused === "close" ? "#fff" : "#708360"; ctx.stroke();
-      ctx.strokeStyle = "#f1ebce"; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(w - 47, 33); ctx.lineTo(w - 33, 47); ctx.moveTo(w - 33, 33); ctx.lineTo(w - 47, 47); ctx.stroke();
+      if (upgrade.error) text(upgrade.error.message, left, 1080, "12px system-ui", "#a13725", area);
+      ctx.beginPath(); ctx.roundRect(w - 64, 16, 48, 48, 12); ctx.fillStyle = "#e9d4a7"; ctx.fill(); drawPaperPanel(ctx, w - 64, 16, 48, 48); ctx.strokeStyle = focused === "close" ? "#fff" : "#a38358"; ctx.stroke();
+      ctx.strokeStyle = "#43311f"; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(w - 47, 33); ctx.lineTo(w - 33, 47); ctx.moveTo(w - 33, 33); ctx.lineTo(w - 47, 47); ctx.stroke();
     }
+    window.addEventListener("paper-art-ready", draw);
+    window.addEventListener("artifact-art-ready", draw);
     const observer = new ResizeObserver(draw); observer.observe(canvas); draw();
-    return () => observer.disconnect();
+    return () => { observer.disconnect(); window.removeEventListener("paper-art-ready", draw); window.removeEventListener("artifact-art-ready", draw); };
   }, [character, focused, gold, unlocked, canUnlock, error, unlock.isPending, equipped, artifactsOpen, upgradeDefinition, canUpgrade, upgrade.isPending, upgrade.error]);
 
   if (artifactsOpen && character.id) return <CollectionPanel title="Artifacts" characterId={character.id} onClose={() => { setArtifactsOpen(false); }} />;
 
-  return <ResponsiveCanvasFrame><div role="dialog" aria-modal="true" aria-label={`${character.name} stats and abilities`} className="absolute inset-0 z-30 overflow-auto bg-[#102e29]" onKeyDown={(event) => {
+  return <ResponsiveCanvasFrame><div role="dialog" aria-modal="true" aria-label={`${character.name} stats and abilities`} className="paper-menu absolute inset-0 z-30 overflow-auto paper-card bg-[#efdfb8]" onKeyDown={(event) => {
     if (event.key === "Escape") { event.preventDefault(); event.stopPropagation(); onClose(); }
     if (event.key === "Tab") {
       const buttons = Array.from(event.currentTarget.querySelectorAll<HTMLButtonElement>("button:not(:disabled)"));

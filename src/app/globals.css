@@ -128,3 +128,15 @@
     @apply font-sans;
   }
 }
+.paper-menu {
+  background-image: url('/ui/parchment-panel-v1.png');
+  background-size: 100% 100%;
+  background-attachment: local;
+}
+
+.paper-card {
+  border-image-source: url('/ui/parchment-panel-v1.png');
+  border-image-slice: 12% fill;
+  border-image-width: 12px;
+  border-image-repeat: stretch;
+}

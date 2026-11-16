@@ -66,8 +66,8 @@ export function PvpBattleCanvas(props: { fighters: DuelFighter[]; steps: DuelSte
         const swing = age < 0.45 ? Math.sin(Math.max(0, age) / 0.45 * Math.PI) : 0;
         const x = positions[index] + (fighter.stats.range === "melee" ? direction * swing * 14 : 0);
         const walking = moving[index];
-        ctx.save(); ctx.translate(x, ground - (walking ? Math.abs(Math.sin(time / 130 + index)) * 3 : 0)); ctx.scale(1.05, 1.05);
-        drawCharacter(ctx, fighter.weapon, { facing: direction, stride: walking ? Math.sin(time / 115 + index) : 0, swing }); ctx.restore();
+        ctx.save(); ctx.translate(x, ground); ctx.scale(1.05, 1.05);
+        drawCharacter(ctx, fighter.weapon, { facing: direction, stride: walking ? Math.sin(time / 190 + index) : 0, swing }); ctx.restore();
         ctx.font = "600 11px system-ui"; ctx.fillStyle = "#17392e"; ctx.fillText(fighter.name, x, ground - 95, 72);
         ctx.fillStyle = "#253b32"; ctx.fillRect(x - 32, ground - 87, 64, 7);
         ctx.fillStyle = direction === 1 ? "#93d579" : "#f18f86"; ctx.fillRect(x - 31, ground - 86, 62 * hp / fighter.stats.hp, 5);

@@ -16,7 +16,7 @@ export function InventoryPanel({ onClose }: { onClose: () => void }) {
   useEffect(() => { closeRef.current?.focus({ preventScroll: true }); }, []);
 
   return <ResponsiveCanvasFrame><div role="dialog" aria-modal="true" aria-labelledby="inventory-title"
-    className="absolute inset-0 z-40 overflow-auto bg-gradient-to-b from-[#102e29] to-[#3d5e47] p-6 text-[#f1ebce]"
+    className="paper-menu absolute inset-0 z-40 overflow-auto paper-card bg-[#efdfb8] paper-menu p-6 text-[#43311f]"
     onKeyDown={(event) => {
       if (event.key === "Escape") { event.preventDefault(); event.stopPropagation(); if (paperOpen) { setPaperOpen(false); requestAnimationFrame(() => evidenceRef.current?.focus()); } else onClose(); }
       if (event.key === "Tab") {
@@ -28,23 +28,23 @@ export function InventoryPanel({ onClose }: { onClose: () => void }) {
     {paperOpen ? <EvidencePaper onClose={() => { setPaperOpen(false); requestAnimationFrame(() => evidenceRef.current?.focus()); }} /> : <>
     <h2 id="inventory-title" className="pr-16 text-2xl font-semibold">Inventory</h2>
     <button ref={closeRef} type="button" onClick={onClose} aria-label="Close inventory"
-      className="absolute top-4 right-4 grid size-12 cursor-pointer place-items-center rounded-xl border border-[#c1cda9] bg-[#163a30] outline-none focus-visible:ring-2 focus-visible:ring-[#fff0b8]"><X size={20} /></button>
+      className="absolute top-4 right-4 grid size-12 cursor-pointer place-items-center rounded-xl border border-[#71583c] paper-card bg-[#e9d4a7] outline-none focus-visible:ring-2 focus-visible:ring-[#805523]"><X size={20} /></button>
     <section aria-labelledby="quest-items-title" className="mx-auto mt-8 max-w-[720px]">
-      <h3 id="quest-items-title" className="text-lg font-semibold text-[#e4d895]">Quest Items</h3>
-      <p className="mt-1 text-sm text-[#c1cda9]">Unique discoveries. Each quest item can be obtained once.</p>
-      {state.isPending ? <p role="status" className="mt-6">Loading inventory…</p> : state.isError ? <div role="alert" className="mt-6 text-[#ffbca8]">
+      <h3 id="quest-items-title" className="text-lg font-semibold text-[#805523]">Quest Items</h3>
+      <p className="mt-1 text-sm text-[#71583c]">Unique discoveries. Each quest item can be obtained once.</p>
+      {state.isPending ? <p role="status" className="mt-6">Loading inventory…</p> : state.isError ? <div role="alert" className="mt-6 text-[#a13725]">
         <p>{state.error.message}</p><button type="button" onClick={() => void state.refetch()} className="mt-3 cursor-pointer rounded border px-4 py-2">Retry</button>
       </div> : items.length ? <ul className="mt-5 space-y-3">
-        {items.map((item) => <li key={item.id} className="flex items-center gap-4 rounded-xl border border-[#708360] bg-[#163a30] p-4">
-          {item.id === "zugwangs-evidence" ? <button ref={evidenceRef} type="button" onClick={() => setPaperOpen(true)} aria-label="Open Zugwangs Evidence" className="flex w-full cursor-pointer items-center gap-4 rounded-lg text-left outline-none focus-visible:ring-2 focus-visible:ring-[#fff0b8]">
-            <span className="grid size-14 shrink-0 place-items-center rounded-lg border border-[#b8a76d] bg-[#294a40] text-[#e4d895]"><FileText size={30} aria-hidden="true" /></span>
-            <div className="min-w-0 flex-1"><h4 className="font-semibold">{item.name}</h4><p className="mt-1 text-sm text-[#c1cda9]">{item.description}</p><p className="mt-2 text-xs text-[#e4d895]">Quest item · Quantity 1 / 1 · Click to inspect</p></div>
+        {items.map((item) => <li key={item.id} className="flex items-center gap-4 rounded-xl border border-[#a38358] paper-card bg-[#e9d4a7] p-4">
+          {item.id === "zugwangs-evidence" ? <button ref={evidenceRef} type="button" onClick={() => setPaperOpen(true)} aria-label="Open Zugwangs Evidence" className="flex w-full cursor-pointer items-center gap-4 rounded-lg text-left outline-none focus-visible:ring-2 focus-visible:ring-[#805523]">
+            <span className="grid size-14 shrink-0 place-items-center rounded-lg border border-[#a38358] paper-card bg-[#ddc292] text-[#805523]"><FileText size={30} aria-hidden="true" /></span>
+            <div className="min-w-0 flex-1"><h4 className="font-semibold">{item.name}</h4><p className="mt-1 text-sm text-[#71583c]">{item.description}</p><p className="mt-2 text-xs text-[#805523]">Quest item · Quantity 1 / 1 · Click to inspect</p></div>
           </button> : <>
-            <span className="grid size-14 shrink-0 place-items-center rounded-lg border border-[#b8a76d] bg-[#294a40] text-[#e4d895]"><Map size={30} aria-hidden="true" /></span>
-            <div className="min-w-0 flex-1"><h4 className="font-semibold">{item.name}</h4><p className="mt-1 text-sm text-[#c1cda9]">{item.description}</p><p className="mt-2 text-xs text-[#e4d895]">Quest item · Quantity 1 / 1</p></div>
+            <span className="grid size-14 shrink-0 place-items-center rounded-lg border border-[#a38358] paper-card bg-[#ddc292] text-[#805523]"><Map size={30} aria-hidden="true" /></span>
+            <div className="min-w-0 flex-1"><h4 className="font-semibold">{item.name}</h4><p className="mt-1 text-sm text-[#71583c]">{item.description}</p><p className="mt-2 text-xs text-[#805523]">Quest item · Quantity 1 / 1</p></div>
           </>}
         </li>)}
-      </ul> : <p className="mt-6 rounded-xl border border-[#708360] bg-[#163a30] p-5 text-[#c1cda9]">No quest items yet. Explore and defeat bosses to find them.</p>}
+      </ul> : <p className="mt-6 rounded-xl border border-[#a38358] paper-card bg-[#e9d4a7] p-5 text-[#71583c]">No quest items yet. Explore and defeat bosses to find them.</p>}
     </section>
     </>}
   </div></ResponsiveCanvasFrame>;
@@ -54,8 +54,8 @@ function EvidencePaper({ onClose }: { onClose: () => void }) {
   const backRef = useRef<HTMLButtonElement>(null);
   useEffect(() => { backRef.current?.focus({ preventScroll: true }); }, []);
   return <div className="mx-auto flex max-w-lg flex-col items-center gap-5 py-2">
-    <button ref={backRef} type="button" onClick={onClose} className="self-start cursor-pointer rounded-lg border border-[#708360] bg-[#163a30] px-4 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-[#fff0b8]">← Back to Quest Items</button>
-    <article className="relative w-full rotate-[-1deg] rounded-sm border border-[#ac8c53] bg-[#e9d6a1] px-6 py-8 text-[#594529] shadow-xl" style={{ backgroundImage: "repeating-linear-gradient(0deg, transparent, transparent 27px, #8c6f3e12 28px)" }}>
+    <button ref={backRef} type="button" onClick={onClose} className="self-start cursor-pointer rounded-lg border border-[#a38358] paper-card bg-[#e9d4a7] px-4 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-[#805523]">← Back to Quest Items</button>
+    <article className="relative w-full rotate-[-1deg] rounded-sm border border-[#ac8c53] paper-card bg-[#e9d6a1] px-6 py-8 text-[#594529] shadow-xl" >
       <h2 id="inventory-title" className="text-center font-serif text-2xl font-semibold">Zugwangs Evidence</h2>
       <p className="mt-2 text-center font-serif text-sm italic text-[#806641]">A drawing found among Zugwang’s belongings</p>
       <svg viewBox="0 0 300 350" role="img" aria-label="A hand-drawn yellow person on aged paper" className="mx-auto mt-4 max-h-[350px] w-full max-w-[300px]">

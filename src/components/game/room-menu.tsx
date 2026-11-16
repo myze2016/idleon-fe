@@ -1,4 +1,5 @@
 "use client";
+import { drawPaperPanel } from "./paper-panel";
 import { ResponsiveCanvasFrame } from "./responsive-canvas-frame";
 
 import { useEffect, useRef, useState } from "react";
@@ -27,30 +28,31 @@ export function RoomMenu({ onClose }: { onClose: () => void }) {
       canvas.width = Math.round(width * ratio); canvas.height = Math.round(height * ratio); ctx.scale(ratio, ratio);
       ctx.fillStyle = "#071c18bb"; ctx.fillRect(0, 0, width, height);
       function box(x: number, y: number, w: number, h: number, fill: string, border: string) {
-        ctx!.beginPath(); ctx!.roundRect(x, y, w, h, 10); ctx!.fillStyle = fill; ctx!.fill(); ctx!.strokeStyle = border; ctx!.lineWidth = 2; ctx!.stroke();
+        ctx!.beginPath(); ctx!.roundRect(x, y, w, h, 10); ctx!.fillStyle = fill; ctx!.fill(); drawPaperPanel(ctx!, x, y, w, h); ctx!.strokeStyle = border; ctx!.lineWidth = 2; ctx!.stroke();
       }
-      function text(value: string, x: number, y: number, font: string, color = "#f1ebce", maxWidth?: number) {
+      function text(value: string, x: number, y: number, font: string, color = "#43311f", maxWidth?: number) {
         ctx!.font = font; ctx!.fillStyle = color; ctx!.fillText(value, x, y, maxWidth);
       }
-      box(left, top, panelWidth, 300, "#102e29", "#708360");
+      box(left, top, panelWidth, 300, "#efdfb8", "#a38358");
       text("Menu", left + 24, top + 41, "600 22px system-ui");
-      box(left + panelWidth - 56, top + 14, 40, 40, "#365642", focus === "close" ? "#fff0b8" : "#708360");
-      ctx.strokeStyle = "#f1ebce"; ctx.beginPath(); ctx.moveTo(left + panelWidth - 42, top + 28); ctx.lineTo(left + panelWidth - 30, top + 40); ctx.moveTo(left + panelWidth - 30, top + 28); ctx.lineTo(left + panelWidth - 42, top + 40); ctx.stroke();
-      box(left + 20, top + 78, panelWidth - 40, 50, "#365642", focus === "dashboard" ? "#fff0b8" : "#708360");
-      box(left + 20, top + 142, panelWidth - 40, 50, "#643e36", focus === "delete" ? "#fff0b8" : "#b47b63");
+      box(left + panelWidth - 56, top + 14, 40, 40, "#ddc292", focus === "close" ? "#fff0b8" : "#a38358");
+      ctx.strokeStyle = "#43311f"; ctx.beginPath(); ctx.moveTo(left + panelWidth - 42, top + 28); ctx.lineTo(left + panelWidth - 30, top + 40); ctx.moveTo(left + panelWidth - 30, top + 28); ctx.lineTo(left + panelWidth - 42, top + 40); ctx.stroke();
+      box(left + 20, top + 78, panelWidth - 40, 50, "#ddc292", focus === "dashboard" ? "#fff0b8" : "#a38358");
+      box(left + 20, top + 142, panelWidth - 40, 50, "#d8ae95", focus === "delete" ? "#fff0b8" : "#b47b63");
       ctx.textAlign = "center";
       text("Dashboard", width / 2, top + 109, "600 15px system-ui");
-      text(remove.isPending ? "Deleting..." : "Delete account", width / 2, top + 173, "600 15px system-ui", "#ffe4d7");
-      text("Removes your character.", width / 2, top + 221, "12px system-ui", "#c1cda9");
-      text("Choose a new character afterward.", width / 2, top + 241, "12px system-ui", "#c1cda9");
+      text(remove.isPending ? "Deleting..." : "Delete account", width / 2, top + 173, "600 15px system-ui", "#7c3124");
+      text("Removes your character.", width / 2, top + 221, "12px system-ui", "#71583c");
+      text("Choose a new character afterward.", width / 2, top + 241, "12px system-ui", "#71583c");
       ctx.textAlign = "left";
-      if (error) text(error, left + 20, top + 278, "12px system-ui", "#ffcebb", panelWidth - 40);
+      if (error) text(error, left + 20, top + 278, "12px system-ui", "#a13725", panelWidth - 40);
     }
+    window.addEventListener("paper-art-ready", draw);
     const observer = new ResizeObserver(draw); observer.observe(canvas); draw();
-    return () => observer.disconnect();
+    return () => { observer.disconnect(); window.removeEventListener("paper-art-ready", draw); };
   }, [focus, error, remove.isPending]);
 
-  return <ResponsiveCanvasFrame><div id="room-menu" role="dialog" aria-modal="true" aria-label="Room menu" className="absolute inset-0 z-30" onKeyDown={(event) => {
+  return <ResponsiveCanvasFrame><div id="room-menu" role="dialog" aria-modal="true" aria-label="Room menu" className="paper-menu absolute inset-0 z-30" onKeyDown={(event) => {
     if (event.key === "Escape") { event.preventDefault(); event.stopPropagation(); if (!remove.isPending) onClose(); }
     if (event.key === "Tab") {
       const controls = Array.from(event.currentTarget.querySelectorAll<HTMLElement>("button:not(:disabled), a[href]"));

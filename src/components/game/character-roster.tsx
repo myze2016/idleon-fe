@@ -1,4 +1,5 @@
 "use client";
+import { drawPaperPanel } from "./paper-panel";
 import { ResponsiveCanvasFrame } from "./responsive-canvas-frame";
 import { drawCharacter } from "./character-design";
 
@@ -38,19 +39,19 @@ export function CharacterRoster({ characters, onClose, onSelect, selectionLabel 
       setCapacity(perPage);
       const safePage = Math.min(page, Math.max(0, Math.ceil(characters.length / perPage) - 1));
       const gradient = ctx.createLinearGradient(0, 0, 0, height);
-      gradient.addColorStop(0, "#102e29"); gradient.addColorStop(1, "#3d5e47");
-      ctx.fillStyle = gradient; ctx.fillRect(0, 0, width, height);
+      gradient.addColorStop(0, "#efdfb8"); gradient.addColorStop(1, "#d7bc8c");
+      ctx.fillStyle = gradient; ctx.fillRect(0, 0, width, height); drawPaperPanel(ctx, 0, 0, width, height);
       for (let i = 0; i < 22; i++) {
         ctx.fillStyle = "#dbe4ad15"; ctx.beginPath(); ctx.arc((i * 157 + 40) % width, (i * 89 + 130) % height, 2, 0, Math.PI * 2); ctx.fill();
       }
       function box(x: number, y: number, w: number, h: number, fill: string, border: string, radius = 12) {
-        ctx!.beginPath(); ctx!.roundRect(x, y, w, h, radius); ctx!.fillStyle = fill; ctx!.fill(); ctx!.strokeStyle = border; ctx!.lineWidth = 2; ctx!.stroke();
+        ctx!.beginPath(); ctx!.roundRect(x, y, w, h, radius); ctx!.fillStyle = fill; ctx!.fill(); drawPaperPanel(ctx!, x, y, w, h); ctx!.strokeStyle = border; ctx!.lineWidth = 2; ctx!.stroke();
       }
-      function text(value: string, x: number, y: number, font: string, color = "#f1ebce", maxWidth?: number) {
+      function text(value: string, x: number, y: number, font: string, color = "#43311f", maxWidth?: number) {
         ctx!.font = font; ctx!.fillStyle = color; ctx!.fillText(value, x, y, maxWidth);
       }
-      text(selectionMode ? "Choose character" : "Characters", 24, 48, "600 28px system-ui", "#f1ebce", width - 110);
-      text(selectionLabel ?? `${characters.length} owned character${characters.length === 1 ? "" : "s"}`, 24, 75, "13px system-ui", "#c1cda9", width - 48);
+      text(selectionMode ? "Choose character" : "Characters", 24, 48, "600 28px system-ui", "#43311f", width - 110);
+      text(selectionLabel ?? `${characters.length} owned character${characters.length === 1 ? "" : "s"}`, 24, 75, "13px system-ui", "#71583c", width - 48);
       const gap = 16, cardWidth = Math.min(260, (width - 48 - (columns - 1) * gap) / columns);
       const cardHeight = Math.min(264, Math.max(140, height - 188));
       const start = safePage * perPage;
@@ -61,30 +62,31 @@ export function CharacterRoster({ characters, onClose, onSelect, selectionLabel 
       characters.slice(start, start + perPage).forEach((character, i) => {
         const x = 24 + i % columns * (cardWidth + gap), y = 108 + Math.floor(i / columns) * 280;
         const starter = character.isStarter ?? start + i === 0;
-        box(x, y, cardWidth, cardHeight, "#163a30", focus === `character-${start + i}` ? "#ffffff" : starter ? "#d2c58b" : "#708360");
-        text(starter ? "FREE STARTER" : "OWNED", x + 14, y + 25, "600 10px system-ui", "#e4d895");
+        box(x, y, cardWidth, cardHeight, "#e9d4a7", focus === `character-${start + i}` ? "#ffffff" : starter ? "#d2c58b" : "#a38358");
+        text(starter ? "FREE STARTER" : "OWNED", x + 14, y + 25, "600 10px system-ui", "#805523");
         const avatarScale = Math.min(2.5, (cardHeight - 110) / 72);
         ctx.save(); ctx.translate(x + cardWidth / 2, y + cardHeight - 70); ctx.scale(avatarScale, avatarScale);
         drawCharacter(ctx, character.weapon); ctx.restore();
-        text(character.name, x + 14, y + cardHeight - 35, "600 18px system-ui", "#f1ebce", cardWidth - 28);
-        text(weaponDetails(character.weapon).label, x + 14, y + cardHeight - 14, "12px system-ui", "#c1cda9", cardWidth - 28);
+        text(character.name, x + 14, y + cardHeight - 35, "600 18px system-ui", "#43311f", cardWidth - 28);
+        text(weaponDetails(character.weapon).label, x + 14, y + cardHeight - 14, "12px system-ui", "#71583c", cardWidth - 28);
       });
-      box(width - 64, 16, 48, 48, "#163a30", focus === "close" ? "#fff" : "#708360");
-      ctx.strokeStyle = "#f1ebce"; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(width - 47, 33); ctx.lineTo(width - 33, 47); ctx.moveTo(width - 33, 33); ctx.lineTo(width - 47, 47); ctx.stroke();
-      text(characters.length > perPage ? `Page ${safePage + 1}/${Math.ceil(characters.length / perPage)}` : selectionMode ? "Choose a character to place in this slot." : "Select a character to view stats.", 24, height - 24, "12px system-ui", "#c1cda9", characters.length > perPage ? Math.max(40, width - 244) : width - 48);
+      box(width - 64, 16, 48, 48, "#e9d4a7", focus === "close" ? "#fff" : "#a38358");
+      ctx.strokeStyle = "#43311f"; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(width - 47, 33); ctx.lineTo(width - 33, 47); ctx.moveTo(width - 33, 33); ctx.lineTo(width - 47, 47); ctx.stroke();
+      text(characters.length > perPage ? `Page ${safePage + 1}/${Math.ceil(characters.length / perPage)}` : selectionMode ? "Choose a character to place in this slot." : "Select a character to view stats.", 24, height - 24, "12px system-ui", "#71583c", characters.length > perPage ? Math.max(40, width - 244) : width - 48);
       if (characters.length > perPage) {
-        box(width - 196, height - 62, 80, 44, "#163a30", focus === "previous" ? "#fff" : "#708360");
-        box(width - 104, height - 62, 80, 44, "#163a30", focus === "next" ? "#fff" : "#708360");
+        box(width - 196, height - 62, 80, 44, "#e9d4a7", focus === "previous" ? "#fff" : "#a38358");
+        box(width - 104, height - 62, 80, 44, "#e9d4a7", focus === "next" ? "#fff" : "#a38358");
         text("Previous", width - 188, height - 35, "12px system-ui"); text("Next", width - 82, height - 35, "12px system-ui");
       }
     }
+    window.addEventListener("paper-art-ready", draw);
     const observer = new ResizeObserver(draw); observer.observe(canvas); draw();
-    return () => observer.disconnect();
+    return () => { observer.disconnect(); window.removeEventListener("paper-art-ready", draw); };
   }, [characters, focus, page, selectionMode, selectionLabel, inspected]);
 
   if (inspected) return <CharacterStatsScreen character={inspected} onClose={() => setInspected(null)} />;
 
-  return <ResponsiveCanvasFrame minHeight={400}><div role="dialog" aria-modal="true" aria-label={selectionMode ? "Choose a team character" : "Your characters"} className="absolute inset-0 z-30 bg-[#102e29]" onKeyDown={(event) => {
+  return <ResponsiveCanvasFrame minHeight={400}><div role="dialog" aria-modal="true" aria-label={selectionMode ? "Choose a team character" : "Your characters"} className="paper-menu absolute inset-0 z-30 paper-card bg-[#efdfb8]" onKeyDown={(event) => {
     if (event.key === "Escape") { event.preventDefault(); event.stopPropagation(); onClose(); }
     if (event.key === "Tab") {
       const buttons = Array.from(event.currentTarget.querySelectorAll<HTMLButtonElement>("button:not(:disabled)"));

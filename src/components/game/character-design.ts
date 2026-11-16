@@ -17,66 +17,62 @@ const looks: Record<WeaponType, { coat: string; trim: string; hair: string; skin
   "dual-knife": { coat: "#37384e", trim: "#bc8fd5", hair: "#242738", skin: "#b78267" },
 };
 const paths = new Map<WeaponType, Path2D>();
-let assassinSprite: HTMLImageElement | null = null;
-let assassinWalkSprite: HTMLImageElement | null = null;
-
-function playableAssassinSprite() {
+const spriteProfiles: Partial<Record<WeaponType, { src: string; bounds: number[][] }>> = {
+  "dual-knife": { src: "/sprites/assassin-moe-walk-sheet.png", bounds: [[0.025, 0.19], [0.27, 0.44], [0.505, 0.67], [0.705, 1]] },
+  "great-sword": { src: "/sprites/greatsword-v1.png", bounds: [[0.025, 0.19], [0.25, 0.445], [0.49, 0.65], [0.69, 1]] },
+  "dual-gun": { src: "/sprites/dual-gun-v1.png", bounds: [[0.015, 0.20], [0.25, 0.445], [0.49, 0.675], [0.70, 1]] },
+};
+const sprites = new Map<WeaponType, HTMLImageElement>();
+const footRows = new Map<string, number>();
+function playableSprite(weapon: WeaponType, src: string) {
   if (typeof Image === "undefined") return null;
-  if (!assassinSprite) {
-    assassinSprite = new Image();
-    assassinSprite.src = "/sprites/assassin-moe-walk-sheet.png";
-  }
-  if (!assassinWalkSprite) {
-    assassinWalkSprite = new Image();
-    assassinWalkSprite.src = "/sprites/assassin-moe-sheet.png";
-  }
-  return assassinSprite.complete && assassinSprite.naturalWidth > 0 ? assassinSprite : null;
+  let sprite = sprites.get(weapon);
+  if (!sprite) { sprite = new Image(); sprite.src = src; sprites.set(weapon, sprite); }
+  return sprite.complete && sprite.naturalWidth > 0 ? sprite : null;
 }
 
 /** Feet at (0, 0), facing right. Shared by every canvas; stride and action animate the same design. */
 export function drawCharacter(ctx: CanvasRenderingContext2D, weapon: WeaponType,
-  { stride = 0, swing = 0, facing = 1 }: { stride?: number; swing?: number; facing?: number } = {}) {
-  const sprite = weapon === "dual-knife" ? playableAssassinSprite() : null;
-  if (sprite) {
+  { stride = 0, swing = 0, facing = 1, idle = 0 }: { stride?: number; swing?: number; facing?: number; idle?: number } = {}) {
+  const profile = spriteProfiles[weapon];
+  const sprite = profile ? playableSprite(weapon, profile.src) : null;
+  if (sprite && profile) {
     const attacking = Math.abs(swing) > 0.05;
-    // The generated poses are not equal-width cells. Anchor each pose by its
-    // body center and feet instead of shifting the whole character every step.
-    const frame = attacking ? 3 : Math.abs(stride) > 0.03 ? (stride > 0 ? 1 : 2) : 0;
-    const walking = frame === 1 || frame === 2;
-    const walkSheet = walking && assassinWalkSprite?.complete && assassinWalkSprite.naturalWidth > 0 ? assassinWalkSprite : null;
-    const sheet = walkSheet ?? sprite;
-    const bounds = walkSheet ? (frame === 1 ? [0.28, 0.48] : [0.51, 0.71]) : [[0.025, 0.19], [0.27, 0.44], [0.505, 0.67], [0.705, 1]][frame];
-    const sourceX = bounds[0] * sheet.naturalWidth;
-    const sourceWidth = (bounds[1] - bounds[0]) * sheet.naturalWidth;
+    // Include the neutral passing pose between the two matching walking poses.
+    const frame = attacking ? 3 : Math.abs(stride) > 0.45 ? (stride > 0 ? 1 : 2) : 0;
+    const bounds = profile.bounds[frame];
+    const sourceX = Math.floor(bounds[0] * sprite.naturalWidth);
+    const sourceWidth = Math.floor((bounds[1] - bounds[0]) * sprite.naturalWidth);
     const drawHeight = 78;
-    const drawWidth = sourceWidth / sheet.naturalHeight * drawHeight;
+    const scale = drawHeight / sprite.naturalHeight;
+    const drawWidth = sourceWidth * scale;
+    // Align boots rather than transparent image padding with the floor.
+    const frameKey = weapon + ":" + frame;
+    let footRow = footRows.get(frameKey);
+    if (footRow === undefined) {
+      const sample = document.createElement("canvas");
+      sample.width = sourceWidth; sample.height = sprite.naturalHeight;
+      const sampleCtx = sample.getContext("2d", { willReadFrequently: true });
+      footRow = sprite.naturalHeight;
+      if (sampleCtx) {
+        sampleCtx.drawImage(sprite, sourceX, 0, sourceWidth, sprite.naturalHeight, 0, 0, sourceWidth, sprite.naturalHeight);
+        const pixels = sampleCtx.getImageData(0, 0, sourceWidth, sprite.naturalHeight).data;
+        rows: for (let y = sprite.naturalHeight - 1; y >= 0; y--) {
+          for (let x = 0; x < sourceWidth; x++) {
+            if (pixels[(y * sourceWidth + x) * 4 + 3] > 128) { footRow = y + 1; break rows; }
+          }
+        }
+      }
+      footRows.set(frameKey, footRow);
+    }
     ctx.save(); ctx.scale(facing, 1);
     ctx.fillStyle = "#101c2955";
-    ctx.beginPath(); ctx.ellipse(0, 2, 17, 4, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.ellipse(0, -1, 17, 4, 0, 0, Math.PI * 2); ctx.fill();
+    // Breathe from the planted feet; the shadow above remains untransformed.
+    ctx.transform(1 - idle * 0.003, 0, idle * 0.003, 1 + idle * 0.009, 0, 0);
     ctx.translate(attacking ? Math.abs(swing) * 5 : 0, 0);
-    // Draw complete poses: splitting a painted sprite at the hips caused gaps
-    // and detached legs as the two halves rotated independently.
-    // Original walking pose 1 faces left, while pose 2 faces right.
-    // Normalize the artwork before applying the character's world facing.
-    if (walkSheet) {
-      // Keep one consistent head/torso for the entire walk cycle. Generated
-      // walk poses have different head angles even after horizontal flipping.
-      const idleX = sprite.naturalWidth * 0.025;
-      const idleWidth = sprite.naturalWidth * 0.165;
-      const torsoWidth = idleWidth / sprite.naturalHeight * drawHeight;
-      const hipY = -drawHeight * 0.36;
-      ctx.save();
-      ctx.beginPath(); ctx.rect(-80, -drawHeight, 160, drawHeight * 0.64); ctx.clip();
-      ctx.drawImage(sprite, idleX, 0, idleWidth, sprite.naturalHeight, -torsoWidth / 2, -drawHeight, torsoWidth, drawHeight);
-      ctx.restore();
-      ctx.save();
-      ctx.beginPath(); ctx.rect(-80, hipY, 160, drawHeight * 0.36); ctx.clip();
-      if (frame === 1) ctx.scale(-1, 1);
-      ctx.drawImage(sheet, sourceX, 0, sourceWidth, sheet.naturalHeight, -drawWidth / 2, -drawHeight, drawWidth, drawHeight);
-      ctx.restore();
-    } else {
-      ctx.drawImage(sheet, sourceX, 0, sourceWidth, sheet.naturalHeight, -drawWidth / 2, -drawHeight, drawWidth, drawHeight);
-    }
+    ctx.drawImage(sprite, sourceX, 0, sourceWidth, sprite.naturalHeight,
+      -drawWidth / 2, -footRow * scale, drawWidth, drawHeight);
     ctx.restore();
     return;
   }
@@ -88,7 +84,8 @@ export function drawCharacter(ctx: CanvasRenderingContext2D, weapon: WeaponType,
     ctx.fillStyle = color; ctx.beginPath(); points.forEach(([x, y], i) => i ? ctx.lineTo(x, y) : ctx.moveTo(x, y)); ctx.closePath(); ctx.fill();
   };
   ctx.save(); ctx.scale(facing, 1); ctx.lineJoin = "round"; ctx.lineCap = "round";
-  ctx.fillStyle = "#101c2955"; ctx.beginPath(); ctx.ellipse(0, 3, 18, 4, 0, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = "#101c2955"; ctx.beginPath(); ctx.ellipse(0, -1, 18, 4, 0, 0, Math.PI * 2); ctx.fill();
+  ctx.transform(1 - idle * 0.003, 0, idle * 0.003, 1 + idle * 0.009, 0, 0);
   // Class-specific capes, quivers and coat tails make silhouettes readable at battle scale.
   if (["great-sword", "sword-and-shield", "staff", "book"].includes(weapon))
     shape([[-11, -34], [-21 - stride * 2, -6], [-5, -10], [5, -32]], weapon === "great-sword" ? "#a44351" : weapon === "sword-and-shield" ? "#314b79" : "#302b53");

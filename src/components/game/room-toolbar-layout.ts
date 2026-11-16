@@ -12,14 +12,13 @@ const actions = [
 
 export function roomToolbarLayout(width: number) {
   const singleRow = width >= 1060, gap = 8;
-  const columns = width >= 640 ? 4 : 3;
-  const equalWidth = Math.min(104, (width - 32 - gap * (columns - 1)) / columns);
-  const totalWidth = actions.reduce((sum, action) => sum + action.width, 0) + gap * (actions.length - 1);
-  let x = width - 16 - totalWidth;
-  return actions.map((action, index) => {
-    const buttonWidth = singleRow ? action.width : equalWidth;
-    const left = singleRow ? x : width - 16 - (equalWidth * columns + gap * (columns - 1)) + index % columns * (equalWidth + gap);
-    x += buttonWidth + gap;
-    return { ...action, x: left, y: singleRow ? 16 : 128 + Math.floor(index / columns) * 54, width: buttonWidth, height: 46 };
-  });
+  const columns = singleRow ? actions.length : width >= 640 ? 5 : 3;
+  const buttonWidth = Math.min(singleRow ? 80 : 88, (width - 32 - gap * (columns - 1)) / columns);
+  const totalWidth = buttonWidth * columns + gap * (columns - 1);
+  const left = width - 16 - totalWidth;
+  return actions.map((action, index) => ({
+    ...action, x: left + index % columns * (buttonWidth + gap),
+    y: singleRow ? 16 : 128 + Math.floor(index / columns) * 92,
+    width: buttonWidth, height: 88,
+  }));
 }

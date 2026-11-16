@@ -1,4 +1,5 @@
 import type { BattleStep } from "@/lib/encounter";
+import { drawPaintedCombatEffect } from "./painted-combat-effects";
 
 export interface CombatEffect {
   step: BattleStep; startedAt: number; source: number; target: number; weapon: string; ranged: boolean; enemyId?: string;
@@ -20,7 +21,9 @@ export function drawCombatEffect(ctx: CanvasRenderingContext2D, effect: CombatEf
   function ring(x: number, radius: number) {
     ctx.strokeStyle = color; ctx.lineWidth = 2; ctx.beginPath(); ctx.ellipse(x, ground - 5, radius, radius * 0.35, 0, 0, Math.PI * 2); ctx.stroke();
   }
-  if (support && step.actor === "enemy") {
+  if (drawPaintedCombatEffect(ctx, effect, age, ground, scale, memberX)) {
+    // Damage numbers below remain shared with the loading fallback.
+  } else if (support && step.actor === "enemy") {
     ring(source, (15 + p * 22) * scale);
     if (step.healing) { ctx.fillStyle = "#8fffb5"; ctx.font = "600 14px system-ui"; ctx.fillText(`+${step.healing}`, source, y - 24 - age * 20); }
   } else if (support || step.kind === "cast") {

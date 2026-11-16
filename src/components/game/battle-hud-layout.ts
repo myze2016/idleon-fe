@@ -2,7 +2,7 @@ export function battleHudLayout(width: number, height: number) {
   const compact = height < 480 || width < 640;
   const tight = width < 640 && height < 360;
   const pad = tight ? 6 : compact ? 10 : 16, gap = tight ? 4 : compact ? 6 : 8;
-  const buttonHeight = tight ? 28 : compact ? 34 : 48;
+  const buttonHeight = tight ? 56 : compact ? 68 : 88;
   const buttonWidth = compact ? 78 : 104, returnWidth = compact ? 110 : 132;
   const toolbarWidth = buttonWidth * 5 + returnWidth + gap * 5;
   const singleRow = width >= toolbarWidth + 170 + pad * 3;
