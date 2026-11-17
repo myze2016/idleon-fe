@@ -56,7 +56,7 @@ function EvidencePaper({ onClose }: { onClose: () => void }) {
     <article className="relative w-full rotate-[-1deg] rounded-sm border border-[#ac8c53] paper-card bg-[#e9d6a1] px-6 py-8 text-[#594529] shadow-xl" >
       <h2 id="inventory-title" className="text-center font-serif text-2xl font-semibold">Zugwangs Evidence</h2>
       <p className="mt-2 text-center font-serif text-sm italic text-[#806641]">A drawing found among Zugwang’s belongings</p>
-      <img src="/sprites/yellow-spectator-v1.png" alt="The yellow spectator: golden hair, yellow skin and yellow clothing" className="mx-auto mt-4 h-[350px] w-full max-w-[300px] object-contain" />
+      <img src="/sprites/yellow-spectator-front-v2.png" alt="The yellow spectator: golden hair, yellow skin and yellow clothing" className="mx-auto mt-4 h-[350px] w-full max-w-[300px] object-contain" />
       <p className="text-center font-serif text-sm italic">A person drawn entirely in yellow. What could it mean?</p>
     </article>
   </div>;

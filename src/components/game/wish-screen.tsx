@@ -33,6 +33,9 @@ export function WishScreen({ onClose }: { onClose: () => void }) {
   useEffect(() => {
     const canvas = canvasRef.current, ctx = canvas?.getContext("2d");
     if (!canvas || !ctx) return;
+    const banner = new Image();
+    banner.onload = () => draw();
+    banner.src = pool === "special" ? "/ui/wish-special-banner-v1.png" : "/ui/wish-regular-banner-v1.png";
     function draw() {
       if (!canvas || !ctx) return;
       const width = canvas.clientWidth, height = canvas.clientHeight;
@@ -53,13 +56,29 @@ export function WishScreen({ onClose }: { onClose: () => void }) {
       text(pool === "special" ? "Special Wish" : "Wish", 24, 48, "600 28px system-ui");
       text(`Wish currency: ${balance}`, 24, 77, "600 14px system-ui", "#805523");
       text(`Collection: ${ownedCount}/${catalog.length}`, 24, 100, "13px system-ui", "#71583c");
-      const compact = height < 440;
-      const centerY = Math.max(200, Math.min(height * 0.48, height - 200));
+      const compact = height < 600;
+      const bannerX = 24, bannerY = 168, bannerWidth = width - 48;
+      const bannerHeight = Math.max(120, height - bannerY - 188);
+      const centerY = bannerY + bannerHeight / 2;
+      const bannerReady = banner.complete && banner.naturalWidth > 0;
+      if (bannerReady) {
+        ctx.save();
+        ctx.beginPath(); ctx.roundRect(bannerX, bannerY, bannerWidth, bannerHeight, 8); ctx.clip();
+        ctx.fillStyle = pool === "special" ? "#252039" : "#233a39";
+        ctx.fillRect(bannerX, bannerY, bannerWidth, bannerHeight);
+        const scale = Math.min(bannerWidth / banner.naturalWidth, bannerHeight / banner.naturalHeight);
+        const drawWidth = banner.naturalWidth * scale, drawHeight = banner.naturalHeight * scale;
+        ctx.drawImage(banner, bannerX + (bannerWidth - drawWidth) / 2, bannerY + (bannerHeight - drawHeight) / 2, drawWidth, drawHeight);
+        if (reward) { ctx.fillStyle = "#17202799"; ctx.fillRect(bannerX, bannerY, bannerWidth, bannerHeight); }
+        ctx.restore();
+        ctx.beginPath(); ctx.roundRect(bannerX, bannerY, bannerWidth, bannerHeight, 8);
+        ctx.strokeStyle = pool === "special" ? "#c6a466" : "#805b35"; ctx.lineWidth = 2; ctx.stroke();
+      }
       ctx.fillStyle = "#e4d89515"; ctx.beginPath(); ctx.arc(width / 2, centerY, compact ? 38 : 62, 0, Math.PI * 2); ctx.fill();
       ctx.strokeStyle = "#e4d895"; ctx.lineWidth = 3; ctx.lineCap = "round"; ctx.lineJoin = "round";
       if (reward) {
         ctx.save(); ctx.translate(width / 2, centerY + (compact ? 28 : 49)); ctx.scale(compact ? 1 : 1.6, compact ? 1 : 1.6); drawCharacter(ctx, reward.weapon); ctx.restore();
-      } else {
+      } else if (!bannerReady) {
         ctx.beginPath();
         for (let i = 0; i < 10; i++) {
           const angle = -Math.PI / 2 + i * Math.PI / 5, radius = i % 2 ? 18 : 43;
@@ -69,8 +88,8 @@ export function WishScreen({ onClose }: { onClose: () => void }) {
         ctx.closePath(); ctx.stroke();
       }
       ctx.textAlign = "center";
-      text(wish.isPending ? "Wishing..." : reward ? `Received: ${pool === "special" ? reward.name : weaponDetails(reward.weapon).label}` : pool === "special" ? "Kent · Juan · Jeffrey" : "Meet your next character", width / 2, centerY + (compact ? 58 : 89), "600 20px system-ui", "#43311f", width - 40);
-      if (reward && !compact) text("Added to your character list", width / 2, centerY + 113, "13px system-ui", "#71583c", width - 40);
+      text(wish.isPending ? "Wishing..." : reward ? `Received: ${pool === "special" ? reward.name : weaponDetails(reward.weapon).label}` : pool === "special" ? "Kent · Juan · Jeffrey" : "Meet your next character", width / 2, bannerY + bannerHeight + 28, "600 20px system-ui", "#43311f", width - 40);
+      if (reward && !compact) text("Added to your character list", width / 2, bannerY + bannerHeight + 48, "13px system-ui", "#71583c", width - 40);
       const buttonWidth = Math.min(280, width - 48);
       box((width - buttonWidth) / 2, height - 116, buttonWidth, 52, enabled ? "#e4d895" : "#6b796b", focus === "wish" ? "#fff" : "#a38358");
       text(complete ? "Collection complete" : wish.isPending ? "Wishing..." : `Wish · ${cost} currency`, width / 2, height - 83, "600 17px system-ui", "#fff0cc");
@@ -81,7 +100,7 @@ export function WishScreen({ onClose }: { onClose: () => void }) {
     }
     window.addEventListener("paper-art-ready", draw);
     const observer = new ResizeObserver(draw); observer.observe(canvas); draw();
-    return () => { observer.disconnect(); window.removeEventListener("paper-art-ready", draw); };
+    return () => { observer.disconnect(); window.removeEventListener("paper-art-ready", draw); banner.onload = null; };
   }, [balance, reward, error, enabled, focus, wish.isPending, ownedCount, complete, pool, cost, catalog.length, spriteVersion]);
 
   return <ResponsiveCanvasFrame minHeight={520}><div role="dialog" aria-modal="true" aria-label="Wish for a character" className="paper-menu absolute inset-0 z-30 bg-[#eddbb1]" onKeyDown={(event) => {

@@ -178,7 +178,8 @@
 .paper-menu .menu-field option { background: #51331e; color: #fff0cc; }
 
 /* Information panels echo the button frame with a lighter, readable face. */
-.paper-menu .menu-info:not(.menu-action):not(input):not(select) {
+.paper-menu .menu-info:not(.menu-action):not(input):not(select),
+.battle-info {
   border-image: none;
   border: 2px solid #805b35;
   border-radius: 6px;

@@ -8,7 +8,7 @@ export function DamageSpread({ rows, compact, top, pad }: { rows: DamageEntry[];
   const [expanded, setExpanded] = useState(true);
   const total = rows.reduce((sum, row) => sum + row.total, 0);
   const sorted = [...rows].sort((a, b) => b.total - a.total);
-  return <section aria-label="Live battle damage spread" className="absolute z-10 overflow-hidden rounded-xl border border-[#a38358] paper-card bg-[#efdfb8] text-[#43311f]"
+  return <section aria-label="Live battle damage spread" className="battle-info absolute z-10 overflow-hidden text-[#43311f]"
     style={{ width: compact ? 190 : 248, maxWidth: "calc(100% - 20px)", right: pad, top }}>
     <button type="button" aria-expanded={expanded} aria-controls="damage-spread-rows" onClick={() => setExpanded((value) => !value)} className="flex w-full cursor-pointer items-center justify-between gap-2 px-3 py-2 text-left text-xs font-semibold outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[#805523]">
       <span>Damage · {total.toLocaleString()}</span>{expanded ? <ChevronDown size={14} /> : <ChevronUp size={14} />}

@@ -1,6 +1,6 @@
 "use client";
 import { drawRpgButton } from "./rpg-button";
-import { drawPaperPanel } from "./paper-panel";
+import { drawMenuInfo } from "./menu-button";
 import { drawMonster } from "./meadow-monsters";
 import { drawCharacter } from "./character-design";
 
@@ -85,8 +85,8 @@ export function ExpeditionCanvas({ location, team, gold, characterName, characte
     const spectators = new Image();
     const yellowSpectatorArt = new Image();
     if (tourney) {
-      spectators.src = "/sprites/tourney-spectators-v1.png";
-      yellowSpectatorArt.src = "/sprites/yellow-spectator-v1.png";
+      spectators.src = "/sprites/tourney-spectators-front-v2.png";
+      yellowSpectatorArt.src = "/sprites/yellow-spectator-front-v2.png";
     }
     const deepsea = location.startsWith("deepsea");
     const deepseaBackground = new Image();
@@ -208,11 +208,15 @@ export function ExpeditionCanvas({ location, team, gold, characterName, characte
     function visibility() { last = 0; }
     document.addEventListener("visibilitychange", visibility);
     function random(seed: number) { const n = Math.sin(seed * 127.1 + 31.7) * 43758.5453; return n - Math.floor(n); }
+    function spectatorPosition(index: number) {
+      // Stable offsets create gaps of 40?88px without shifting between frames.
+      return index * 64 + (random(index + crowdGroup * 137) - 0.5) * 24 - crowdOffset;
+    }
     function rect(x: number, y: number, w: number, h: number, color: string) {
       ctx!.fillStyle = color; ctx!.fillRect(x, y, w, h);
     }
     function box(x: number, y: number, w: number, h: number) {
-      drawPaperPanel(ctx!, x, y, w, h);
+      drawMenuInfo(ctx!, x, y, w, h);
     }
 
     function text(value: string, x: number, y: number, font: string, color: string, maxWidth?: number) {
@@ -250,16 +254,18 @@ export function ExpeditionCanvas({ location, team, gold, characterName, characte
       // Refresh equipped stats without restarting the running expedition.
       members.forEach((member) => { member.character = charactersRef.current.find((owned) => owned.id === member.character.id) ?? member.character; });
       const battling = !!foe && foe.stage !== "approach";
-      if (!battling) distance += dt * 90;
-      if (tourney && crowdStarted && !battling && !refreshingCrowd && !summonBusy) {
-        crowdOffset += dt * 40;
-        if (crowdOffset >= width + 40) void nextCrowd();
+      const travelStep = battling ? 0 : dt * 90;
+      distance += travelStep;
+      if (tourney && crowdStarted) {
+        // Scroll spectators right to left, opposite the party walking right.
+        crowdOffset += travelStep;
+        if (crowdOffset >= width + 40 && !refreshingCrowd && !summonBusy) void nextCrowd();
       }
       if (spectatorButton.current) {
-        const spectatorX = Math.floor(width * 0.82 / 56) * 56 - crowdOffset;
+        const spectatorX = spectatorPosition(Math.floor(width * 0.82 / 64));
         spectatorButton.current.style.left = `${spectatorX}px`;
-        spectatorButton.current.style.top = `${height * 0.59 - 32}px`;
-        spectatorButton.current.style.visibility = spectatorX < -20 ? "hidden" : "visible";
+        spectatorButton.current.style.top = `${height * 0.72 - 32}px`;
+        spectatorButton.current.style.visibility = spectatorX < -24 ? "hidden" : "visible";
       }
       if (!spawning && !summonBusy && elapsed >= nextSpawn && !document.hidden && !monsters.some((monster) => monster.data.boss)) void spawn();
       ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
@@ -346,14 +352,14 @@ export function ExpeditionCanvas({ location, team, gold, characterName, characte
         }
       }
       if (tourney) {
-        const feetY = height * 0.59;
-        const yellowX = Math.floor(width * 0.82 / 56) * 56 - crowdOffset;
-        for (let column = -1; column <= Math.ceil(width / 56); column++) {
-          const sx = column * 56 - crowdOffset % 56;
-          if (spectatorAvailable && Math.abs(sx - yellowX) < 28) continue;
+        const feetY = height * 0.72;
+        const yellowX = spectatorPosition(Math.floor(width * 0.82 / 64));
+        for (let column = Math.floor(crowdOffset / 64) - 1; column <= Math.ceil((width + crowdOffset) / 64) + 1; column++) {
+          const sx = spectatorPosition(column);
+          if (spectatorAvailable && column === Math.floor(width * 0.82 / 64)) continue;
           if (spectators.complete && spectators.naturalWidth > 0) {
             const cell = spectators.naturalWidth / 4;
-            const variant = ((column + Math.floor(crowdOffset / 56) + crowdGroup) % 4 + 4) % 4;
+            const variant = Math.floor(random(column + crowdGroup * 137 + 53) * 4);
             const spriteWidth = 68 * cell / spectators.naturalHeight;
             ctx.drawImage(spectators, variant * cell, 0, cell, spectators.naturalHeight, sx - spriteWidth / 2, feetY - 68, spriteWidth, 68);
           }
