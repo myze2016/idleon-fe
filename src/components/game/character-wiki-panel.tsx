@@ -33,8 +33,8 @@ export function CharacterWikiPanel({ onClose, onEnemies }: { onClose: () => void
   }}>
     <header className="sticky top-0 z-10 space-y-3 border-b border-[#a38358] paper-card bg-[#efdfb8] p-5">
       <h2 id="character-wiki-title" className="flex items-center gap-2 pr-14 text-2xl font-semibold"><BookOpen size={24} /> Character Wiki</h2>
-      <button type="button" aria-label="Close wiki" onClick={onClose} className="absolute top-4 right-4 grid size-11 cursor-pointer place-items-center rounded-xl border border-[#a38358] outline-none focus-visible:ring-2 focus-visible:ring-[#805523]"><X size={20} /></button>
-      <div role="group" aria-label="Wiki category" className="flex gap-2"><button type="button" onClick={onEnemies} className={`${inputClass} cursor-pointer`} aria-pressed={false}>Enemies</button><button type="button" className={`${inputClass} cursor-pointer border-[#e4d895]`} aria-pressed={true}>Characters</button></div>
+      <button type="button" aria-label="Close wiki" onClick={onClose} className="absolute top-4 right-4 grid size-11 menu-action cursor-pointer place-items-center rounded-xl border border-[#a38358] outline-none focus-visible:ring-2 focus-visible:ring-[#805523]"><X size={20} /></button>
+      <div role="group" aria-label="Wiki category" className="flex gap-2"><button type="button" onClick={onEnemies} className={`${inputClass} menu-action cursor-pointer`} aria-pressed={false}>Enemies</button><button type="button" className={`${inputClass} menu-action cursor-pointer border-[#e4d895]`} aria-pressed={true}>Characters</button></div>
       <div className="flex flex-wrap gap-2"><label className="relative min-w-[180px] flex-1"><Search size={16} aria-hidden="true" className="absolute top-3 left-3 text-[#71583c]" /><input ref={searchRef} aria-label="Search characters or skills" placeholder="Search characters or skills…" value={search} onChange={(event) => setSearch(event.target.value)} className={`${inputClass} w-full pl-9`} /></label>
         <select aria-label="Filter character pool" value={pool} onChange={(event) => setPool(event.target.value)} className={inputClass}><option value="all">All characters</option><option value="normal">Normal characters</option><option value="special">Special characters</option></select>
       </div>
@@ -43,7 +43,7 @@ export function CharacterWikiPanel({ onClose, onEnemies }: { onClose: () => void
     <div className="mx-auto max-w-5xl space-y-4 p-5">
       <p className="text-xs leading-relaxed text-[#71583c]">Base stats exclude upgrades and artifacts. Damage formulas use current Attack or Magic before the target’s corresponding defense. Living characters regenerate 5 MP per second in battle. Speed shortens attack intervals and cast times. Skill 1 starts unlocked; Skill 2 costs 1,000 gold per character.</p>
       {query.isPending && <p role="status">Loading character wiki…</p>}
-      {query.isError && <div role="alert" className="text-[#a13725]"><p>{query.error.message}</p><button type="button" onClick={() => void query.refetch()} className={`${inputClass} mt-2 cursor-pointer`}>Retry</button></div>}
+      {query.isError && <div role="alert" className="text-[#a13725]"><p>{query.error.message}</p><button type="button" onClick={() => void query.refetch()} className={`${inputClass} mt-2 menu-action cursor-pointer`}>Retry</button></div>}
       {filtered.map((entry) => <article key={entry.id} className="rounded-xl border border-[#a38358] paper-card bg-[#e9d4a7] p-4">
         <div className="mb-4 flex flex-col gap-4 sm:flex-row sm:items-center"><WikiPortrait subject={{ character: entry.id }} name={entry.name} /><div className="min-w-0">
         <div className="flex flex-wrap items-center gap-2"><h3 className="text-lg font-semibold">{entry.name}</h3>{entry.special && <span className="rounded paper-card bg-[#e4d895] px-2 py-0.5 text-xs font-semibold text-[#43311f]">Special</span>}</div>

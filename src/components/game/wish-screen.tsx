@@ -1,4 +1,5 @@
 "use client";
+import { drawMenuButton } from "./menu-button";
 import { drawPaperPanel } from "./paper-panel";
 import { ResponsiveCanvasFrame } from "./responsive-canvas-frame";
 import { drawCharacter, useCharacterSprites } from "./character-design";
@@ -46,6 +47,7 @@ export function WishScreen({ onClose }: { onClose: () => void }) {
         ctx!.font = font; ctx!.fillStyle = color; ctx!.fillText(value, x, y, maxWidth);
       }
       function box(x: number, y: number, w: number, h: number, fill: string, border: string) {
+        if (h <= 60) { drawMenuButton(ctx!, x, y, w, h, border === "#fff" || border === "#fff0b8"); return; }
         ctx!.beginPath(); ctx!.roundRect(x, y, w, h, 12); ctx!.fillStyle = fill; ctx!.fill(); drawPaperPanel(ctx!, x, y, w, h); ctx!.strokeStyle = border; ctx!.lineWidth = 2; ctx!.stroke();
       }
       text(pool === "special" ? "Special Wish" : "Wish", 24, 48, "600 28px system-ui");
@@ -71,11 +73,11 @@ export function WishScreen({ onClose }: { onClose: () => void }) {
       if (reward && !compact) text("Added to your character list", width / 2, centerY + 113, "13px system-ui", "#71583c", width - 40);
       const buttonWidth = Math.min(280, width - 48);
       box((width - buttonWidth) / 2, height - 116, buttonWidth, 52, enabled ? "#e4d895" : "#6b796b", focus === "wish" ? "#fff" : "#a38358");
-      text(complete ? "Collection complete" : wish.isPending ? "Wishing..." : `Wish · ${cost} currency`, width / 2, height - 83, "600 17px system-ui", "#43311f");
+      text(complete ? "Collection complete" : wish.isPending ? "Wishing..." : `Wish · ${cost} currency`, width / 2, height - 83, "600 17px system-ui", "#fff0cc");
       text(complete ? `All ${catalog.length} ${pool === "special" ? "special characters" : "types"} owned.` : error ?? (balance < cost ? `You need ${cost} wish currency to pull.` : "Equal chances among unowned types. No duplicates."), width / 2, height - 32, "12px system-ui", error && !complete ? "#a13725" : "#71583c", width - 40);
       ctx.textAlign = "left";
       box(width - 64, 16, 48, 48, "#e9d4a7", focus === "close" ? "#fff" : "#a38358");
-      ctx.strokeStyle = "#43311f"; ctx.beginPath(); ctx.moveTo(width - 47, 33); ctx.lineTo(width - 33, 47); ctx.moveTo(width - 33, 33); ctx.lineTo(width - 47, 47); ctx.stroke();
+      ctx.strokeStyle = "#fff0cc"; ctx.beginPath(); ctx.moveTo(width - 47, 33); ctx.lineTo(width - 33, 47); ctx.moveTo(width - 33, 33); ctx.lineTo(width - 47, 47); ctx.stroke();
     }
     window.addEventListener("paper-art-ready", draw);
     const observer = new ResizeObserver(draw); observer.observe(canvas); draw();
@@ -92,7 +94,7 @@ export function WishScreen({ onClose }: { onClose: () => void }) {
     }
   }}>
     <canvas ref={canvasRef} aria-hidden="true" className="block h-full w-full" />
-    <div role="group" aria-label="Wish pool" className="absolute top-28 left-6 flex gap-2">{(["normal", "special"] as const).map((value) => <button key={value} type="button" aria-pressed={pool === value} disabled={wish.isPending} onClick={() => { wish.reset(); setPool(value); }} className={`cursor-pointer rounded-lg border px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-[#805523] disabled:cursor-wait ${pool === value ? "border-[#e4d895] paper-card bg-[#e4d895] text-[#43311f]" : "border-[#a38358] paper-card bg-[#e9d4a7] text-[#43311f]"}`}>{value === "special" ? "Special · 200" : "Normal · 100"}</button>)}</div>
+    <div role="group" aria-label="Wish pool" className="absolute top-28 left-6 flex gap-2">{(["normal", "special"] as const).map((value) => <button key={value} type="button" aria-pressed={pool === value} disabled={wish.isPending} onClick={() => { wish.reset(); setPool(value); }} className={`menu-action cursor-pointer rounded-lg border px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-[#805523] disabled:cursor-wait ${pool === value ? "border-[#e4d895] paper-card bg-[#e4d895] text-[#43311f]" : "border-[#a38358] paper-card bg-[#e9d4a7] text-[#43311f]"}`}>{value === "special" ? "Special · 200" : "Normal · 100"}</button>)}</div>
     <button ref={closeRef} type="button" aria-label="Close wish screen" onClick={onClose} onFocus={() => setFocus("close")} onBlur={() => setFocus("")} className="absolute top-4 right-4 size-12 cursor-pointer rounded-xl outline-none"><span className="sr-only">Close wish screen</span></button>
     <button type="button" disabled={!enabled} onClick={() => wish.mutate()} onFocus={() => setFocus("wish")} onBlur={() => setFocus("")} className="absolute bottom-16 left-1/2 h-[52px] w-[min(280px,calc(100%-48px))] -translate-x-1/2 cursor-pointer rounded-xl outline-none disabled:cursor-default"><span className="sr-only">Wish for a random character. Costs {cost} wish currency.</span></button>
     <p role="status" className="sr-only">Wish currency: {balance}. Collection: {ownedCount} of {catalog.length}. {complete ? "Collection complete. Wishing is disabled." : wish.isPending ? "Wishing." : reward ? `Received ${weaponDetails(reward.weapon).label}. Added to your roster.` : "Wish for a character type you do not own."}</p>

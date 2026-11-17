@@ -37,7 +37,7 @@ export function PvpPanel({ onClose }: { onClose: () => void }) {
   const recent = steps.filter((step) => !["mana", "move"].includes(step.kind)).slice(-8).reverse();
   const fighters = data?.result?.fighters ?? data?.players.flatMap((player) => player?.fighters ?? []) ?? [];
   const busy = action.isPending || leave.isPending;
-  const button = "cursor-pointer rounded-lg border border-[#a38358] paper-card bg-[#e4d895] px-4 py-2 text-sm font-semibold text-[#43311f] outline-none focus-visible:ring-2 focus-visible:ring-[#805523] disabled:cursor-not-allowed disabled:opacity-50";
+  const button = "menu-action cursor-pointer rounded-lg border border-[#a38358] paper-card bg-[#e4d895] px-4 py-2 text-sm font-semibold text-[#43311f] outline-none focus-visible:ring-2 focus-visible:ring-[#805523] disabled:cursor-not-allowed disabled:opacity-50";
   const error = action.error?.message ?? leave.error?.message ?? room.error?.message ?? lobby.error?.message;
   function close() { if (!busy) { if (code && data && ["waiting", "countdown", "battle", "complete"].includes(data.phase)) leave.mutate(); else onClose(); } }
   function select(characterIds: string[]) { action.mutate({ path: `/pvp/${code}/select`, body: { characterIds } }); }
@@ -53,7 +53,7 @@ export function PvpPanel({ onClose }: { onClose: () => void }) {
     <header className="sticky top-0 z-10 border-b border-[#a38358] paper-card bg-[#efdfb8] p-5">
       <h2 id="pvp-title" className="flex items-center gap-2 pr-14 text-2xl font-semibold"><Swords size={24} /> PvP Arena</h2>
       <p className="mt-2 text-xs text-[#71583c]">Up to 6 vs 6 · Uneven teams allowed · Full HP/MP · Current equipment and upgrades</p>
-      <button ref={closeRef} type="button" onClick={close} disabled={busy} aria-label={code ? "Leave PvP room" : "Close PvP"} className="absolute top-4 right-4 grid size-11 cursor-pointer place-items-center rounded-xl border border-[#a38358] outline-none focus-visible:ring-2 focus-visible:ring-[#805523]"><X size={20} /></button>
+      <button ref={closeRef} type="button" onClick={close} disabled={busy} aria-label={code ? "Leave PvP room" : "Close PvP"} className="absolute top-4 right-4 grid size-11 menu-action cursor-pointer place-items-center rounded-xl border border-[#a38358] outline-none focus-visible:ring-2 focus-visible:ring-[#805523]"><X size={20} /></button>
       {error && <p role="alert" className="mt-2 text-sm text-[#a13725]">{error}</p>}
     </header>
     <div className="mx-auto max-w-7xl space-y-5 p-5">
@@ -92,7 +92,7 @@ export function PvpPanel({ onClose }: { onClose: () => void }) {
           })}</ol>
           {roster.isPending ? <p>Loading characters…</p> : roster.data?.characters.length ? <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">{roster.data.characters.map((member) => {
             const chosen = selected.includes(member.id!);
-            return <button key={member.id} type="button" disabled={busy || !!me?.ready || (!chosen && selected.length >= 6)} aria-pressed={chosen} onClick={() => select(chosen ? selected.filter((id) => id !== member.id) : [...selected, member.id!])} className={`cursor-pointer rounded-xl border p-3 text-left outline-none focus-visible:ring-2 focus-visible:ring-[#805523] disabled:opacity-60 ${chosen ? "border-[#e4d895] paper-card bg-[#ceb077]" : "border-[#a38358] paper-card bg-[#e9d4a7]"}`}>
+            return <button key={member.id} type="button" disabled={busy || !!me?.ready || (!chosen && selected.length >= 6)} aria-pressed={chosen} onClick={() => select(chosen ? selected.filter((id) => id !== member.id) : [...selected, member.id!])} className={`menu-action cursor-pointer rounded-xl border p-3 text-left outline-none focus-visible:ring-2 focus-visible:ring-[#805523] disabled:opacity-60 ${chosen ? "border-[#e4d895] paper-card bg-[#ceb077]" : "border-[#a38358] paper-card bg-[#e9d4a7]"}`}>
               <span className="font-semibold">{chosen ? `${selected.indexOf(member.id!) + 1}. ` : ""}{member.name}</span><span className="ml-2 text-xs text-[#71583c]">{weaponDetails(member.weapon).label}</span><span className="mt-1 block text-xs text-[#71583c]">HP {member.stats?.hp} · MP {member.stats?.mp} · ATK {member.stats?.atk} · Magic {member.stats?.magic} · Speed {member.stats?.speed}</span>
             </button>;
           })}</div> : <p className="text-sm text-[#71583c]">Create your starter character first.</p>}

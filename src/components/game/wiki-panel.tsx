@@ -38,8 +38,8 @@ export function WikiPanel({ onClose }: { onClose: () => void }) {
   }}>
     <header className="sticky top-0 z-10 space-y-3 border-b border-[#a38358] paper-card bg-[#efdfb8] p-5">
       <h2 id="wiki-title" className="flex items-center gap-2 pr-14 text-2xl font-semibold"><BookOpen size={24} /> Enemy Wiki</h2>
-      <button type="button" aria-label="Close wiki" onClick={onClose} className="absolute top-4 right-4 grid size-11 cursor-pointer place-items-center rounded-xl border border-[#a38358] outline-none focus-visible:ring-2 focus-visible:ring-[#805523]"><X size={20} /></button>
-      <div role="group" aria-label="Wiki category" className="flex gap-2"><button type="button" className={`${inputClass} cursor-pointer border-[#e4d895]`} aria-pressed={true}>Enemies</button><button type="button" onClick={() => setCategory("characters")} className={`${inputClass} cursor-pointer`} aria-pressed={false}>Characters</button></div>
+      <button type="button" aria-label="Close wiki" onClick={onClose} className="absolute top-4 right-4 grid size-11 menu-action cursor-pointer place-items-center rounded-xl border border-[#a38358] outline-none focus-visible:ring-2 focus-visible:ring-[#805523]"><X size={20} /></button>
+      <div role="group" aria-label="Wiki category" className="flex gap-2"><button type="button" className={`${inputClass} menu-action cursor-pointer border-[#e4d895]`} aria-pressed={true}>Enemies</button><button type="button" onClick={() => setCategory("characters")} className={`${inputClass} menu-action cursor-pointer`} aria-pressed={false}>Characters</button></div>
       <div className="flex flex-wrap gap-2">
         <label className="relative min-w-[180px] flex-1"><Search size={16} aria-hidden="true" className="absolute top-3 left-3 text-[#71583c]" /><input ref={searchRef} aria-label="Search enemies or skills" placeholder="Search enemies or skills…" value={search} onChange={(event) => setSearch(event.target.value)} className={`${inputClass} w-full pl-9`} /></label>
         <select aria-label="Filter by location" value={location} onChange={(event) => setLocation(event.target.value)} className={`${inputClass} max-w-full`}><option value="all">All locations</option>{locations.map((name) => <option key={name} value={name}>{name}</option>)}</select>
@@ -50,7 +50,7 @@ export function WikiPanel({ onClose }: { onClose: () => void }) {
     <div className="mx-auto max-w-5xl space-y-4 p-5">
       <p className="text-xs leading-relaxed text-[#71583c]">Damage shown is before the target’s defenses. Basic attacks use the greater of Attack − Defense or Magic − Sp. Defense, with a minimum of 1 damage. Skills use their listed damage type and also deal at least 1 damage. Enemies do not regenerate mana.</p>
       {query.isPending && <p role="status">Loading enemy wiki…</p>}
-      {query.isError && <div role="alert" className="text-[#a13725]"><p>{query.error.message}</p><button type="button" onClick={() => void query.refetch()} className={`${inputClass} mt-2 cursor-pointer`}>Retry</button></div>}
+      {query.isError && <div role="alert" className="text-[#a13725]"><p>{query.error.message}</p><button type="button" onClick={() => void query.refetch()} className={`${inputClass} mt-2 menu-action cursor-pointer`}>Retry</button></div>}
       {filtered.map((enemy) => <article key={enemy.id} className="rounded-xl border border-[#a38358] paper-card bg-[#e9d4a7] p-4">
         <div className="mb-4 flex flex-col gap-4 sm:flex-row sm:items-center"><WikiPortrait subject={{ enemy: enemy.id }} name={enemy.name} /><div className="min-w-0">
         <div className="flex flex-wrap items-center gap-2"><h3 className="text-lg font-semibold">{enemy.name}</h3>{enemy.boss && <span className="rounded paper-card bg-[#e4d895] px-2 py-0.5 text-xs font-semibold text-[#43311f]">Boss</span>}</div>

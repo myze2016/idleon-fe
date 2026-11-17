@@ -1,4 +1,5 @@
 "use client";
+import { drawMenuButton } from "./menu-button";
 import { drawPaperPanel } from "./paper-panel";
 import { ResponsiveCanvasFrame } from "./responsive-canvas-frame";
 import { drawCharacter, useCharacterSprites } from "./character-design";
@@ -50,6 +51,7 @@ export function TeamScreen({ characters, onClose }: { characters: Character[]; o
         ctx!.font = font; ctx!.fillStyle = color; ctx!.fillText(value, x, y);
       }
       function box(x: number, y: number, w: number, h: number, fill: string, border: string) {
+        if (h <= 60) { drawMenuButton(ctx!, x, y, w, h, border === "#fff" || border === "#fff0b8"); return; }
         ctx!.beginPath(); ctx!.roundRect(x, y, w, h, Math.min(12, w / 4)); ctx!.fillStyle = fill; ctx!.fill(); drawPaperPanel(ctx!, x, y, w, h);
         ctx!.strokeStyle = border; ctx!.lineWidth = 2; ctx!.stroke();
       }
@@ -90,7 +92,7 @@ export function TeamScreen({ characters, onClose }: { characters: Character[]; o
       }
       ctx.textAlign = "left";
       box(width - 64, 16, 48, 48, "#e9d4a7", closeFocused ? "#fff" : "#a38358");
-      ctx.strokeStyle = "#43311f"; ctx.lineWidth = 2; ctx.beginPath();
+      ctx.strokeStyle = "#fff0cc"; ctx.lineWidth = 2; ctx.beginPath();
       ctx.moveTo(width - 47, 33); ctx.lineTo(width - 33, 47); ctx.moveTo(width - 33, 33); ctx.lineTo(width - 47, 47); ctx.stroke();
     }
     window.addEventListener("paper-art-ready", draw);
@@ -130,7 +132,7 @@ export function TeamScreen({ characters, onClose }: { characters: Character[]; o
       returnSlot.current = i;
       setInspected(characters.find((character) => character.id === member.id) ?? member);
     }}>Upgrade</button>)}
-    {rects.map((rect, i) => slots[i] && <button key={`remove-${i}`} type="button" disabled={save.isPending} aria-label={`Remove ${slots[i]?.name} from team`} className="absolute rounded border border-[#bd8275] paper-card bg-[#d8ae95] px-2 py-2 text-xs text-[#7c3124] disabled:opacity-50" style={{ left: rect.x, top: rect.y + rect.height + 48, width: rect.width }} onClick={() => {
+    {rects.map((rect, i) => slots[i] && <button key={`remove-${i}`} type="button" disabled={save.isPending} aria-label={`Remove ${slots[i]?.name} from team`} className="menu-action absolute rounded border border-[#bd8275] paper-card bg-[#d8ae95] px-2 py-2 text-xs text-[#7c3124] disabled:opacity-50" style={{ left: rect.x, top: rect.y + rect.height + 48, width: rect.width }} onClick={() => {
       if (saving.current) return;
       saving.current = true;
       save.mutate({ slot: i, characterId: null }, {

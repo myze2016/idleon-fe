@@ -34,7 +34,7 @@ export function CollectionPanel({ title, onClose, characterId }: { title: "Shop"
     action.mutate(input, { onSuccess: () => setNotice(success), onSettled: () => { busy.current = false; } });
   }
 
-  const buttonClass = "cursor-pointer rounded-lg border border-[#a38358] paper-card bg-[#e4d895] px-4 py-2 text-sm font-semibold text-[#43311f] outline-none focus-visible:ring-2 focus-visible:ring-[#805523] disabled:cursor-not-allowed disabled:opacity-50";
+  const buttonClass = "menu-action cursor-pointer rounded-lg border border-[#a38358] paper-card bg-[#e4d895] px-4 py-2 text-sm font-semibold text-[#43311f] outline-none focus-visible:ring-2 focus-visible:ring-[#805523] disabled:cursor-not-allowed disabled:opacity-50";
   return <ResponsiveCanvasFrame><div role="dialog" aria-modal="true" aria-labelledby="collection-title" className="paper-menu absolute inset-0 z-40 overflow-auto paper-card bg-[#efdfb8] paper-menu text-[#43311f]" onKeyDown={(event) => {
     if (event.key === "Escape") { event.preventDefault(); event.stopPropagation(); onClose(); }
     if (event.key === "Tab") {
@@ -48,7 +48,7 @@ export function CollectionPanel({ title, onClose, characterId }: { title: "Shop"
       <p className="mt-2 text-sm text-[#71583c]">Gold: {gold.toLocaleString()} · {title === "Shop" ? "Artifacts cost 500 gold" : "Enhance for 1,000 gold · +2 main stat per level"}</p>
       {characterId && <p className="mt-1 text-xs text-[#71583c]">One equipped artifact per character.</p>}
       <p role={action.error ? "alert" : "status"} className={`mt-2 min-h-5 text-sm ${action.error ? "text-[#a13725]" : "text-[#805523]"}`}>{action.error?.message ?? (action.isPending ? "Saving…" : notice)}</p>
-      <button ref={closeRef} type="button" aria-label={`Close ${title}`} onClick={onClose} className="absolute top-4 right-4 grid size-12 cursor-pointer place-items-center rounded-xl border border-[#71583c] paper-card bg-[#e9d4a7] outline-none focus-visible:ring-2 focus-visible:ring-[#805523]"><X size={20} /></button>
+      <button ref={closeRef} type="button" aria-label={`Close ${title}`} onClick={onClose} className="absolute top-4 right-4 grid size-12 menu-action cursor-pointer place-items-center rounded-xl border border-[#71583c] paper-card bg-[#e9d4a7] outline-none focus-visible:ring-2 focus-visible:ring-[#805523]"><X size={20} /></button>
     </header>
     <div className="mx-auto max-w-[768px] space-y-3 p-6">
       {state.isPending && <p role="status">Loading artifacts…</p>}

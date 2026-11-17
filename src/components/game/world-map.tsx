@@ -19,6 +19,7 @@ export function WorldMap({ onClose }: { onClose: () => void }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const viewportRef = useRef<HTMLDivElement>(null);
   const drag = useRef<{ x: number; y: number; left: number; top: number } | null>(null);
+  const dragged = useRef(false);
   const closeRef = useRef<HTMLButtonElement>(null);
   const selected = useGameState((state) => state.selectedLocation);
   const store = useGameStoreApi();
@@ -33,6 +34,17 @@ export function WorldMap({ onClose }: { onClose: () => void }) {
   const garnalandRef = useRef<HTMLButtonElement>(null);
   const backRef = useRef<HTMLButtonElement>(null);
   useEffect(() => { if (garnalandOpen || deepSeaOpen) backRef.current?.focus(); }, [garnalandOpen, deepSeaOpen]);
+  function panMap(dx: number, dy: number) {
+    viewportRef.current?.scrollBy({ left: dx, top: dy, behavior: "smooth" });
+  }
+  useEffect(() => {
+    const view = viewportRef.current;
+    if (!view) return;
+    const stopWheel = (event: WheelEvent) => event.preventDefault();
+    view.addEventListener("wheel", stopWheel, { passive: false });
+    return () => view.removeEventListener("wheel", stopWheel);
+  }, [garnalandOpen, deepSeaOpen]);
+
   function closePlaceholder() {
     const target = deepSeaOpen ? deepSeaRef : garnalandRef;
     setGarnalandOpen(false); setDeepSeaOpen(false);
@@ -106,8 +118,13 @@ export function WorldMap({ onClose }: { onClose: () => void }) {
     return () => { observer.disconnect(); window.removeEventListener("paper-art-ready", draw); mapArtwork.onload = null; buttonIcons.onload = null; };
   }, [selected, focus, garnalandUnlocked, garnalandOpen, deepSeaUnlocked, deepSeaOpen]);
 
-  return <ResponsiveCanvasFrame minHeight={560}><div role="dialog" aria-modal="true" aria-label="World map" className="absolute inset-0 z-30 bg-[#c9b68d]" onKeyDown={(event) => {
+  return <ResponsiveCanvasFrame minWidth={0} minHeight={0}><div role="dialog" aria-modal="true" aria-label="World map" className="absolute inset-0 z-30 bg-[#c9b68d]" onKeyDown={(event) => {
     if (event.key === "Escape") { event.preventDefault(); event.stopPropagation(); onClose(); }
+    if (!garnalandOpen && !deepSeaOpen) {
+      const arrows: Record<string, [number, number]> = { ArrowLeft: [-100, 0], ArrowRight: [100, 0], ArrowUp: [0, -100], ArrowDown: [0, 100] };
+      if (arrows[event.key]) { event.preventDefault(); event.stopPropagation(); panMap(...arrows[event.key]); }
+      if ([" ", "PageUp", "PageDown", "Home", "End"].includes(event.key) && !(event.target instanceof HTMLButtonElement)) event.preventDefault();
+    }
     if (event.key === "Tab") {
       const buttons = Array.from(event.currentTarget.querySelectorAll<HTMLButtonElement>("button:not(:disabled)"));
       const first = buttons[0], last = buttons[buttons.length - 1];
@@ -132,17 +149,29 @@ export function WorldMap({ onClose }: { onClose: () => void }) {
       </div> : <p className="text-sm text-[#e4d895]">Coming soon — this location is a placeholder.</p>}
       <button ref={backRef} type="button" onClick={closePlaceholder} className="cursor-pointer rounded-xl border border-[#b8a76d] bg-[#654e35] px-5 py-3 outline-none focus-visible:ring-2 focus-visible:ring-[#fff0b8]">Back to world map</button>
     </div> : <>
-    <div ref={viewportRef} tabIndex={0} aria-label="Scrollable world map. Drag the map or use arrow keys to explore." className="absolute inset-0 overflow-auto cursor-grab active:cursor-grabbing" style={{ touchAction: "pan-x pan-y" }} onPointerDown={(event) => {
-      if (event.pointerType !== "mouse" || event.button !== 0 || (event.target as HTMLElement).closest("button")) return;
+    <div ref={viewportRef} tabIndex={0} aria-label="World map. Drag or use arrow keys and arrow buttons to move." className="absolute inset-0 overflow-hidden overscroll-none cursor-grab select-none active:cursor-grabbing" style={{ touchAction: "none" }} onPointerDown={(event) => {
+      if (!event.isPrimary || event.button !== 0) return;
       const view = event.currentTarget;
+      dragged.current = false;
       drag.current = { x: event.clientX, y: event.clientY, left: view.scrollLeft, top: view.scrollTop };
-      view.setPointerCapture(event.pointerId);
+      if (!(event.target as HTMLElement).closest("button")) view.focus({ preventScroll: true });
     }} onPointerMove={(event) => {
       const start = drag.current;
       if (!start) return;
-      event.currentTarget.scrollLeft = start.left - (event.clientX - start.x);
-      event.currentTarget.scrollTop = start.top - (event.clientY - start.y);
-    }} onPointerUp={() => { drag.current = null; }} onPointerCancel={() => { drag.current = null; }}>
+      const dx = event.clientX - start.x, dy = event.clientY - start.y;
+      if (!dragged.current && Math.hypot(dx, dy) < 6) return;
+      dragged.current = true;
+      const view = event.currentTarget;
+      if (!view.hasPointerCapture(event.pointerId)) view.setPointerCapture(event.pointerId);
+      const bounds = view.getBoundingClientRect();
+      view.scrollLeft = start.left - dx * view.clientWidth / bounds.width;
+      view.scrollTop = start.top - dy * view.clientHeight / bounds.height;
+    }} onPointerUp={(event) => {
+      drag.current = null;
+      if (event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId);
+    }} onPointerCancel={() => { drag.current = null; }} onLostPointerCapture={() => { drag.current = null; }} onClickCapture={(event) => {
+      if (dragged.current) { event.preventDefault(); event.stopPropagation(); dragged.current = false; }
+    }}>
     <div className="relative" style={{ width: 2400, height: 1600, backgroundColor: "#c9b68d", backgroundImage: "url('/maps/world-map-expanded-v1.png')", backgroundSize: "100% 100%" }}>
     <svg aria-hidden="true" className="hidden" viewBox="0 0 2400 1600" xmlns="http://www.w3.org/2000/svg">
       <defs>
@@ -176,8 +205,11 @@ export function WorldMap({ onClose }: { onClose: () => void }) {
     </div>
     </div>
     <button ref={closeRef} type="button" aria-label="Close map" onClick={onClose} className="absolute top-4 right-4 z-20 size-12 cursor-pointer rounded-xl border border-[#71583c] bg-[#efdfb8] text-2xl text-[#43311f] focus-visible:ring-2 focus-visible:ring-[#805523]">×</button>
-    <p className="pointer-events-none absolute bottom-3 left-3 rounded border border-[#a38358] bg-[#efdfb8] px-3 py-2 text-xs text-[#43311f]">Drag or scroll to explore · Arrow keys also move the map</p>
+    <p className="pointer-events-none absolute bottom-3 left-3 max-w-[calc(100%-176px)] rounded border border-[#a38358] bg-[#efdfb8] px-3 py-2 text-xs text-[#43311f]">Drag to explore - use arrow keys or buttons</p>
+    <div role="group" aria-label="Pan world map" className="absolute right-3 bottom-3 z-20 grid grid-cols-3 gap-1">
+      {([{ label: "Move map up", icon: String.fromCharCode(8593), dx: 0, dy: -160, col: 2 }, { label: "Move map left", icon: String.fromCharCode(8592), dx: -160, dy: 0, col: 1 }, { label: "Move map down", icon: String.fromCharCode(8595), dx: 0, dy: 160, col: 2 }, { label: "Move map right", icon: String.fromCharCode(8594), dx: 160, dy: 0, col: 3 }]).map((arrow, index) => <button key={arrow.label} type="button" aria-label={arrow.label} onClick={() => panMap(arrow.dx, arrow.dy)} className="size-11 cursor-pointer rounded border border-[#be9962] bg-[#654326] text-xl text-[#fff0cc] shadow hover:bg-[#805a32] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ffe2a1]" style={{ gridColumn: arrow.col, gridRow: index === 0 ? 1 : 2 }}>{arrow.icon}</button>)}
+    </div>
     <p role="status" className="sr-only">{selected ? `Selected destination: ${selected}` : "Select Meadow, Forest, Harbor, or Zugwangs Battle Tourney."}</p>
     </>}
   </div></ResponsiveCanvasFrame>;
-}
+}

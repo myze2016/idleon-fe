@@ -140,3 +140,28 @@
   border-image-width: 12px;
   border-image-repeat: stretch;
 }
+
+.paper-menu .menu-action {
+  border-image: none;
+  border: 1px solid #4e301b;
+  background: linear-gradient(#886036, #51331e);
+  color: #fff0cc;
+  box-shadow: inset 0 0 0 3px #d7b17544, 0 2px 3px #38231244;
+  transition: filter 150ms, transform 150ms;
+}
+.paper-menu .menu-action:not(:disabled):hover {
+  filter: brightness(1.17);
+}
+.paper-menu .menu-action:focus-visible {
+  outline: 3px solid #805523;
+  outline-offset: 3px;
+}
+.paper-menu .menu-action[aria-pressed="true"] {
+  border-color: #ffe2a1;
+  box-shadow: inset 0 0 0 2px #e4c18c, 0 2px 3px #38231244;
+}
+.paper-menu .menu-action:disabled {
+  opacity: 0.5;
+  filter: saturate(0.4);
+}
+.paper-menu .menu-action :is(span, p) { color: inherit; }

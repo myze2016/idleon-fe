@@ -1,4 +1,5 @@
 "use client";
+import { drawMenuButton } from "./menu-button";
 import { drawPaperPanel } from "./paper-panel";
 import { ResponsiveCanvasFrame } from "./responsive-canvas-frame";
 import { drawCharacter, useCharacterSprites } from "./character-design";
@@ -46,6 +47,7 @@ export function CharacterRoster({ characters, onClose, onSelect, selectionLabel 
         ctx.fillStyle = "#dbe4ad15"; ctx.beginPath(); ctx.arc((i * 157 + 40) % width, (i * 89 + 130) % height, 2, 0, Math.PI * 2); ctx.fill();
       }
       function box(x: number, y: number, w: number, h: number, fill: string, border: string, radius = 12) {
+        if (h <= 60) { drawMenuButton(ctx!, x, y, w, h, border === "#fff" || border === "#fff0b8"); return; }
         ctx!.beginPath(); ctx!.roundRect(x, y, w, h, radius); ctx!.fillStyle = fill; ctx!.fill(); drawPaperPanel(ctx!, x, y, w, h); ctx!.strokeStyle = border; ctx!.lineWidth = 2; ctx!.stroke();
       }
       function text(value: string, x: number, y: number, font: string, color = "#43311f", maxWidth?: number) {
@@ -65,6 +67,8 @@ export function CharacterRoster({ characters, onClose, onSelect, selectionLabel 
         const starter = character.isStarter ?? start + i === 0;
         box(x, y, cardWidth, cardHeight, "#e9d4a7", focus === `character-${start + i}` ? "#ffffff" : starter ? "#d2c58b" : "#a38358");
         text(starter ? "FREE STARTER" : "OWNED", x + 14, y + 25, "600 10px system-ui", "#805523");
+        drawMenuButton(ctx, x + cardWidth - 86, y + 10, 72, 26, focus === `character-${start + i}`);
+        text(selectionMode ? "Assign" : "View stats", x + cardWidth - 80, y + 27, "600 10px system-ui", "#fff0cc", 60);
         const avatarScale = Math.min(2.5, (cardHeight - 110) / 72);
         ctx.save(); ctx.translate(x + cardWidth / 2, y + cardHeight - 70); ctx.scale(avatarScale, avatarScale);
         drawCharacter(ctx, character.weapon); ctx.restore();
@@ -72,12 +76,12 @@ export function CharacterRoster({ characters, onClose, onSelect, selectionLabel 
         text(weaponDetails(character.weapon).label, x + 14, y + cardHeight - 14, "12px system-ui", "#71583c", cardWidth - 28);
       });
       box(width - 64, 16, 48, 48, "#e9d4a7", focus === "close" ? "#fff" : "#a38358");
-      ctx.strokeStyle = "#43311f"; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(width - 47, 33); ctx.lineTo(width - 33, 47); ctx.moveTo(width - 33, 33); ctx.lineTo(width - 47, 47); ctx.stroke();
+      ctx.strokeStyle = "#fff0cc"; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(width - 47, 33); ctx.lineTo(width - 33, 47); ctx.moveTo(width - 33, 33); ctx.lineTo(width - 47, 47); ctx.stroke();
       text(characters.length > perPage ? `Page ${safePage + 1}/${Math.ceil(characters.length / perPage)}` : selectionMode ? "Choose a character to place in this slot." : "Select a character to view stats.", 24, height - 24, "12px system-ui", "#71583c", characters.length > perPage ? Math.max(40, width - 244) : width - 48);
       if (characters.length > perPage) {
         box(width - 196, height - 62, 80, 44, "#e9d4a7", focus === "previous" ? "#fff" : "#a38358");
         box(width - 104, height - 62, 80, 44, "#e9d4a7", focus === "next" ? "#fff" : "#a38358");
-        text("Previous", width - 188, height - 35, "12px system-ui"); text("Next", width - 82, height - 35, "12px system-ui");
+        text("Previous", width - 188, height - 35, "12px system-ui", "#fff0cc"); text("Next", width - 82, height - 35, "12px system-ui", "#fff0cc");
       }
     }
     window.addEventListener("paper-art-ready", draw);

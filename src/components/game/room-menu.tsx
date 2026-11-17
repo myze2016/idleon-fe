@@ -1,4 +1,5 @@
 "use client";
+import { drawMenuButton } from "./menu-button";
 import { drawPaperPanel } from "./paper-panel";
 import { ResponsiveCanvasFrame } from "./responsive-canvas-frame";
 
@@ -28,6 +29,7 @@ export function RoomMenu({ onClose }: { onClose: () => void }) {
       canvas.width = Math.round(width * ratio); canvas.height = Math.round(height * ratio); ctx.scale(ratio, ratio);
       ctx.fillStyle = "#071c18bb"; ctx.fillRect(0, 0, width, height);
       function box(x: number, y: number, w: number, h: number, fill: string, border: string) {
+        if (h <= 60) { drawMenuButton(ctx!, x, y, w, h, border === "#fff" || border === "#fff0b8"); return; }
         ctx!.beginPath(); ctx!.roundRect(x, y, w, h, 10); ctx!.fillStyle = fill; ctx!.fill(); drawPaperPanel(ctx!, x, y, w, h); ctx!.strokeStyle = border; ctx!.lineWidth = 2; ctx!.stroke();
       }
       function text(value: string, x: number, y: number, font: string, color = "#43311f", maxWidth?: number) {
@@ -36,12 +38,12 @@ export function RoomMenu({ onClose }: { onClose: () => void }) {
       box(left, top, panelWidth, 300, "#efdfb8", "#a38358");
       text("Menu", left + 24, top + 41, "600 22px system-ui");
       box(left + panelWidth - 56, top + 14, 40, 40, "#ddc292", focus === "close" ? "#fff0b8" : "#a38358");
-      ctx.strokeStyle = "#43311f"; ctx.beginPath(); ctx.moveTo(left + panelWidth - 42, top + 28); ctx.lineTo(left + panelWidth - 30, top + 40); ctx.moveTo(left + panelWidth - 30, top + 28); ctx.lineTo(left + panelWidth - 42, top + 40); ctx.stroke();
+      ctx.strokeStyle = "#fff0cc"; ctx.beginPath(); ctx.moveTo(left + panelWidth - 42, top + 28); ctx.lineTo(left + panelWidth - 30, top + 40); ctx.moveTo(left + panelWidth - 30, top + 28); ctx.lineTo(left + panelWidth - 42, top + 40); ctx.stroke();
       box(left + 20, top + 78, panelWidth - 40, 50, "#ddc292", focus === "dashboard" ? "#fff0b8" : "#a38358");
       box(left + 20, top + 142, panelWidth - 40, 50, "#d8ae95", focus === "delete" ? "#fff0b8" : "#b47b63");
       ctx.textAlign = "center";
-      text("Dashboard", width / 2, top + 109, "600 15px system-ui");
-      text(remove.isPending ? "Deleting..." : "Delete account", width / 2, top + 173, "600 15px system-ui", "#7c3124");
+      text("Dashboard", width / 2, top + 109, "600 15px system-ui", "#fff0cc");
+      text(remove.isPending ? "Deleting..." : "Delete account", width / 2, top + 173, "600 15px system-ui", "#fff0cc");
       text("Removes your character.", width / 2, top + 221, "12px system-ui", "#71583c");
       text("Choose a new character afterward.", width / 2, top + 241, "12px system-ui", "#71583c");
       ctx.textAlign = "left";

@@ -84,7 +84,7 @@ export function ExpeditionCanvas({ location, team, gold, characterName, characte
     const tourney = location === "tourney";
     const deepsea = location.startsWith("deepsea");
     const deepseaBackground = new Image();
-    deepseaBackground.src = "/maps/deepsea-floors-harbor-v3.png";
+    deepseaBackground.src = location === "deepsea" ? "/maps/deepsea-floor1-harbor-v4.png" : location === "deepsea-2f" ? "/maps/deepsea-floor2-harbor-v4.png" : "/maps/deepsea-palace-harbor-v4.png";
     const deepseaSprites = new Image();
     deepseaSprites.src = "/sprites/deepsea-enemies-simple-v2.png";
     const deepseaFeet = new Map<number, number>();
@@ -288,8 +288,8 @@ export function ExpeditionCanvas({ location, team, gold, characterName, characte
         }
         rect(0, ground, width, height - ground, "#45635e"); rect(0, ground, width, 6, "#789083");
         if (deepseaBackground.complete && deepseaBackground.naturalWidth > 0) {
-          const floor = location === "deepsea-palace" ? 2 : location === "deepsea-2f" ? 1 : 0;
-          const panelHeight = deepseaBackground.naturalHeight / 3;
+          const floor = 0;
+          const panelHeight = deepseaBackground.naturalHeight;
           // Preserve the wide panel's proportions rather than stretching it
           // vertically to fill the battle viewport. Mirror adjacent tiles for
           // continuous scenery while the party travels.
