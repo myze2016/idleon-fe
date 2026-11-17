@@ -34,17 +34,15 @@ export function InventoryPanel({ onClose }: { onClose: () => void }) {
       <p className="mt-1 text-sm text-[#71583c]">Unique discoveries. Each quest item can be obtained once.</p>
       {state.isPending ? <p role="status" className="mt-6">Loading inventory…</p> : state.isError ? <div role="alert" className="mt-6 text-[#a13725]">
         <p>{state.error.message}</p><button type="button" onClick={() => void state.refetch()} className="mt-3 menu-action cursor-pointer rounded border px-4 py-2">Retry</button>
-      </div> : items.length ? <ul className="mt-5 space-y-3">
-        {items.map((item) => <li key={item.id} className="flex items-center gap-4 rounded-xl border border-[#a38358] paper-card bg-[#e9d4a7] p-4">
-          {item.id === "zugwangs-evidence" ? <button ref={evidenceRef} type="button" onClick={() => setPaperOpen(true)} aria-label="Open Zugwangs Evidence" className="flex w-full menu-action cursor-pointer items-center gap-4 rounded-lg text-left outline-none focus-visible:ring-2 focus-visible:ring-[#805523]">
-            <span className="grid size-14 shrink-0 place-items-center rounded-lg border border-[#a38358] paper-card bg-[#ddc292] text-[#805523]"><FileText size={30} aria-hidden="true" /></span>
-            <div className="min-w-0 flex-1"><h4 className="font-semibold">{item.name}</h4><p className="mt-1 text-sm text-[#71583c]">{item.description}</p><p className="mt-2 text-xs text-[#805523]">Quest item · Quantity 1 / 1 · Click to inspect</p></div>
-          </button> : <>
-            <span className="grid size-14 shrink-0 place-items-center rounded-lg border border-[#a38358] paper-card bg-[#ddc292] text-[#805523]"><Map size={30} aria-hidden="true" /></span>
-            <div className="min-w-0 flex-1"><h4 className="font-semibold">{item.name}</h4><p className="mt-1 text-sm text-[#71583c]">{item.description}</p><p className="mt-2 text-xs text-[#805523]">Quest item · Quantity 1 / 1</p></div>
-          </>}
+      </div> : items.length ? <ul className="mt-5 grid auto-rows-fr gap-3">
+        {items.map((item) => <li key={item.id} className="menu-info grid min-h-36 w-full grid-cols-[3.5rem_minmax(0,1fr)] items-center gap-x-4 gap-y-3 p-4 sm:grid-cols-[3.5rem_minmax(0,1fr)_auto]">
+          <span className="menu-info grid size-14 shrink-0 place-items-center text-[#805523]">
+            {item.id === "zugwangs-evidence" ? <FileText size={30} aria-hidden="true" /> : <Map size={30} aria-hidden="true" />}
+          </span>
+          <div className="min-w-0 break-words"><h4 className="font-semibold">{item.name}</h4><p className="mt-1 text-sm text-[#71583c]">{item.description}</p><p className="mt-2 text-xs text-[#805523]">Quest item · Quantity 1 / 1</p></div>
+          {item.id === "zugwangs-evidence" && <button ref={evidenceRef} type="button" onClick={() => setPaperOpen(true)} aria-label={`Inspect ${item.name}`} className="menu-action col-start-2 justify-self-end whitespace-nowrap px-4 py-2 text-sm font-semibold sm:col-start-3 sm:row-start-1 cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-[#805523]">Click to inspect</button>}
         </li>)}
-      </ul> : <p className="mt-6 rounded-xl border border-[#a38358] paper-card bg-[#e9d4a7] p-5 text-[#71583c]">No quest items yet. Explore and defeat bosses to find them.</p>}
+      </ul> : <p className="menu-info mt-6 p-5 text-[#71583c]">No quest items yet. Explore and defeat bosses to find them.</p>}
     </section>
     </>}
   </div></ResponsiveCanvasFrame>;
@@ -58,19 +56,7 @@ function EvidencePaper({ onClose }: { onClose: () => void }) {
     <article className="relative w-full rotate-[-1deg] rounded-sm border border-[#ac8c53] paper-card bg-[#e9d6a1] px-6 py-8 text-[#594529] shadow-xl" >
       <h2 id="inventory-title" className="text-center font-serif text-2xl font-semibold">Zugwangs Evidence</h2>
       <p className="mt-2 text-center font-serif text-sm italic text-[#806641]">A drawing found among Zugwang’s belongings</p>
-      <svg viewBox="0 0 300 350" role="img" aria-label="A hand-drawn yellow person on aged paper" className="mx-auto mt-4 max-h-[350px] w-full max-w-[300px]">
-        <g stroke="#70562e" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
-          <ellipse cx="150" cy="318" rx="74" ry="9" fill="#8b7041" opacity="0.14" stroke="none" />
-          <path d="M123 233 L116 306 Q126 316 140 308 L150 249 L161 308 Q175 316 186 306 L177 233" fill="#edc63f" />
-          <path d="M121 131 Q102 137 92 167 L67 213 Q65 226 78 228 L111 184 L116 237 Q148 248 183 237 L186 183 L218 226 Q230 229 234 215 L208 166 Q196 135 178 131 Z" fill="#f0ce42" />
-          <path d="M139 110 L137 132 Q150 143 163 132 L162 110" fill="#edc63f" />
-          <path d="M113 72 Q109 37 149 32 Q190 35 189 72 L186 94 Q176 120 150 121 Q122 119 113 94 Z" fill="#f6d74d" />
-          <path d="M134 73 L136 76 M164 73 L166 76" strokeWidth="6" />
-          <path d="M150 79 L146 91 L154 92 M136 101 Q149 109 164 100" fill="none" />
-          <path d="M119 146 L127 218 M182 148 L175 222 M126 242 L136 247 M162 245 L173 241" stroke="#b89532" strokeWidth="2" fill="none" />
-          <path d="M61 56 Q66 43 80 42 M224 259 L239 271 M224 271 L238 258" fill="none" opacity="0.55" strokeWidth="2" />
-        </g>
-      </svg>
+      <img src="/sprites/yellow-spectator-v1.png" alt="The yellow spectator: golden hair, yellow skin and yellow clothing" className="mx-auto mt-4 h-[350px] w-full max-w-[300px] object-contain" />
       <p className="text-center font-serif text-sm italic">A person drawn entirely in yellow. What could it mean?</p>
     </article>
   </div>;

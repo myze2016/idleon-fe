@@ -48,12 +48,12 @@ export function CollectionPanel({ title, onClose, characterId }: { title: "Shop"
       <p className="mt-2 text-sm text-[#71583c]">Gold: {gold.toLocaleString()} · {title === "Shop" ? "Artifacts cost 500 gold" : "Enhance for 1,000 gold · +2 main stat per level"}</p>
       {characterId && <p className="mt-1 text-xs text-[#71583c]">One equipped artifact per character.</p>}
       <p role={action.error ? "alert" : "status"} className={`mt-2 min-h-5 text-sm ${action.error ? "text-[#a13725]" : "text-[#805523]"}`}>{action.error?.message ?? (action.isPending ? "Saving…" : notice)}</p>
-      <button ref={closeRef} type="button" aria-label={`Close ${title}`} onClick={onClose} className="absolute top-4 right-4 grid size-12 menu-action cursor-pointer place-items-center rounded-xl border border-[#71583c] paper-card bg-[#e9d4a7] outline-none focus-visible:ring-2 focus-visible:ring-[#805523]"><X size={20} /></button>
+      <button ref={closeRef} type="button" aria-label={`Close ${title}`} onClick={onClose} className="absolute top-4 right-4 grid size-12 menu-action cursor-pointer place-items-center rounded-xl border border-[#4e301b] bg-[#51331e] text-[#fff0cc] outline-none focus-visible:ring-2 focus-visible:ring-[#805523]"><X size={20} /></button>
     </header>
     <div className="mx-auto max-w-[768px] space-y-3 p-6">
       {state.isPending && <p role="status">Loading artifacts…</p>}
       {state.isError && <div role="alert" className="text-[#a13725]"><p>{state.error.message}</p><button type="button" onClick={() => void state.refetch()} className={`${buttonClass} mt-2`}>Retry</button></div>}
-      {characterId && <div className="rounded-xl border border-[#a38358] paper-card bg-[#e9d4a7] p-4">
+      {characterId && <div className="rounded-xl border border-[#a38358] paper-card menu-info bg-[#e9d4a7] p-4">
         <h3 className="font-semibold">Empty artifact slot</h3><p className="my-2 text-sm text-[#71583c]">Remove your equipped artifact.</p>
         <button type="button" className={buttonClass} disabled={action.isPending || !character?.artifactId} onClick={() => perform({ characterId, artifactId: null }, "Artifact unequipped.")}>Unequip</button>
       </div>}
@@ -62,7 +62,7 @@ export function CollectionPanel({ title, onClose, characterId }: { title: "Shop"
         const equipped = !!characterId && item.id === character?.artifactId;
         const owned = state.data?.artifacts.filter((artifact) => artifact.stat === item.stat).length ?? 0;
         const enhancing = action.isPending && action.variables && "enhanceId" in action.variables && action.variables.enhanceId === item.id;
-        return <article key={item.id} style={{ borderRadius: 0, borderStyle: "solid", borderWidth: 2 }} className={`paper-card bg-[#e9d4a7] p-4 ${equipped ? "border-[#805523]" : "border-[#a38358]"}`}>
+        return <article key={item.id} data-equipped={equipped} className={`paper-card menu-info bg-[#e9d4a7] p-4 ${equipped ? "border-[#805523]" : "border-[#a38358]"}`}>
           <div className="flex items-center gap-4">
             <div className="shrink-0 border-2 border-solid border-[#a38358] bg-[#efdfb8] p-2"><ArtifactIcon stat={item.stat} /></div>
             <div className="min-w-0"><h3 className="font-semibold">{item.name}{item.enhancementLevel > 0 && <span style={{ color: enhancementColor(item.enhancementLevel) }}> · Enhance +{item.enhancementLevel}</span>}</h3>

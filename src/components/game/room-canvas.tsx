@@ -1,7 +1,7 @@
 "use client";
 import { ResponsiveCanvasFrame } from "./responsive-canvas-frame";
 import { drawCabinFireplace } from "./cabin-fireplace";
-import { drawPaperPanel } from "./paper-panel";
+import { drawMenuInfo } from "./menu-button";
 import { drawRpgButton } from "./rpg-button";
 import { drawCharacter } from "./character-design";
 
@@ -206,15 +206,15 @@ export function RoomCanvas({ character, characters, gold, progression }: { chara
       // HUD is rendered in screen coordinates, keeping both corners anchored on resize.
       const controls = roomToolbarLayout(width);
       const nameWidth = Math.max(70, Math.min(300, width >= 1060 ? controls[0].x - 32 : width - 32));
-      drawPaperPanel(ctx, 16, 16, nameWidth, 62);
+      drawMenuInfo(ctx, 16, 16, nameWidth, 62);
       text(leader.name, 38, 42, "600 17px system-ui", "#43311f", nameWidth - 44);
       text(weaponDetails(leader.weapon).label, 38, 62, "12px system-ui", "#66513b", nameWidth - 44);
-      drawPaperPanel(ctx, 16, 86, nameWidth, 32);
+      drawMenuInfo(ctx, 16, 86, nameWidth, 32);
       text("Id-leon City", 38, 107, "600 12px system-ui", "#43311f", nameWidth - 44);
       const progress = progressionRef.current;
       const progressWidth = Math.max(100, Math.min(200, width - 232));
       ctx.save();
-      drawPaperPanel(ctx, 16, height - 126, progressWidth, 110);
+      drawMenuInfo(ctx, 16, height - 126, progressWidth, 110);
       text(`Gold: ${goldRef.current}`, 38, height - 100, "600 15px system-ui", "#68491e", progressWidth - 44);
       text(`Account Lv. ${progress.level}`, 38, height - 76, "600 14px system-ui", "#43311f", progressWidth - 44);
       text(`EXP: ${progress.exp}/${progress.expToNextLevel}`, 38, height - 52, "12px system-ui", "#66513b", progressWidth - 44);
@@ -229,7 +229,7 @@ export function RoomCanvas({ character, characters, gold, progression }: { chara
       }
       drawRpgButton(ctx, buttonIcons, "map", "Map", width - 192, height - 104, 88, 88, focus.current === "map" || store.getState().isMapOpen);
       drawRpgButton(ctx, buttonIcons, "start", "Start", width - 104, height - 104, 88, 88, focus.current === "start");
-      drawPaperPanel(ctx, width - 192, height - 142, 176, 34);
+      drawMenuInfo(ctx, width - 192, height - 142, 176, 34);
       ctx.textAlign = "center";
       text(({ meadow: "Meadow", forest: "Forest", harbor: "Harbor", tourney: "Zugwangs Battle Tourney", deepsea: "DeepSea Moot", "deepsea-2f": "DeepSea Moot 2F", "deepsea-palace": "DeepSea Moot Royal Palace" })[store.getState().selectedLocation], width - 104, height - 120, "600 12px system-ui", "#43311f", 132);
       ctx.textAlign = "left";

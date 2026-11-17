@@ -82,6 +82,12 @@ export function ExpeditionCanvas({ location, team, gold, characterName, characte
     const forest = location === "forest";
     const harbor = location === "harbor";
     const tourney = location === "tourney";
+    const spectators = new Image();
+    const yellowSpectatorArt = new Image();
+    if (tourney) {
+      spectators.src = "/sprites/tourney-spectators-v1.png";
+      yellowSpectatorArt.src = "/sprites/yellow-spectator-v1.png";
+    }
     const deepsea = location.startsWith("deepsea");
     const deepseaBackground = new Image();
     deepseaBackground.src = location === "deepsea" ? "/maps/deepsea-floor1-harbor-v4.png" : location === "deepsea-2f" ? "/maps/deepsea-floor2-harbor-v4.png" : "/maps/deepsea-palace-harbor-v4.png";
@@ -250,9 +256,9 @@ export function ExpeditionCanvas({ location, team, gold, characterName, characte
         if (crowdOffset >= width + 40) void nextCrowd();
       }
       if (spectatorButton.current) {
-        const spectatorX = Math.floor(width * 0.82 / 36) * 36 + 4 - crowdOffset;
+        const spectatorX = Math.floor(width * 0.82 / 56) * 56 - crowdOffset;
         spectatorButton.current.style.left = `${spectatorX}px`;
-        spectatorButton.current.style.top = `${height * 0.57 - 5}px`;
+        spectatorButton.current.style.top = `${height * 0.59 - 32}px`;
         spectatorButton.current.style.visibility = spectatorX < -20 ? "hidden" : "visible";
       }
       if (!spawning && !summonBusy && elapsed >= nextSpawn && !document.hidden && !monsters.some((monster) => monster.data.boss)) void spawn();
@@ -340,20 +346,21 @@ export function ExpeditionCanvas({ location, team, gold, characterName, characte
         }
       }
       if (tourney) {
-        for (let row = 0; row < 3; row++) {
-          for (let column = -1; column <= Math.ceil(width / 36); column++) {
-            const sx = column * 36 - crowdOffset % 36;
-            const sy = height * (0.46 + row * 0.055);
-            ctx.fillStyle = ["#b99577", "#aa997f", "#8e9c85"][(column + row + crowdGroup + 30) % 3];
-            ctx.beginPath(); ctx.arc(sx, sy - 5, 4, 0, Math.PI * 2); ctx.fill();
-            rect(sx - 4, sy, 8, 9, row % 2 ? "#665b63" : "#68715b");
+        const feetY = height * 0.59;
+        const yellowX = Math.floor(width * 0.82 / 56) * 56 - crowdOffset;
+        for (let column = -1; column <= Math.ceil(width / 56); column++) {
+          const sx = column * 56 - crowdOffset % 56;
+          if (spectatorAvailable && Math.abs(sx - yellowX) < 28) continue;
+          if (spectators.complete && spectators.naturalWidth > 0) {
+            const cell = spectators.naturalWidth / 4;
+            const variant = ((column + Math.floor(crowdOffset / 56) + crowdGroup) % 4 + 4) % 4;
+            const spriteWidth = 68 * cell / spectators.naturalHeight;
+            ctx.drawImage(spectators, variant * cell, 0, cell, spectators.naturalHeight, sx - spriteWidth / 2, feetY - 68, spriteWidth, 68);
           }
         }
-        if (spectatorAvailable) {
-          const sx = Math.floor(width * 0.82 / 36) * 36 + 4 - crowdOffset;
-          const sy = height * 0.57;
-          ctx.fillStyle = "#ffe347"; ctx.beginPath(); ctx.arc(sx, sy - 5, 5, 0, Math.PI * 2); ctx.fill();
-          rect(sx - 4, sy, 8, 10, "#866145");
+        if (spectatorAvailable && yellowSpectatorArt.complete && yellowSpectatorArt.naturalWidth > 0) {
+          const spriteWidth = 72 * yellowSpectatorArt.naturalWidth / yellowSpectatorArt.naturalHeight;
+          ctx.drawImage(yellowSpectatorArt, yellowX - spriteWidth / 2, feetY - 68, spriteWidth, 72);
         }
       }
       if (harbor && period === "night") {
@@ -734,7 +741,7 @@ export function ExpeditionCanvas({ location, team, gold, characterName, characte
     <canvas ref={canvasRef} role="img" aria-label={`Your team is automatically walking from left to right through an endless ${location}.`} className="block h-full w-full" />
     <DamageSpread rows={damageSpread} compact={hud.compact} top={hud.controls[0].y + hud.controls[0].height + hud.gap} pad={hud.pad} />
     {location === "tourney" && yellowSpectator && hasEvidence && <button ref={spectatorButton} type="button" aria-label="Recognize the yellow spectator from Zugwangs Evidence" disabled={summoning} onClick={() => void summonAction.current?.()}
-      className="absolute left-[82%] top-[41%] z-10 h-7 w-6 -translate-x-1/2 -translate-y-1/2 cursor-pointer rounded outline-none focus-visible:ring-2 focus-visible:ring-yellow-200 disabled:cursor-wait">
+      className="absolute left-[82%] top-[41%] z-10 h-[72px] w-12 -translate-x-1/2 -translate-y-1/2 cursor-pointer rounded outline-none focus-visible:ring-2 focus-visible:ring-yellow-200 disabled:cursor-wait">
       <span className="sr-only">{summoning ? "Summoning Demon Prince…" : "A yellow-headed person hidden among the spectators"}</span>
     </button>}
     <button ref={returnRef} type="button" style={{ left: hud.returnButton.x, top: hud.returnButton.y, width: hud.returnButton.width, height: hud.returnButton.height }} onClick={() => void returnToRoom()} title="Return to room" onPointerEnter={() => { focused.current = true; }} onPointerLeave={() => { focused.current = false; }} onFocus={() => { focused.current = true; }} onBlur={() => { focused.current = false; }} className="absolute cursor-pointer rounded-xl outline-none"><span className="sr-only">Return to room</span></button>

@@ -172,7 +172,7 @@ export function WorldMap({ onClose }: { onClose: () => void }) {
     }} onPointerCancel={() => { drag.current = null; }} onLostPointerCapture={() => { drag.current = null; }} onClickCapture={(event) => {
       if (dragged.current) { event.preventDefault(); event.stopPropagation(); dragged.current = false; }
     }}>
-    <div className="relative" style={{ width: 2400, height: 1600, backgroundColor: "#c9b68d", backgroundImage: "url('/maps/world-map-expanded-v1.png')", backgroundSize: "100% 100%" }}>
+    <div className="relative" style={{ width: 2400, height: 1600, backgroundColor: "#83aaa1", backgroundImage: "url('/maps/world-map-medium-v1.png')", backgroundSize: "100% 100%" }}>
     <svg aria-hidden="true" className="hidden" viewBox="0 0 2400 1600" xmlns="http://www.w3.org/2000/svg">
       <defs>
         <pattern id="map-waves" width="90" height="60" patternUnits="userSpaceOnUse"><path d="M12 30q12-8 24 0t24 0" fill="none" stroke="#648c8d" strokeWidth="2" opacity=".3" /></pattern>

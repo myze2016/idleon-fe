@@ -1,7 +1,6 @@
 "use client";
-import { drawMenuButton } from "./menu-button";
+import { drawMenuButton, drawMenuInfo } from "./menu-button";
 import { drawArtifactIcon } from "./artifact-icon";
-import { drawPaperPanel } from "./paper-panel";
 import { ResponsiveCanvasFrame } from "./responsive-canvas-frame";
 
 import { useEffect, useRef, useState } from "react";
@@ -44,7 +43,7 @@ export function CharacterStatsScreen({ character: initialCharacter, onClose }: {
       const w = canvas.clientWidth, h = canvas.clientHeight, ratio = Math.min(window.devicePixelRatio || 1, 2);
       canvas.width = Math.round(w * ratio); canvas.height = Math.round(h * ratio); ctx.scale(ratio, ratio);
       const background = ctx.createLinearGradient(0, 0, 0, h); background.addColorStop(0, "#efdfb8"); background.addColorStop(1, "#d7bc8c");
-      ctx.fillStyle = background; ctx.fillRect(0, 0, w, h); drawPaperPanel(ctx, 0, 0, w, h);
+      ctx.fillStyle = background; ctx.fillRect(0, 0, w, h); drawMenuInfo(ctx, 0, 0, w, h);
       function text(value: string, x: number, y: number, font: string, color = "#43311f", maxWidth?: number) {
         ctx!.font = font; ctx!.fillStyle = color; ctx!.fillText(value, x, y, maxWidth);
       }
@@ -68,7 +67,7 @@ export function CharacterStatsScreen({ character: initialCharacter, onClose }: {
       const rows = stats ? [["HP", stats.hp], ["MP", stats.mp], ["ATK", stats.atk], ["DEF", stats.def], ["Magic", stats.magic], ["Magic DEF", stats.magicDef], ["Speed", stats.speed], ["Range", stats.range]] : [];
       rows.forEach(([label, value], i) => {
         const x = left + i % 2 * (cellWidth + 12), y = top + Math.floor(i / 2) * (cellHeight + 10);
-        ctx.beginPath(); ctx.roundRect(x, y, cellWidth, cellHeight, 8); ctx.fillStyle = "#e9d4a7"; ctx.fill(); drawPaperPanel(ctx, x, y, cellWidth, cellHeight); ctx.strokeStyle = "#a38358"; ctx.lineWidth = 1; ctx.stroke();
+        drawMenuInfo(ctx, x, y, cellWidth, cellHeight);
         text(String(label), x + 12, y + cellHeight / 2 + 5, "12px system-ui", "#71583c");
         ctx.textAlign = "right"; text(String(value), x + cellWidth - 12, y + cellHeight / 2 + 5, "600 16px system-ui", "#43311f"); ctx.textAlign = "left";
       });
@@ -83,7 +82,7 @@ export function CharacterStatsScreen({ character: initialCharacter, onClose }: {
       ];
       abilities.forEach((ability, i) => {
         const y = ability.y;
-        ctx.beginPath(); ctx.roundRect(left, y, area, ability.height, 8); ctx.fillStyle = "#e9d4a7"; ctx.fill(); drawPaperPanel(ctx, left, y, area, ability.height); ctx.strokeStyle = "#a38358"; ctx.stroke();
+        drawMenuInfo(ctx, left, y, area, ability.height);
         text(ability.title, left + 12, y + 24, "600 15px system-ui", "#43311f", area - 24);
         wrap(ability.detail, left + 12, y + 47, area - 24, i === 0 ? 1 : i === 1 ? 4 : 5);
         if (ability.skill) {
@@ -115,15 +114,14 @@ export function CharacterStatsScreen({ character: initialCharacter, onClose }: {
       drawMenuButton(ctx, w - 64, 16, 48, 48, focused === "close");
       ctx.strokeStyle = "#fff0cc"; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(w - 47, 33); ctx.lineTo(w - 33, 47); ctx.moveTo(w - 33, 33); ctx.lineTo(w - 47, 47); ctx.stroke();
     }
-    window.addEventListener("paper-art-ready", draw);
     window.addEventListener("artifact-art-ready", draw);
     const observer = new ResizeObserver(draw); observer.observe(canvas); draw();
-    return () => { observer.disconnect(); window.removeEventListener("paper-art-ready", draw); window.removeEventListener("artifact-art-ready", draw); };
+    return () => { observer.disconnect(); window.removeEventListener("artifact-art-ready", draw); };
   }, [character, focused, gold, unlocked, canUnlock, error, unlock.isPending, equipped, artifactsOpen, upgradeDefinition, canUpgrade, upgrade.isPending, upgrade.error]);
 
   if (artifactsOpen && character.id) return <CollectionPanel title="Artifacts" characterId={character.id} onClose={() => { setArtifactsOpen(false); }} />;
 
-  return <ResponsiveCanvasFrame><div role="dialog" aria-modal="true" aria-label={`${character.name} stats and abilities`} className="paper-menu absolute inset-0 z-30 overflow-auto paper-card bg-[#efdfb8]" onKeyDown={(event) => {
+  return <ResponsiveCanvasFrame><div role="dialog" aria-modal="true" aria-label={`${character.name} stats and abilities`} className="absolute inset-0 z-30 overflow-auto bg-[#efdfb8]" onKeyDown={(event) => {
     if (event.key === "Escape") { event.preventDefault(); event.stopPropagation(); onClose(); }
     if (event.key === "Tab") {
       const buttons = Array.from(event.currentTarget.querySelectorAll<HTMLButtonElement>("button:not(:disabled)"));

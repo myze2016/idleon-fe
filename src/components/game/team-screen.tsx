@@ -1,5 +1,5 @@
 "use client";
-import { drawMenuButton } from "./menu-button";
+import { drawMenuButton, drawMenuInfo } from "./menu-button";
 import { drawPaperPanel } from "./paper-panel";
 import { ResponsiveCanvasFrame } from "./responsive-canvas-frame";
 import { drawCharacter, useCharacterSprites } from "./character-design";
@@ -50,9 +50,9 @@ export function TeamScreen({ characters, onClose }: { characters: Character[]; o
       function text(value: string, x: number, y: number, font: string, color = "#43311f") {
         ctx!.font = font; ctx!.fillStyle = color; ctx!.fillText(value, x, y);
       }
-      function box(x: number, y: number, w: number, h: number, fill: string, border: string) {
+      function box(x: number, y: number, w: number, h: number, _fill: string, border: string) {
         if (h <= 60) { drawMenuButton(ctx!, x, y, w, h, border === "#fff" || border === "#fff0b8"); return; }
-        ctx!.beginPath(); ctx!.roundRect(x, y, w, h, Math.min(12, w / 4)); ctx!.fillStyle = fill; ctx!.fill(); drawPaperPanel(ctx!, x, y, w, h);
+        drawMenuInfo(ctx!, x, y, w, h, border === "#ffffff" || border === "#fff0b8");
         ctx!.strokeStyle = border; ctx!.lineWidth = 2; ctx!.stroke();
       }
       text("Team", 24, 48, "600 28px system-ui");
@@ -126,7 +126,7 @@ export function TeamScreen({ characters, onClose }: { characters: Character[]; o
     <canvas ref={canvasRef} aria-hidden="true" className="block h-full w-full" />
     <button ref={closeRef} type="button" aria-label="Close team" onClick={onClose} onFocus={() => setCloseFocused(true)} onBlur={() => setCloseFocused(false)} className="absolute top-4 right-4 size-12 cursor-pointer rounded-xl outline-none"><span className="sr-only">Close team</span></button>
     {rects.map((rect, i) => <button key={i} ref={(element) => { slotRefs.current[i] = element; }} type="button" aria-label={`${i < 3 ? "Front" : "Back"} ${i % 3 + 1}: ${slots[i]?.name ?? "empty"}. Choose character`} onClick={() => { returnSlot.current = i; setSelectedSlot(i); }} onFocus={() => setFocusedSlot(i)} onBlur={() => setFocusedSlot(null)} className="absolute cursor-pointer rounded-xl outline-none" style={{ left: rect.x, top: rect.y, width: rect.width, height: rect.height }}><span className="sr-only">Choose character</span></button>)}
-    {rects.map((rect, i) => slots[i] && <button key={`upgrade-${i}`} type="button" aria-label={`Open ${slots[i]?.name} skills and upgrades`} className="absolute cursor-pointer rounded border border-[#a38358] paper-card bg-[#e9d4a7] px-1 py-2 text-xs text-[#43311f] focus-visible:outline-2 focus-visible:outline-[#805523]" style={{ left: rect.x, top: rect.y + rect.height + 8, width: rect.width }} onClick={() => {
+    {rects.map((rect, i) => slots[i] && <button key={`upgrade-${i}`} type="button" aria-label={`Open ${slots[i]?.name} skills and upgrades`} className="menu-action absolute cursor-pointer rounded border border-[#a38358] paper-card bg-[#e9d4a7] px-1 py-2 text-xs text-[#43311f] focus-visible:outline-2 focus-visible:outline-[#805523]" style={{ left: rect.x, top: rect.y + rect.height + 8, width: rect.width }} onClick={() => {
       const member = slots[i];
       if (!member) return;
       returnSlot.current = i;

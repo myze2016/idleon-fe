@@ -12,3 +12,17 @@ export function drawMenuButton(ctx: CanvasRenderingContext2D, x: number, y: numb
   ctx.strokeStyle = "#d7b17588"; ctx.lineWidth = 1; ctx.stroke();
   ctx.restore();
 }
+
+/** A quiet information surface using the same inset frame as menu actions. */
+export function drawMenuInfo(ctx: CanvasRenderingContext2D, x: number, y: number, width: number, height: number, active = false) {
+  ctx.save();
+  const face = ctx.createLinearGradient(0, y, 0, y + height);
+  face.addColorStop(0, "#efdfb8"); face.addColorStop(1, "#d7bc8c");
+  ctx.shadowColor = "#38231255"; ctx.shadowBlur = 3; ctx.shadowOffsetY = 2;
+  ctx.beginPath(); ctx.roundRect(x, y, width, height, 6);
+  ctx.fillStyle = face; ctx.fill(); ctx.shadowBlur = 0; ctx.shadowOffsetY = 0;
+  ctx.strokeStyle = active ? "#805523" : "#805b35"; ctx.lineWidth = 2; ctx.stroke();
+  ctx.beginPath(); ctx.roundRect(x + 4, y + 4, width - 8, height - 8, 3);
+  ctx.strokeStyle = active ? "#805523" : "#b38a5288"; ctx.lineWidth = 1; ctx.stroke();
+  ctx.restore();
+}
