@@ -8,6 +8,7 @@ import { useEffect, useRef, useState } from "react";
 import { useSession } from "@/lib/auth";
 import { useCharacter, useWish } from "@/lib/character-api";
 import { weaponDetails, weapons, specialWeapons } from "@/lib/character";
+import { WishPaymentPanel } from "./wish-payment-panel";
 
 export function WishScreen({ onClose }: { onClose: () => void }) {
   const spriteVersion = useCharacterSprites();
@@ -15,6 +16,7 @@ export function WishScreen({ onClose }: { onClose: () => void }) {
   const closeRef = useRef<HTMLButtonElement>(null);
   const [focus, setFocus] = useState("");
   const [pool, setPool] = useState<"normal" | "special">("normal");
+  const [paymentOpen, setPaymentOpen] = useState(false);
   const catalog = pool === "special" ? specialWeapons : weapons;
   const cost = pool === "special" ? 200 : 100;
   const session = useSession();
@@ -101,7 +103,9 @@ export function WishScreen({ onClose }: { onClose: () => void }) {
     window.addEventListener("paper-art-ready", draw);
     const observer = new ResizeObserver(draw); observer.observe(canvas); draw();
     return () => { observer.disconnect(); window.removeEventListener("paper-art-ready", draw); banner.onload = null; };
-  }, [balance, reward, error, enabled, focus, wish.isPending, ownedCount, complete, pool, cost, catalog.length, spriteVersion]);
+  }, [balance, reward, error, enabled, focus, wish.isPending, ownedCount, complete, pool, cost, catalog.length, spriteVersion, paymentOpen]);
+
+  if (paymentOpen && userId) return <WishPaymentPanel userId={userId} onClose={() => { setPaymentOpen(false); requestAnimationFrame(() => closeRef.current?.focus({ preventScroll: true })); }} />;
 
   return <ResponsiveCanvasFrame minHeight={520}><div role="dialog" aria-modal="true" aria-label="Wish for a character" className="paper-menu absolute inset-0 z-30 bg-[#eddbb1]" onKeyDown={(event) => {
     if (event.key === "Escape") { event.preventDefault(); event.stopPropagation(); if (!wish.isPending) onClose(); }
@@ -113,6 +117,7 @@ export function WishScreen({ onClose }: { onClose: () => void }) {
     }
   }}>
     <canvas ref={canvasRef} aria-hidden="true" className="block h-full w-full" />
+    <button type="button" disabled={!userId || wish.isPending} onClick={() => setPaymentOpen(true)} className="menu-action absolute right-20 top-5 max-w-[45%] cursor-pointer px-3 py-2 text-xs font-semibold disabled:opacity-50">Buy 100 Wish · ₱10</button>
     <div role="group" aria-label="Wish pool" className="absolute top-28 left-6 flex gap-2">{(["normal", "special"] as const).map((value) => <button key={value} type="button" aria-pressed={pool === value} disabled={wish.isPending} onClick={() => { wish.reset(); setPool(value); }} className={`menu-action cursor-pointer rounded-lg border px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-[#805523] disabled:cursor-wait ${pool === value ? "border-[#e4d895] paper-card bg-[#e4d895] text-[#43311f]" : "border-[#a38358] paper-card bg-[#e9d4a7] text-[#43311f]"}`}>{value === "special" ? "Special · 200" : "Normal · 100"}</button>)}</div>
     <button ref={closeRef} type="button" aria-label="Close wish screen" onClick={onClose} onFocus={() => setFocus("close")} onBlur={() => setFocus("")} className="absolute top-4 right-4 size-12 cursor-pointer rounded-xl outline-none"><span className="sr-only">Close wish screen</span></button>
     <button type="button" disabled={!enabled} onClick={() => wish.mutate()} onFocus={() => setFocus("wish")} onBlur={() => setFocus("")} className="absolute bottom-16 left-1/2 h-[52px] w-[min(280px,calc(100%-48px))] -translate-x-1/2 cursor-pointer rounded-xl outline-none disabled:cursor-default"><span className="sr-only">Wish for a random character. Costs {cost} wish currency.</span></button>
