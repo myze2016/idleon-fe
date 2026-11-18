@@ -13,7 +13,7 @@ const actions = [
 ] as const;
 
 export function roomToolbarLayout(width: number, height = 600) {
-  const singleRow = width >= 1248, gap = 8;
+  const singleRow = width >= 1560, gap = 8;
   const columns = singleRow ? actions.length : width >= 960 ? 6 : width >= 640 ? 5 : 3;
   const rows = Math.ceil(actions.length / columns);
   const top = singleRow ? 16 : 128;

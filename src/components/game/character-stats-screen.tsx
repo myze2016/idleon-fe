@@ -1,4 +1,6 @@
 "use client";
+import { drawCurrencyIcon, useCurrencyArt } from "./currency-art";
+import { drawCharacterInfoPortrait, drawWeaponTypeIcon, useCharacterPortraits } from "./character-info-icons";
 import { drawMenuButton, drawMenuInfo } from "./menu-button";
 import { drawArtifactIcon } from "./artifact-icon";
 import { ResponsiveCanvasFrame } from "./responsive-canvas-frame";
@@ -11,6 +13,8 @@ import { CollectionPanel } from "./collection-panel";
 import { artifactDetails, artifactStatText } from "@/lib/artifact";
 
 export function CharacterStatsScreen({ character: initialCharacter, onClose }: { character: Character; onClose: () => void }) {
+  const currencyArt = useCurrencyArt();
+  const portraitVersion = useCharacterPortraits();
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const closeRef = useRef<HTMLButtonElement>(null);
   const [focused, setFocused] = useState("");
@@ -58,8 +62,10 @@ export function CharacterStatsScreen({ character: initialCharacter, onClose }: {
         }
         if (line) text(line, x, y + row * 18, "12px system-ui", "#71583c");
       }
-      text(character.name, 24, 48, "600 26px system-ui", "#43311f", w - 112);
-      text(`${weaponDetails(character.weapon).label} / Stats${equipped || character.upgradeLevel ? " (includes bonuses)" : ""}`, 24, 76, "13px system-ui", "#71583c", w - 48);
+      drawCharacterInfoPortrait(ctx, character.weapon, 24, 27, 50);
+      text(character.name, 86, 48, "600 26px system-ui", "#43311f", w - 174);
+      drawWeaponTypeIcon(ctx, character.weapon, 86, 59, 20);
+      text(`${weaponDetails(character.weapon).label} / Stats${equipped || character.upgradeLevel ? " (includes bonuses)" : ""}`, 112, 76, "13px system-ui", "#71583c", w - 136);
       const top = 106;
       const area = Math.min(720, w - 48), left = (w - area) / 2, cellWidth = (area - 12) / 2;
       const cellHeight = 44;
@@ -98,7 +104,8 @@ export function CharacterStatsScreen({ character: initialCharacter, onClose }: {
       ctx.textAlign = "center";
       text(unlocked ? "Unlocked" : unlock.isPending ? "Unlocking..." : "Unlock · 1,000 gold", buttonX + buttonWidth / 2, buttonY + 27, "600 12px system-ui", "#fff0cc", buttonWidth - 12);
       ctx.textAlign = "left";
-      text(`Gold: ${gold.toLocaleString()}`, left, 830, "600 14px system-ui", "#805523", area);
+      drawCurrencyIcon(ctx, "gold", left, 809, 26);
+      text(`Gold: ${gold.toLocaleString()}`, left + 30, 830, "600 14px system-ui", "#805523", area - 30);
       text(error ?? (!unlocked && gold < 1000 ? `Need ${(1000 - gold).toLocaleString()} more gold to unlock Skill 2.` : "Available skills are used automatically during combat."), left, 854, "12px system-ui", error ? "#a13725" : "#71583c", area);
       drawMenuButton(ctx, left, 880, area, 66, focused === "artifact");
       text("Artifact · Select to equip or unequip", left + 12, 903, "600 14px system-ui", "#fff0cc", area - 24);
@@ -118,7 +125,7 @@ export function CharacterStatsScreen({ character: initialCharacter, onClose }: {
     window.addEventListener("info-skin-changed", draw);
     const observer = new ResizeObserver(draw); observer.observe(canvas); draw();
     return () => { observer.disconnect(); window.removeEventListener("info-skin-changed", draw); window.removeEventListener("artifact-art-ready", draw); };
-  }, [character, focused, gold, unlocked, canUnlock, error, unlock.isPending, equipped, artifactsOpen, upgradeDefinition, canUpgrade, upgrade.isPending, upgrade.error]);
+  }, [character, focused, gold, unlocked, canUnlock, error, unlock.isPending, equipped, artifactsOpen, upgradeDefinition, canUpgrade, upgrade.isPending, upgrade.error, currencyArt, portraitVersion]);
 
   if (artifactsOpen && character.id) return <CollectionPanel title="Artifacts" characterId={character.id} onClose={() => { setArtifactsOpen(false); }} />;
 

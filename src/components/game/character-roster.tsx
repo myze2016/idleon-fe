@@ -7,12 +7,14 @@ import { drawCharacter, useCharacterSprites } from "./character-design";
 import { useEffect, useRef, useState } from "react";
 import { weaponDetails, type Character } from "@/lib/character";
 import { CharacterStatsScreen } from "./character-stats-screen";
+import { drawCharacterInfoPortrait, drawWeaponTypeIcon, useCharacterPortraits } from "./character-info-icons";
 
 export function CharacterRoster({ characters, onClose, onSelect, selectionLabel }: {
   characters: Character[]; onClose: () => void;
   onSelect?: (character: Character) => void; selectionLabel?: string;
 }) {
   const spriteVersion = useCharacterSprites();
+  const portraitVersion = useCharacterPortraits();
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const closeRef = useRef<HTMLButtonElement>(null);
   const [focus, setFocus] = useState("");
@@ -74,17 +76,17 @@ export function CharacterRoster({ characters, onClose, onSelect, selectionLabel 
         if (selectionMode) {
           ctx.moveTo(-8, 0); ctx.lineTo(-2, 6); ctx.lineTo(9, -7);
         } else {
-          // Bar chart icon for character stats.
-          ctx.moveTo(-8, 8); ctx.lineTo(-8, 1);
-          ctx.moveTo(0, 8); ctx.lineTo(0, -8);
-          ctx.moveTo(8, 8); ctx.lineTo(8, -3);
+          ctx.arc(-3, -3, 7, 0, Math.PI * 2);
+          ctx.moveTo(2, 2); ctx.lineTo(10, 10);
         }
         ctx.stroke(); ctx.restore();
         const avatarScale = Math.min(2.5, (cardHeight - 110) / 72);
         ctx.save(); ctx.translate(x + cardWidth / 2, y + cardHeight - 70); ctx.scale(avatarScale, avatarScale);
         drawCharacter(ctx, character.weapon); ctx.restore();
-        text(character.name, x + 14, y + cardHeight - 35, "600 18px system-ui", "#43311f", cardWidth - 28);
-        text(weaponDetails(character.weapon).label, x + 14, y + cardHeight - 14, "12px system-ui", "#71583c", cardWidth - 28);
+        drawCharacterInfoPortrait(ctx, character.weapon, x + 14, y + cardHeight - 56, 36);
+        text(character.name, x + 60, y + cardHeight - 35, "600 18px system-ui", "#43311f", cardWidth - 74);
+        drawWeaponTypeIcon(ctx, character.weapon, x + 60, y + cardHeight - 27, 16);
+        text(weaponDetails(character.weapon).label, x + 82, y + cardHeight - 14, "12px system-ui", "#71583c", cardWidth - 96);
       });
       box(width - 64, 16, 48, 48, "#e9d4a7", focus === "close" ? "#fff" : "#a38358");
       ctx.strokeStyle = "#fff0cc"; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(width - 47, 33); ctx.lineTo(width - 33, 47); ctx.moveTo(width - 33, 33); ctx.lineTo(width - 47, 47); ctx.stroke();
@@ -106,7 +108,7 @@ export function CharacterRoster({ characters, onClose, onSelect, selectionLabel 
     window.addEventListener("info-skin-changed", draw);
     const observer = new ResizeObserver(draw); observer.observe(canvas); draw();
     return () => { observer.disconnect(); window.removeEventListener("info-skin-changed", draw); window.removeEventListener("paper-art-ready", draw); };
-  }, [characters, focus, page, selectionMode, selectionLabel, inspected, spriteVersion]);
+  }, [characters, focus, page, selectionMode, selectionLabel, inspected, spriteVersion, portraitVersion]);
 
   if (inspected) return <CharacterStatsScreen character={inspected} onClose={() => setInspected(null)} />;
 

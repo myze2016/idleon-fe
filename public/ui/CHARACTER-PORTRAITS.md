@@ -1,0 +1,10 @@
+# Simple character portraits
+
+Selected final asset: character-portraits-v2.png, edited with the built-in image tool to remove background and grid lines while preserving all fourteen portraits and their 4x4 positions. The initial v1 sheet is retained as an intermediate.
+
+Generated using the built-in image generation tool, with the dual-knife and great-sword sprite sheets as style references. Asset: character-portraits-v1.png. Four columns and four rows; first 14 cells are portraits, last two are unused. Shared character-info-icons.ts renders these in roster cards, character stats, room and battle name boxes. Weapon symbols use the existing vector weapon paths.
+
+Prompt:
+
+Simple chibi anime RPG CHARACTER PORTRAIT ICON ATLAS matching the two references' faces and cel shading. SQUARE canvas, strict FOUR columns by FOUR rows of EQUAL SQUARE CELLS. Exactly 14 head-and-shoulders portraits, front-facing or slight right-facing, huge heads, tiny shoulders, crisp clean lines and minimal flat cel shading. Center every face in its cell, same scale, keep all hair and shoulders inside cells with 12% padding. True transparent alpha background. No text, labels, numbers, circles or frames. Row 1 left-right: brown-haired blue-silver armored sword-and-shield knight; auburn-haired green bow ranger with leaf hair ornament; blonde white-and-teal wand healer; silver-haired purple staff mage. Row 2: dark-haired blue book scholar with round glasses; dark teal-haired teal-armored spear fighter; copper-haired red-brown leather axe warrior with fur collar; brown-haired olive rifle marksman with cap. Row 3: pale-haired red-coated dual-gun gunslinger; silver-haired blue-silver armored great-sword hero with red cape matching reference; purple-haired black-purple hooded dual-knife rogue matching reference; Kent brown-haired teal ninja with gold-flower headband. Row 4: Juan silver-haired blue ice mage with cyan trim; Jeffrey dark-haired burgundy armored dual-axe warrior; last two cells EMPTY transparent. No full bodies, no weapons over faces, no scenery.
+

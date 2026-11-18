@@ -15,11 +15,11 @@ import { ExpeditionCanvas } from "./expedition-canvas";
 import type { Character, AccountProgress } from "@/lib/character";
 import { infoBoxStyle } from "./info-box-skins";
 
-function GameScene({ character, characters, gold, progression }: { character: Character; characters: Character[]; gold: number; progression: AccountProgress }) {
+function GameScene({ character, characters, gold, wishCurrency, progression }: { character: Character; characters: Character[]; gold: number; wishCurrency: number; progression: AccountProgress }) {
   const exploring = useGameState((state) => state.isExploring);
   const location = useGameState((state) => state.selectedLocation);
   const team = useGameState((state) => state.teamSlots);
-  return exploring ? <ExpeditionCanvas location={location} team={team} gold={gold} characterName={character.name} characters={characters} progression={progression} /> : <RoomCanvas character={character} characters={characters} gold={gold} progression={progression} />;
+  return exploring ? <ExpeditionCanvas location={location} team={team} gold={gold} wishCurrency={wishCurrency} characterName={character.name} characters={characters} progression={progression} /> : <RoomCanvas character={character} characters={characters} gold={gold} wishCurrency={wishCurrency} progression={progression} />;
 }
 
 export function GameEntry() {
@@ -44,5 +44,5 @@ export function GameEntry() {
   </div>;
   if (!character.data?.character) return <CharacterCreation pending={create.isPending} error={create.error?.message} onCreate={(input) => create.mutate(input)} />;
   const savedTeam = Array.from({ length: 6 }, (_, index) => character.data.characters.find((member) => member.id === character.data.teamSlots?.[index]) ?? null);
-  return <div className="relative h-full w-full" data-donation-tier={donationTier} style={infoBoxStyle(donationTier)}><GameStoreProvider key={userId} initialTeam={savedTeam}><GameScene character={character.data.character} characters={character.data.characters} gold={character.data.gold} progression={character.data.progression} /></GameStoreProvider></div>;
+  return <div className="relative h-full w-full" data-donation-tier={donationTier} style={infoBoxStyle(donationTier)}><GameStoreProvider key={userId} initialTeam={savedTeam}><GameScene character={character.data.character} characters={character.data.characters} gold={character.data.gold} wishCurrency={character.data.wishCurrency} progression={character.data.progression} /></GameStoreProvider></div>;
 }

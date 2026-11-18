@@ -1,4 +1,5 @@
 "use client";
+import { CurrencyIcon } from "@/components/currency-icon";
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
@@ -23,7 +24,7 @@ export function AdminAccountControls() {
     {(accounts.error || save.error) && <p role="alert" className="text-sm text-red-600">{save.error?.message ?? accounts.error?.message}</p>}
     {notice && <p role="status" className="text-sm">{notice}</p>}
     <ul className="space-y-3">{accounts.data?.users.map((user) => <li key={user.id} className="flex flex-wrap items-center gap-3 border-t border-slate-200 pt-3">
-      <div className="min-w-0 flex-1"><p className="break-all font-semibold">{user.username}</p><p className="text-xs text-slate-500">{donationTiers.find((entry) => entry.tier === user.donationTier)?.name ?? "Community"} · {user.wishCurrency.toLocaleString()} wish currency</p><p className="mt-1 break-words text-xs text-slate-500">Characters: {user.characters.map((character) => character.name).join(", ") || "No character yet"}</p></div>
+      <div className="min-w-0 flex-1"><p className="break-all font-semibold">{user.username}</p><p className="text-xs text-slate-500">{donationTiers.find((entry) => entry.tier === user.donationTier)?.name ?? "Community"} · <CurrencyIcon kind="wish" size={20} /> {user.wishCurrency.toLocaleString()} wish currency</p><p className="mt-1 break-words text-xs text-slate-500">Characters: {user.characters.map((character) => character.name).join(", ") || "No character yet"}</p></div>
       <select aria-label={`Donation tier for ${user.username}`} value={drafts[user.id] ?? user.donationTier} disabled={save.isPending} onChange={(event) => setDrafts((previous) => ({ ...previous, [user.id]: Number(event.target.value) }))} className="menu-field max-w-full px-3 py-2 text-sm"><option value={0}>Community · Classic</option>{donationTiers.map((entry) => <option key={entry.tier} value={entry.tier}>{entry.name} · {entry.skin}</option>)}</select>
       <button type="button" className={action} disabled={save.isPending || (drafts[user.id] ?? user.donationTier) === user.donationTier} onClick={() => { setNotice(""); save.mutate({ id: user.id, tier: drafts[user.id] ?? user.donationTier }); }} aria-label={`Save donation tier for ${user.username}`}>{save.isPending && save.variables.id === user.id ? "Saving…" : "Save tier"}</button>
 

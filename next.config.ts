@@ -1,6 +1,8 @@
 import type { NextConfig } from "next";
 
-const backendUrl = (process.env.BACKEND_URL ?? "http://localhost:8020").replace(/\/+$/, "");
+const backendUrl = (process.env.BACKEND_URL
+  ?? process.env.NEXT_PUBLIC_API_URL?.replace(/\/api\/?$/, "")
+  ?? "http://localhost:8020").replace(/\/+$/, "");
 
 const nextConfig: NextConfig = {
   allowedDevOrigins: ["172.50.254.22", "172.50.254.29"],

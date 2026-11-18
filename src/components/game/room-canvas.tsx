@@ -1,4 +1,7 @@
 "use client";
+import { drawCurrencyBadge } from "./currency-art";
+import { drawCharacterInfoPortrait, drawWeaponTypeIcon } from "./character-info-icons";
+import { drawLocationIcon } from "./location-icons";
 import { ResponsiveCanvasFrame } from "./responsive-canvas-frame";
 import { drawCabinFireplace } from "./cabin-fireplace";
 import { drawMenuInfo } from "./menu-button";
@@ -23,7 +26,7 @@ import { PatchNotesPanel } from "./patch-notes-panel";
 
 const movementKeys = new Set(["KeyA", "KeyD", "KeyW", "KeyS", "ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown"]);
 
-export function RoomCanvas({ character, characters, gold, progression }: { character: Character; characters: Character[]; gold: number; progression: AccountProgress }) {
+export function RoomCanvas({ character, characters, gold, wishCurrency, progression }: { character: Character; characters: Character[]; gold: number; wishCurrency: number; progression: AccountProgress }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [toolbar, setToolbar] = useState(() => roomToolbarLayout(960));
   const store = useGameStoreApi();
@@ -37,6 +40,8 @@ export function RoomCanvas({ character, characters, gold, progression }: { chara
   const charactersRef = useRef(characters);
   useEffect(() => { charactersRef.current = characters; }, [characters]);
   const goldRef = useRef(gold);
+  const wishRef = useRef(wishCurrency);
+  useEffect(() => { wishRef.current = wishCurrency; }, [wishCurrency]);
   const progressionRef = useRef(progression);
   useEffect(() => { progressionRef.current = progression; }, [progression]);
   useEffect(() => { goldRef.current = gold; }, [gold]);
@@ -205,19 +210,28 @@ export function RoomCanvas({ character, characters, gold, progression }: { chara
         drawCharacter(ctx, actor.member.weapon, { facing: actor.facing, stride: memberStride, idle: memberIdle });
         ctx.restore();
       }
-      // HUD is rendered in screen coordinates, keeping both corners anchored on resize.
+      // Keep currencies beside the character information, before the toolbar.
       const controls = roomToolbarLayout(width, height);
-      const nameWidth = Math.max(70, Math.min(300, width >= 1060 ? controls[0].x - 32 : width - 32));
+      const infoWidth = width >= 1560 ? controls[0].x - 32 : width - 32;
+      const nameWidth = Math.min(260, Math.max(104, infoWidth * .4));
+      const badgeWidth = Math.min(180, (infoWidth - nameWidth - 24) / 2);
       drawMenuInfo(ctx, 16, 16, nameWidth, 62);
-      text(leader.name, 38, 42, "600 17px system-ui", "#43311f", nameWidth - 44);
-      text(weaponDetails(leader.weapon).label, 38, 62, "12px system-ui", "#66513b", nameWidth - 44);
+      const portraitSize = nameWidth < 150 ? 28 : 40, infoX = 28 + portraitSize + 10;
+      drawCharacterInfoPortrait(ctx, character.weapon, 28, 47 - portraitSize / 2, portraitSize);
+      text(character.name, infoX, 42, "600 17px system-ui", "#43311f", Math.max(24, nameWidth + 4 - infoX));
+      drawWeaponTypeIcon(ctx, character.weapon, infoX, 49, 15);
+      text(weaponDetails(character.weapon).label, infoX + 18, 62, "11px system-ui", "#66513b", Math.max(20, nameWidth - infoX - 14));
       drawMenuInfo(ctx, 16, 86, nameWidth, 32);
-      text("Id-leon City", 38, 107, "600 12px system-ui", "#43311f", nameWidth - 44);
+      drawLocationIcon(ctx, "city", 28, 89, 26);
+      text("Id-leon City", 60, 107, "600 12px system-ui", "#43311f", nameWidth - 56);
+      const badgeX = 16 + nameWidth + 12;
+      const badgeY = 16 + (62 - badgeWidth / 3) / 2;
+      drawCurrencyBadge(ctx, "gold", goldRef.current, badgeX, badgeY, badgeWidth);
+      drawCurrencyBadge(ctx, "wish", wishRef.current, badgeX + badgeWidth + 12, badgeY, badgeWidth);
       const progress = progressionRef.current;
       const progressWidth = Math.max(100, Math.min(200, width - 232));
       ctx.save();
-      drawMenuInfo(ctx, 16, height - 126, progressWidth, 110);
-      text(`Gold: ${goldRef.current}`, 38, height - 100, "600 15px system-ui", "#68491e", progressWidth - 44);
+      drawMenuInfo(ctx, 16, height - 102, progressWidth, 86);
       text(`Account Lv. ${progress.level}`, 38, height - 76, "600 14px system-ui", "#43311f", progressWidth - 44);
       text(`EXP: ${progress.exp}/${progress.expToNextLevel}`, 38, height - 52, "12px system-ui", "#66513b", progressWidth - 44);
       box(38, height - 38, progressWidth - 44, 6, "#8d7455", undefined, 3);
@@ -232,8 +246,9 @@ export function RoomCanvas({ character, characters, gold, progression }: { chara
       drawRpgButton(ctx, buttonIcons, "map", "Map", width - 192, height - 104, 88, 88, focus.current === "map" || store.getState().isMapOpen);
       drawRpgButton(ctx, buttonIcons, "start", "Start", width - 104, height - 104, 88, 88, focus.current === "start");
       drawMenuInfo(ctx, width - 192, height - 142, 176, 34);
+      drawLocationIcon(ctx, store.getState().selectedLocation, width - 184, height - 139, 28);
       ctx.textAlign = "center";
-      text(({ meadow: "Meadow", forest: "Forest", garnaland: "Garnaland", harbor: "Harbor", tourney: "Zugwangs Battle Tourney", deepsea: "DeepSea Moot", "deepsea-2f": "DeepSea Moot 2F", "deepsea-palace": "DeepSea Moot Royal Palace" })[store.getState().selectedLocation], width - 104, height - 120, "600 12px system-ui", "#43311f", 132);
+      text(({ meadow: "Meadow", forest: "Forest", garnaland: "Garnaland", harbor: "Harbor", tourney: "Zugwangs Battle Tourney", deepsea: "DeepSea Moot", "deepsea-2f": "DeepSea Moot 2F", "deepsea-palace": "DeepSea Moot Royal Palace" })[store.getState().selectedLocation], width - 90, height - 120, "600 12px system-ui", "#43311f", 118);
       ctx.textAlign = "left";
       frame = requestAnimationFrame(draw);
     }
@@ -263,7 +278,7 @@ export function RoomCanvas({ character, characters, gold, progression }: { chara
     }}>Your browser needs canvas support to display your room.</canvas>
     <p id="room-controls" className="sr-only">Move with WASD or arrow keys, or click or tap the floor to walk. Open Menu to pause. Press Escape to close the menu.</p>
     <p className="sr-only">{character.name}, {weaponDetails(character.weapon).label}. Room location: Id-leon City.</p>
-    <p role="status" className="sr-only">Account level {progression.level}. EXP {progression.exp} of {progression.expToNextLevel}. Total EXP {progression.totalExp}. Gold {gold}.</p>
+    <p role="status" className="sr-only">Account level {progression.level}. EXP {progression.exp} of {progression.expToNextLevel}. Total EXP {progression.totalExp}. Gold {gold}. Wish currency {wishCurrency}.</p>
     <p role="status" className="sr-only">Selected location: {({ meadow: "Meadow", forest: "Forest", garnaland: "Garnaland", harbor: "Harbor", tourney: "Zugwangs Battle Tourney", deepsea: "DeepSea Moot", "deepsea-2f": "DeepSea Moot 2F", "deepsea-palace": "DeepSea Moot Royal Palace" })[selectedLocation]}</p>
     <button type="button" aria-label="Map" aria-expanded={mapOpen} onClick={() => roomAction("map")} title="World map" onPointerEnter={() => { focus.current = "map"; }} onPointerLeave={() => { focus.current = ""; }} onFocus={() => { focus.current = "map"; }} onBlur={() => { focus.current = ""; }} className="absolute right-[104px] bottom-4 h-[88px] w-[88px] cursor-pointer rounded-[10px] outline-none"><span className="sr-only">Map</span></button>
     <button type="button" onClick={() => store.getState().startExploring(characters.find((member) => member.isStarter) ?? character)} title="Start adventure" onPointerEnter={() => { focus.current = "start"; }} onPointerLeave={() => { focus.current = ""; }} onFocus={() => { focus.current = "start"; }} onBlur={() => { focus.current = ""; }} className="absolute right-4 bottom-4 h-[88px] w-[88px] cursor-pointer rounded-[10px] outline-none"><span className="sr-only">Start</span></button>

@@ -3,17 +3,19 @@ import { drawMenuButton, drawMenuInfo } from "./menu-button";
 import { drawPaperPanel } from "./paper-panel";
 import { ResponsiveCanvasFrame } from "./responsive-canvas-frame";
 import { drawCharacter, useCharacterSprites } from "./character-design";
+import { drawCharacterInfoPortrait, drawWeaponTypeIcon, useCharacterPortraits } from "./character-info-icons";
 
 import { useEffect, useRef, useState } from "react";
 import { CharacterRoster } from "./character-roster";
 import { CharacterStatsScreen } from "./character-stats-screen";
 import { useGameState, useGameStoreApi } from "./game-store";
-import { type Character } from "@/lib/character";
+import { weaponDetails, type Character } from "@/lib/character";
 import { useAssignTeamSlot } from "@/lib/character-api";
 import { useSession } from "@/lib/auth";
 
 export function TeamScreen({ characters, onClose }: { characters: Character[]; onClose: () => void }) {
   const spriteVersion = useCharacterSprites();
+  const portraitVersion = useCharacterPortraits();
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const closeRef = useRef<HTMLButtonElement>(null);
   const [closeFocused, setCloseFocused] = useState(false);
@@ -82,7 +84,14 @@ export function TeamScreen({ characters, onClose }: { characters: Character[]; o
           ctx.save(); ctx.translate(x + slotWidth / 2, centerY + 14);
           const avatarScale = Math.max(0.4, Math.min(2, slotWidth / 72, cardHeight / 160)); ctx.scale(avatarScale, avatarScale);
           drawCharacter(ctx, member.weapon); ctx.restore();
-          ctx.font = `600 ${font}px system-ui`; ctx.fillStyle = "#43311f"; ctx.fillText(member.name, x + slotWidth / 2, top + cardHeight - 20, slotWidth - 8);
+          ctx.save(); ctx.textAlign = "left";
+          drawCharacterInfoPortrait(ctx, member.weapon, x + 8, top + cardHeight - 46, 20);
+          ctx.font = `600 ${font}px system-ui`; ctx.fillStyle = "#43311f";
+          ctx.fillText(member.name, x + 34, top + cardHeight - 31, slotWidth - 42);
+          drawWeaponTypeIcon(ctx, member.weapon, x + 10, top + cardHeight - 22, 14);
+          ctx.font = `${slotWidth < 100 ? 9 : 11}px system-ui`; ctx.fillStyle = "#71583c";
+          ctx.fillText(weaponDetails(member.weapon).label, x + 30, top + cardHeight - 10, slotWidth - 38);
+          ctx.restore();
           continue;
         }
         ctx.strokeStyle = "#9a7d51"; ctx.lineWidth = 2;
@@ -99,7 +108,7 @@ export function TeamScreen({ characters, onClose }: { characters: Character[]; o
     window.addEventListener("info-skin-changed", draw);
     const observer = new ResizeObserver(draw); observer.observe(canvas); draw();
     return () => { observer.disconnect(); window.removeEventListener("info-skin-changed", draw); window.removeEventListener("paper-art-ready", draw); };
-  }, [closeFocused, slots, focusedSlot, selectedSlot, inspected, spriteVersion]);
+  }, [closeFocused, slots, focusedSlot, selectedSlot, inspected, spriteVersion, portraitVersion]);
 
   if (inspected) return <CharacterStatsScreen character={inspected} onClose={() => setInspected(null)} />;
 

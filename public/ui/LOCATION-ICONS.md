@@ -1,0 +1,6 @@
+# Location icons
+
+Generated using the built-in image generation tool. Atlas: location-icons-v1.png. The nine entries are meadow, forest, Garnaland, harbor, tourney, DeepSea, DeepSea 2F, royal palace, and Id-leon City. The canvas renderer selects source rectangles without modifying the original raster.
+
+Prompt: Simple 2D chibi anime fantasy RPG LOCATION ICON ATLAS. Exactly NINE separate icons in a strict 3 by 3 grid of equal square cells. Each icon centered in its own cell, same scale, 20% transparent padding, nothing crosses cell boundaries. Clean outlines, simple painted cel shading, compact readable silhouettes at 24 pixels. True transparent alpha background, NO labels, text, numbers, grid lines or border frames. Row 1 left to right: sunny grassy meadow with two flowers; dense green forest with three trees; whimsical mushroom grove with oversized colorful mushrooms. Row 2: small harbor with dock and sailboat; round sandy stone battle arena with two crossed flags; underwater blue coral reef and shell. Row 3: underwater ancient stone arch with teal coral; underwater royal palace with blue towers and a small gold crown; cozy medieval city gate with terracotta roofs. Only these nine isolated icons.
+

@@ -1,5 +1,6 @@
 "use client";
 import { ArtifactIcon } from "./artifact-icon";
+import { CurrencyBadge } from "./currency-badge";
 
 import { useEffect, useRef, useState, type CSSProperties } from "react";
 import { X } from "lucide-react";
@@ -59,12 +60,17 @@ export function CollectionPanel({ title, onClose, characterId }: { title: "Shop"
       else if (!event.shiftKey && document.activeElement === buttons.at(-1)) { event.preventDefault(); buttons[0]?.focus(); }
     }
   }}>
-    <header className="sticky top-0 z-10 border-b border-[#a38358] paper-card bg-[#efdfb8] p-6">
-      <h2 id="collection-title" className="pr-12 text-2xl font-semibold">{characterId ? `Equip: ${character?.name ?? "Character"}` : title}</h2>
-      <p className="mt-2 text-sm text-[#71583c]">Gold: {gold.toLocaleString()} · {title === "Shop" ? "Artifacts cost 500 gold" : "Enhance for 1,000 gold · +2 main stat per level"}</p>
+    <header className="sticky top-0 z-10 border-b border-[#a38358] paper-card bg-[#efdfb8] p-4 sm:p-6">
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+        <h2 id="collection-title" className="min-w-[100px] flex-1 text-2xl font-semibold [overflow-wrap:anywhere]">{characterId ? `Equip: ${character?.name ?? "Character"}` : title}</h2>
+        <div className="ml-auto flex shrink-0 items-center gap-3">
+          <CurrencyBadge kind="gold" amount={gold} className="w-[clamp(144px,26vw,216px)]" />
+          <button ref={closeRef} type="button" aria-label={`Close ${title}`} onClick={onClose} className="grid size-12 shrink-0 menu-action cursor-pointer place-items-center rounded-xl border border-[#4e301b] bg-[#51331e] text-[#fff0cc] outline-none focus-visible:ring-2 focus-visible:ring-[#805523]"><X size={20} /></button>
+        </div>
+      </div>
+      <p className="mt-2 text-sm text-[#71583c]">{title === "Shop" ? "Artifacts cost 500 gold" : "Enhance for 1,000 gold · +2 main stat per level"}</p>
       {characterId && <p className="mt-1 text-xs text-[#71583c]">One equipped artifact per character.</p>}
       <p role={action.error ? "alert" : "status"} className={`mt-2 min-h-5 text-sm ${action.error ? "text-[#a13725]" : "text-[#805523]"}`}>{action.error?.message ?? (action.isPending ? "Saving…" : notice)}</p>
-      <button ref={closeRef} type="button" aria-label={`Close ${title}`} onClick={onClose} className="absolute top-4 right-4 grid size-12 menu-action cursor-pointer place-items-center rounded-xl border border-[#4e301b] bg-[#51331e] text-[#fff0cc] outline-none focus-visible:ring-2 focus-visible:ring-[#805523]"><X size={20} /></button>
     </header>
     <div className="mx-auto max-w-[768px] space-y-3 p-6">
       {state.isPending && <p role="status">Loading artifacts…</p>}

@@ -22,14 +22,24 @@ import { isRangedSkill } from "@/lib/skill-range";
 import { drawCombatEffect, type CombatEffect } from "./combat-effects";
 import { recordDamage, type DamageEntry } from "@/lib/battle-damage";
 import { DamageSpread } from "./damage-spread";
+import { drawCurrencyBadge } from "./currency-art";
+import { LevelUpNotification, type LevelUpNotice } from "./level-up-notification";
+import { drawCharacterInfoPortrait, drawWeaponTypeIcon } from "./character-info-icons";
+import { drawLocationIcon } from "./location-icons";
 
-export function ExpeditionCanvas({ location, team, gold, characterName, characters, progression }: {
+export function ExpeditionCanvas({ location, team, gold, wishCurrency, characterName, characters, progression }: {
   location: "meadow" | "forest" | "garnaland" | "harbor" | "tourney" | "deepsea" | "deepsea-2f" | "deepsea-palace"; team: (Character | null)[]; gold: number;
-  characterName: string; characters: Character[]; progression: AccountProgress;
+  characterName: string; characters: Character[]; progression: AccountProgress; wishCurrency: number;
 }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [hud, setHud] = useState(() => battleHudLayout(950, 300));
   const [damageSpread, setDamageSpread] = useState<DamageEntry[]>([]);
+  const [levelUp, setLevelUp] = useState<LevelUpNotice | null>(null);
+  useEffect(() => {
+    if (!levelUp) return;
+    const timer = window.setTimeout(() => setLevelUp(null), 5000);
+    return () => window.clearTimeout(timer);
+  }, [levelUp]);
   const returnRef = useRef<HTMLButtonElement>(null);
   const focused = useRef(false);
   const characterFocused = useRef(false);
@@ -64,6 +74,8 @@ export function ExpeditionCanvas({ location, team, gold, characterName, characte
     } finally { returning.current = false; }
   }, [store]);
   const goldRef = useRef(gold);
+  const wishesRef = useRef(wishCurrency);
+  useEffect(() => { wishesRef.current = wishCurrency; }, [wishCurrency]);
   const charactersRef = useRef(characters);
   useEffect(() => { charactersRef.current = characters; }, [characters]);
   const nameRef = useRef(characterName);
@@ -162,7 +174,7 @@ export function ExpeditionCanvas({ location, team, gold, characterName, characte
           const summoned: Monster = { data: enemy, spawned: false, x: 0.85, stage: "waiting", hp: 0, teamHp: [...teamHp], teamMp: [...teamMp], casts: [], step: 0, nextStep: 0, until: 0, battleStartedAt: 0, lastHitAt: 0 };
           group.push(summoned); monsters.push(summoned);
         }
-        goldRef.current = battle.gold; progressRef.current = battle.progression; encounter.battle = battle; encounter.stage = "fighting";
+        goldRef.current = battle.gold; wishesRef.current = battle.wishCurrency ?? wishesRef.current; progressRef.current = battle.progression; encounter.battle = battle; encounter.stage = "fighting";
         if (battle.garnalandUnlocked) { spectatorAvailable = false; setYellowSpectator(false); }
         teamHp = battle.initialTeamHp ?? teamHp; teamMp = battle.initialTeamMp ?? teamMp;
         encounter.teamHp = [...teamHp]; encounter.teamMp = [...teamMp];
@@ -473,6 +485,9 @@ export function ExpeditionCanvas({ location, team, gold, characterName, characte
             return;
           }
           if (foe.step >= foe.battle.steps.length) {
+            if (foe.battle.wishEarned && foe.battle.wishEarned > 0) {
+              setLevelUp({ level: foe.battle.progression.level, wishes: foe.battle.wishEarned, levels: foe.battle.levelsGained ?? Math.max(1, foe.battle.wishEarned / 100) });
+            }
             for (const monster of activeGroup) monster.stage = "result";
             foe.until = elapsed + 1.5;
           }
@@ -704,10 +719,23 @@ export function ExpeditionCanvas({ location, team, gold, characterName, characte
         if (foe.stage === "result" && foe.battle) {
           if (foe.battle.deepSeaJustUnlocked) text(`Unlocked: ${foe.battle.deepSeaFloor === 2 ? "DeepSea Moot 2F" : "Royal Palace"}`, width * 0.5, height * 0.36, "600 20px system-ui", "#a9e5ed", width * 0.7);
           if (foe.battle.garnalandJustUnlocked) text("Garnaland unlocked!", width * 0.5, height * 0.42, "600 22px system-ui", "#e4d895", width * 0.6);
-          text(`+${foe.battle.goldEarned} gold · +${foe.battle.expEarned} EXP`, x, ground - 88 * size, "600 18px system-ui", "#f0d68a", width * 0.55);
+          ctx.save();
+          ctx.font = "bold 18px system-ui";
+          const goldGain = `+${foe.battle.goldEarned} gold`, expGain = `+${foe.battle.expEarned} EXP`;
+          const goldWidth = ctx.measureText(goldGain).width, rewardWidth = goldWidth + 18 + ctx.measureText(expGain).width;
+          const rewardScale = Math.min(1, width * 0.55 / rewardWidth);
+          const rewardHalfWidth = rewardWidth * rewardScale / 2;
+          ctx.translate(Math.max(rewardHalfWidth + 8, Math.min(width - rewardHalfWidth - 8, x)), ground - 88 * size);
+          ctx.scale(rewardScale, rewardScale);
+          ctx.textAlign = "left"; ctx.lineJoin = "round";
+          ctx.strokeStyle = "#21170f"; ctx.lineWidth = 4;
+          ctx.strokeText(goldGain, -rewardWidth / 2, 0);
+          ctx.strokeText(expGain, -rewardWidth / 2 + goldWidth + 18, 0);
+          ctx.fillStyle = "#ffda45"; ctx.fillText(goldGain, -rewardWidth / 2, 0);
+          ctx.fillStyle = "#70f0ff"; ctx.fillText(expGain, -rewardWidth / 2 + goldWidth + 18, 0);
+          ctx.restore();
           if (foe.battle.questItemsEarned?.length) text(`Obtained: ${foe.battle.questItemsEarned.map((item) => item.name).join(", ")}`, x, ground - 122 * size, "600 16px system-ui", "#a9e5ed", width * 0.65);
           if (foe.battle.artifactsEarned?.length) text(`Obtained: ${foe.battle.artifactsEarned.map((item) => item.name).join(", ")}`, x, ground - 140 * size, "600 16px system-ui", "#79d8d5", width * 0.65);
-          if (foe.battle.wishEarned) text(`Level up! Lv.${foe.battle.progression.level} · +${foe.battle.wishEarned} wish`, x, ground - 104 * size, "600 17px system-ui", "#f0d68a", width * 0.55);
         }
         ctx.textAlign = "left";
       }
@@ -719,8 +747,16 @@ export function ExpeditionCanvas({ location, team, gold, characterName, characte
       const layout = battleHudLayout(width, height);
       const nameX = layout.pad + 12, nameTop = layout.pad;
       box(layout.pad, nameTop, layout.nameWidth, layout.nameHeight);
-      text(nameRef.current, nameX, nameTop + (layout.compact ? layout.nameHeight * 0.31 : 27), `600 ${layout.compact ? 14 : 17}px system-ui`, "#43311f", layout.nameWidth - 24);
-      text(`${deepsea ? deepSeaName : tourney ? "Zugwangs Battle Tourney" : harbor ? `Harbor · ${period}` : garnaland ? "Garnaland" : forest ? "Forest" : "Meadow"} · ${Math.floor(distance / 16)} m`, nameX, nameTop + (layout.compact ? layout.nameHeight * 0.59 : 49), `${layout.compact ? 10 : 12}px system-ui`, "#66513b", layout.nameWidth - 24);
+      const nameY = nameTop + (layout.compact ? layout.nameHeight * 0.31 : 27);
+      const starter = charactersRef.current.find((character) => character.isStarter) ?? charactersRef.current[0];
+      if (starter) {
+        drawCharacterInfoPortrait(ctx, starter.weapon, nameX - 4, nameY - 22, 26);
+        drawWeaponTypeIcon(ctx, starter.weapon, nameX + layout.nameWidth - 46, nameY - 15, 16);
+      }
+      text(nameRef.current, nameX + 28, nameY, `600 ${layout.compact ? 14 : 17}px system-ui`, "#43311f", Math.max(24, layout.nameWidth - 78));
+      const locationY = nameTop + (layout.compact ? layout.nameHeight * 0.59 : 49);
+      drawLocationIcon(ctx, location, nameX - 3, locationY - 18, 24);
+      text(`${deepsea ? deepSeaName : tourney ? "Zugwangs Battle Tourney" : harbor ? `Harbor · ${period}` : garnaland ? "Garnaland" : forest ? "Forest" : "Meadow"} · ${Math.floor(distance / 16)} m`, nameX + 24, locationY, `${layout.compact ? 10 : 12}px system-ui`, "#66513b", Math.max(24, layout.nameWidth - 48));
       text(`Boss: ${meadowProgress.defeated}/${meadowProgress.target ?? (deepsea ? "30–40" : tourney ? "50–70" : "38–45")}`, nameX, nameTop + (layout.compact ? layout.nameHeight * 0.84 : 70), `${layout.compact ? 10 : 12}px system-ui`, "#68491e", layout.nameWidth - 24);
       if (!layout.compact) battleLog.forEach((entry, index) => {
         const y = layout.logY + index * (layout.rowHeight + layout.rowGap);
@@ -731,13 +767,13 @@ export function ExpeditionCanvas({ location, team, gold, characterName, characte
       const hudTop = layout.progressY, compactHud = layout.compact;
       ctx.save(); ctx.translate(56, 0);
       box(layout.pad, hudTop, progressWidth, layout.progressHeight);
-      text(`Gold: ${goldRef.current}`, nameX, hudTop + (compactHud ? layout.progressHeight * 0.28 : 26), `600 ${compactHud ? 11 : 15}px system-ui`, "#68491e", compactHud ? 100 : progressWidth - 28);
       text(compactHud ? `Lv. ${progress.level}` : `Account Lv. ${progress.level}`, compactHud ? layout.pad + 126 : nameX, hudTop + (compactHud ? layout.progressHeight * 0.28 : 50), `600 ${compactHud ? 11 : 14}px system-ui`, "#43311f", compactHud ? 76 : progressWidth - 28);
       text(`EXP: ${progress.exp}/${progress.expToNextLevel}`, nameX, hudTop + (compactHud ? layout.progressHeight * 0.58 : 74), `${compactHud ? 10 : 12}px system-ui`, "#66513b", progressWidth - 28);
       rect(nameX, hudTop + (compactHud ? layout.progressHeight * 0.72 : 88), progressWidth - 28, 6, "#8d7455");
       rect(nameX, hudTop + (compactHud ? layout.progressHeight * 0.72 : 88), (progressWidth - 28) * progress.exp / progress.expToNextLevel, 6, "#8c6231");
       ctx.restore();
       if (message && elapsed < messageUntil) text(message, layout.pad, height - layout.progressHeight - 24, "11px system-ui", "#ffcebb", width - 32);
+      for (const badge of layout.currencies) drawCurrencyBadge(ctx, badge.kind, badge.kind === "gold" ? goldRef.current : wishesRef.current, badge.x, badge.y, badge.width, badge.height);
       const controls = [...layout.controls, { ...layout.returnButton, label: "Return to room" }];
       for (const control of controls) {
         const active = control.label === "Character" ? characterFocused.current : control.label === "Return to room" ? focused.current : focusedControl.current === control.label;
@@ -765,9 +801,10 @@ export function ExpeditionCanvas({ location, team, gold, characterName, characte
     <button ref={returnRef} type="button" style={{ left: hud.returnButton.x, top: hud.returnButton.y, width: hud.returnButton.width, height: hud.returnButton.height }} onClick={() => void returnToRoom()} title="Return to room" onPointerEnter={() => { focused.current = true; }} onPointerLeave={() => { focused.current = false; }} onFocus={() => { focused.current = true; }} onBlur={() => { focused.current = false; }} className="absolute cursor-pointer rounded-xl outline-none"><span className="sr-only">Return to room</span></button>
     {returnError && <p role="alert" className="absolute top-40 left-4 rounded bg-[#102c26] p-3 text-sm text-red-200">{returnError} Use Return to room to retry.</p>}
     <button type="button" style={{ left: hud.controls[0].x, top: hud.controls[0].y, width: hud.controls[0].width, height: hud.controls[0].height }} aria-label="Character" aria-expanded={rosterOpen} onClick={() => { paused.current = true; setRosterOpen(true); }} title="Character" onPointerEnter={() => { characterFocused.current = true; }} onPointerLeave={() => { characterFocused.current = false; }} onFocus={() => { characterFocused.current = true; }} onBlur={() => { characterFocused.current = false; }} className="absolute cursor-pointer rounded-xl outline-none"><span className="sr-only">Character</span></button>
-    <p role="status" className="sr-only">{characterName}. Gold {gold}. Account level {progression.level}. EXP {progression.exp} of {progression.expToNextLevel}.</p>
+    <p role="status" className="sr-only">{characterName}. Gold {gold}. Wish currency {wishCurrency}. Account level {progression.level}. EXP {progression.exp} of {progression.expToNextLevel}.</p>
     {hud.controls.slice(1).map((control) => <button key={control.label} type="button" style={{ left: control.x, top: control.y, width: control.width, height: control.height }} aria-label={control.label} title={control.label} onPointerEnter={() => { focusedControl.current = control.label; }} onPointerLeave={() => { focusedControl.current = ""; }} onFocus={() => { focusedControl.current = control.label; }} onBlur={() => { focusedControl.current = ""; }} aria-expanded={collectionOpen === control.label} onClick={() => { if (control.label === "Shop" || control.label === "Artifacts" || control.label === "Inventory" || control.label === "Wiki") { paused.current = true; setCollectionOpen(control.label); } }} className="absolute cursor-pointer rounded-xl outline-none focus-visible:ring-2 focus-visible:ring-[#fff0b8]"><span className="sr-only">{control.label}</span></button>)}
     </div>
+    {levelUp && <LevelUpNotification notice={levelUp} />}
     {rosterOpen && <CharacterRoster characters={characters} onClose={closeRoster} />}
     {collectionOpen === "Wiki" && <WikiPanel onClose={closeCollection} />}
     {collectionOpen === "Inventory" && <InventoryPanel onClose={closeCollection} />}

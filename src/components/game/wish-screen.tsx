@@ -1,4 +1,5 @@
 "use client";
+import { drawCurrencyBadge, drawCurrencyIcon, useCurrencyArt } from "./currency-art";
 import { drawMenuButton } from "./menu-button";
 import { drawPaperPanel } from "./paper-panel";
 import { ResponsiveCanvasFrame } from "./responsive-canvas-frame";
@@ -9,9 +10,12 @@ import { useSession } from "@/lib/auth";
 import { useCharacter, useWish } from "@/lib/character-api";
 import { weaponDetails, weapons, specialWeapons } from "@/lib/character";
 import { drawWishEffect } from "./wish-effects";
+import { drawWishBannerBorder, drawWishBannerLabels, wishBannerCharacters } from "./wish-banner-labels";
+import { useCharacterPortraits } from "./character-info-icons";
 
 export function WishScreen({ onClose }: { onClose: () => void }) {
   const spriteVersion = useCharacterSprites();
+  const portraitVersion = useCharacterPortraits();
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const closeRef = useRef<HTMLButtonElement>(null);
   const [focus, setFocus] = useState("");
@@ -20,6 +24,7 @@ export function WishScreen({ onClose }: { onClose: () => void }) {
   const sequence = useRef({ started: 0, revealed: 0, busy: false });
   const timers = useRef<ReturnType<typeof setTimeout>[]>([]);
   const catalog = pool === "special" ? specialWeapons : weapons;
+  const currencyArt = useCurrencyArt();
   const cost = pool === "special" ? 200 : 100;
   const session = useSession();
   const userId = session.data?.user.id;
@@ -75,11 +80,12 @@ export function WishScreen({ onClose }: { onClose: () => void }) {
         if (h <= 60) { drawMenuButton(ctx!, x, y, w, h, border === "#fff" || border === "#fff0b8"); return; }
         ctx!.beginPath(); ctx!.roundRect(x, y, w, h, 12); ctx!.fillStyle = fill; ctx!.fill(); drawPaperPanel(ctx!, x, y, w, h); ctx!.strokeStyle = border; ctx!.lineWidth = 2; ctx!.stroke();
       }
-      text(pool === "special" ? "Special Wish" : "Wish", 24, 48, "600 28px system-ui");
-      text(`Wish currency: ${balance}`, 24, 77, "600 14px system-ui", "#805523");
-      text(`Collection: ${ownedCount}/${catalog.length}`, 24, 100, "13px system-ui", "#71583c");
+      text(pool === "special" ? "Special Wish" : "Wish", 24, width < 520 ? 102 : 48, "600 28px system-ui");
+      const badgeWidth = Math.min(216, width - 104);
+      drawCurrencyBadge(ctx, "wish", balance, width - 80 - badgeWidth, 10, badgeWidth, 60);
+      text(`Collection: ${ownedCount}/${catalog.length}`, 24, width < 520 ? 124 : 100, "13px system-ui", "#71583c");
       const compact = height < 600;
-      const bannerX = 24, bannerY = 168, bannerWidth = width - 48;
+      const bannerX = 24, bannerY = width < 520 ? 192 : 168, bannerWidth = width - 48;
       const bannerHeight = Math.max(120, height - bannerY - 188);
       const centerY = bannerY + bannerHeight / 2;
       const elapsed = (performance.now() - sequence.current.started) / 1000;
@@ -90,14 +96,16 @@ export function WishScreen({ onClose }: { onClose: () => void }) {
         ctx.beginPath(); ctx.roundRect(bannerX, bannerY, bannerWidth, bannerHeight, 8); ctx.clip();
         ctx.fillStyle = pool === "special" ? "#252039" : "#233a39";
         ctx.fillRect(bannerX, bannerY, bannerWidth, bannerHeight);
-        const scale = Math.min(bannerWidth / banner.naturalWidth, bannerHeight / banner.naturalHeight);
+        const artworkHeight = bannerHeight - (bannerWidth < 600 ? 64 : 0);
+        const scale = Math.min(bannerWidth / banner.naturalWidth, artworkHeight / banner.naturalHeight);
         const drawWidth = banner.naturalWidth * scale, drawHeight = banner.naturalHeight * scale;
-        ctx.drawImage(banner, bannerX + (bannerWidth - drawWidth) / 2, bannerY + (bannerHeight - drawHeight) / 2, drawWidth, drawHeight);
+        const artwork = { x: bannerX + (bannerWidth - drawWidth) / 2, y: bannerY + (artworkHeight - drawHeight) / 2, width: drawWidth, height: drawHeight };
+        ctx.drawImage(banner, artwork.x, artwork.y, artwork.width, artwork.height);
+        if (!reward && stage === "idle") drawWishBannerLabels(ctx, pool, artwork, { x: bannerX, y: bannerY, width: bannerWidth, height: bannerHeight });
         if (reward || stage !== "idle") { ctx.fillStyle = "#172027cc"; ctx.fillRect(bannerX, bannerY, bannerWidth, bannerHeight); }
         ctx.restore();
-        ctx.beginPath(); ctx.roundRect(bannerX, bannerY, bannerWidth, bannerHeight, 8);
-        ctx.strokeStyle = pool === "special" ? "#c6a466" : "#805b35"; ctx.lineWidth = 2; ctx.stroke();
       }
+      drawWishBannerBorder(ctx, pool, bannerX, bannerY, bannerWidth, bannerHeight);
       ctx.fillStyle = "#e4d89515"; ctx.beginPath(); ctx.arc(width / 2, centerY, compact ? 38 : 62, 0, Math.PI * 2); ctx.fill();
       ctx.strokeStyle = "#e4d895"; ctx.lineWidth = 3; ctx.lineCap = "round"; ctx.lineJoin = "round";
       if (stage !== "idle" || reward) {
@@ -124,6 +132,7 @@ export function WishScreen({ onClose }: { onClose: () => void }) {
       if (reward && !compact) text("Added to your character list", width / 2, bannerY + bannerHeight + 48, "13px system-ui", "#71583c", width - 40);
       const buttonWidth = Math.min(280, width - 48);
       box((width - buttonWidth) / 2, height - 116, buttonWidth, 52, enabled ? "#e4d895" : "#6b796b", focus === "wish" ? "#fff" : "#a38358");
+      if (stage === "idle" && !complete) drawCurrencyIcon(ctx, "wish", (width - buttonWidth) / 2 + 10, height - 105, 30);
       text(stage !== "idle" ? stage === "charging" ? "Summoning…" : "Character received!" : complete ? "Collection complete" : `Wish · ${cost} currency`, width / 2, height - 83, "600 17px system-ui", "#fff0cc");
       text(complete ? `All ${catalog.length} ${pool === "special" ? "special characters" : "types"} owned.` : error ?? (balance < cost ? `You need ${cost} wish currency to pull.` : "Equal chances among unowned types. No duplicates."), width / 2, height - 32, "12px system-ui", error && !complete ? "#a13725" : "#71583c", width - 40);
       ctx.textAlign = "left";
@@ -136,7 +145,7 @@ export function WishScreen({ onClose }: { onClose: () => void }) {
     if (!motion.matches && stage !== "idle") frame = requestAnimationFrame(animate);
     const observer = new ResizeObserver(draw); observer.observe(canvas); draw();
     return () => { cancelAnimationFrame(frame); observer.disconnect(); motion.removeEventListener("change", draw); window.removeEventListener("paper-art-ready", draw); banner.onload = null; seal.onload = null; };
-  }, [balance, reward, error, enabled, focus, wish.isPending, ownedCount, complete, pool, cost, catalog.length, spriteVersion, stage]);
+  }, [balance, reward, error, enabled, focus, wish.isPending, ownedCount, complete, pool, cost, catalog.length, spriteVersion, stage, currencyArt, portraitVersion]);
 
 
   return <ResponsiveCanvasFrame minHeight={520}><div role="dialog" aria-modal="true" aria-label="Wish for a character" className="paper-menu absolute inset-0 z-30 bg-[#eddbb1]" onKeyDown={(event) => {
@@ -149,7 +158,8 @@ export function WishScreen({ onClose }: { onClose: () => void }) {
     }
   }}>
     <canvas ref={canvasRef} aria-hidden="true" className="block h-full w-full" />
-    <div role="group" aria-label="Wish pool" className="absolute top-28 left-6 flex gap-2">{(["normal", "special"] as const).map((value) => <button key={value} type="button" aria-pressed={pool === value} disabled={wish.isPending || stage !== "idle"} onClick={() => { wish.reset(); setPool(value); }} className={`menu-action cursor-pointer rounded-lg border px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-[#805523] disabled:cursor-wait ${pool === value ? "border-[#e4d895] paper-card bg-[#e4d895] text-[#43311f]" : "border-[#a38358] paper-card bg-[#e9d4a7] text-[#43311f]"}`}>{value === "special" ? "Special · 200" : "Normal · 100"}</button>)}</div>
+    <p className="sr-only">Featured characters: {wishBannerCharacters[pool].map((character) => `${character.name}, weapon: ${weaponDetails(character.weapon).label}`).join("; ")}.</p>
+    <div role="group" aria-label="Wish pool" className="absolute top-[136px] left-6 flex gap-2 min-[520px]:top-28">{(["normal", "special"] as const).map((value) => <button key={value} type="button" aria-pressed={pool === value} disabled={wish.isPending || stage !== "idle"} onClick={() => { wish.reset(); setPool(value); }} className={`menu-action cursor-pointer rounded-lg border px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-[#805523] disabled:cursor-wait ${pool === value ? "border-[#e4d895] paper-card bg-[#e4d895] text-[#43311f]" : "border-[#a38358] paper-card bg-[#e9d4a7] text-[#43311f]"}`}>{value === "special" ? "Special · 200" : "Normal · 100"}</button>)}</div>
     <button ref={closeRef} type="button" aria-label="Close wish screen" disabled={wish.isPending} onClick={onClose} onFocus={() => setFocus("close")} onBlur={() => setFocus("")} className="absolute top-4 right-4 size-12 cursor-pointer rounded-xl outline-none"><span className="sr-only">Close wish screen</span></button>
     <button type="button" disabled={!enabled} onClick={pull} onFocus={() => setFocus("wish")} onBlur={() => setFocus("")} className="absolute bottom-16 left-1/2 h-[52px] w-[min(280px,calc(100%-48px))] -translate-x-1/2 cursor-pointer rounded-xl outline-none disabled:cursor-default"><span className="sr-only">Wish for a random character. Costs {cost} wish currency.</span></button>
     <p role="status" className="sr-only">Wish currency: {balance}. Collection: {ownedCount} of {catalog.length}. {complete ? "Collection complete. Wishing is disabled." : wish.isPending ? "Wishing." : reward ? `Received ${weaponDetails(reward.weapon).label}. Added to your roster.` : "Wish for a character type you do not own."}</p>

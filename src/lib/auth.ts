@@ -5,6 +5,12 @@ import { api, type User } from "@/lib/api";
 
 const sessionKey = ["auth", "session"] as const;
 
+export function useRegistrationCode() {
+  return useMutation({
+    mutationFn: (email: string) => api<{ message: string; expiresIn: number }>("/auth/register/code", { method: "POST", body: JSON.stringify({ email }) }),
+  });
+}
+
 export function useSession() {
   return useQuery({ queryKey: sessionKey, queryFn: () => api<{ user: User }>("/auth/me"), refetchInterval: 30000 });
 }
@@ -35,7 +41,7 @@ export function useLogout() {
 export function useRegister() {
   const client = useQueryClient();
   return useMutation({
-    mutationFn: (credentials: { username: string; password: string; confirmPassword: string }) =>
+    mutationFn: (credentials: { username: string; password: string; confirmPassword: string; email: string; code: string }) =>
       api<{ user: User }>("/auth/register", { method: "POST", body: JSON.stringify(credentials) }),
     onSuccess: async (session) => {
       await client.cancelQueries();
