@@ -24,7 +24,7 @@ import { recordDamage, type DamageEntry } from "@/lib/battle-damage";
 import { DamageSpread } from "./damage-spread";
 
 export function ExpeditionCanvas({ location, team, gold, characterName, characters, progression }: {
-  location: "meadow" | "forest" | "harbor" | "tourney" | "deepsea" | "deepsea-2f" | "deepsea-palace"; team: (Character | null)[]; gold: number;
+  location: "meadow" | "forest" | "garnaland" | "harbor" | "tourney" | "deepsea" | "deepsea-2f" | "deepsea-palace"; team: (Character | null)[]; gold: number;
   characterName: string; characters: Character[]; progression: AccountProgress;
 }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -79,7 +79,8 @@ export function ExpeditionCanvas({ location, team, gold, characterName, characte
     const canvas = canvasRef.current, ctx = canvas?.getContext("2d");
     if (!canvas || !ctx) return;
     const buttonIcons = new Image(); buttonIcons.src = "/ui/adventure-button-icons-v2.png";
-    const meadowArtwork = new Image(); meadowArtwork.src = location === "tourney" ? "/maps/tourney-seated-crowd-v2.png" : location === "harbor" ? "/maps/harbor-painted-v1.png" : location === "forest" ? "/maps/forest-painted-v1.png" : "/maps/meadow-painted-v1.png";
+    const meadowArtwork = new Image(); meadowArtwork.src = location === "garnaland" ? "/maps/garnaland-painted-v1.png" : location === "tourney" ? "/maps/tourney-seated-crowd-v2.png" : location === "harbor" ? "/maps/harbor-painted-v1.png" : location === "forest" ? "/maps/forest-painted-v1.png" : "/maps/meadow-painted-v1.png";
+    const garnaland = location === "garnaland";
     const forest = location === "forest";
     const harbor = location === "harbor";
     const tourney = location === "tourney";
@@ -138,7 +139,7 @@ export function ExpeditionCanvas({ location, team, gold, characterName, characte
           crowdStarted = true; setYellowSpectator(spectatorAvailable);
         }
         if (data.period) period = data.period;
-        const progress = deepsea ? data.deepSeaProgress : tourney ? data.tourneyProgress : harbor ? data.harborProgress : forest ? data.forestProgress : data.meadowProgress;
+        const progress = garnaland ? data.garnalandProgress : deepsea ? data.deepSeaProgress : tourney ? data.tourneyProgress : harbor ? data.harborProgress : forest ? data.forestProgress : data.meadowProgress;
         if (progress) meadowProgress = progress;
         [data, ...(data.additionalEnemies ?? [])].forEach((enemy, index) => {
           monsters.push({ data: enemy, x: 1.08 + index * 0.08, stage: "approach", hp: enemy.stats.hp, teamHp: [...teamHp], teamMp: [...teamMp], casts: [], step: 0, nextStep: 0, until: 0, battleStartedAt: 0, lastHitAt: 0 });
@@ -165,7 +166,7 @@ export function ExpeditionCanvas({ location, team, gold, characterName, characte
         if (battle.garnalandUnlocked) { spectatorAvailable = false; setYellowSpectator(false); }
         teamHp = battle.initialTeamHp ?? teamHp; teamMp = battle.initialTeamMp ?? teamMp;
         encounter.teamHp = [...teamHp]; encounter.teamMp = [...teamMp];
-        const progress = deepsea ? battle.deepSeaProgress : tourney ? battle.tourneyProgress : harbor ? battle.harborProgress : forest ? battle.forestProgress : battle.meadowProgress;
+        const progress = garnaland ? battle.garnalandProgress : deepsea ? battle.deepSeaProgress : tourney ? battle.tourneyProgress : harbor ? battle.harborProgress : forest ? battle.forestProgress : battle.meadowProgress;
         if (progress) meadowProgress = progress;
         for (const monster of group) monster.stage = "fighting";
         encounter.battleStartedAt = elapsed; encounter.nextStep = elapsed + (battle.steps[0]?.at ?? 0.45);
@@ -334,7 +335,7 @@ export function ExpeditionCanvas({ location, team, gold, characterName, characte
           ctx.beginPath(); ctx.arc(x + 26, ground - 11, 3, 0, Math.PI * 2); ctx.fill();
         }
       }
-      if ((location === "meadow" || forest || harbor || tourney) && meadowArtwork.complete && meadowArtwork.naturalWidth > 0) {
+      if ((location === "meadow" || forest || harbor || tourney || garnaland) && meadowArtwork.complete && meadowArtwork.naturalWidth > 0) {
         const horizon = Math.round(meadowArtwork.naturalHeight * 0.75);
         const tileWidth = Math.max(width, height * meadowArtwork.naturalWidth / meadowArtwork.naturalHeight);
         const firstTile = Math.floor(distance / tileWidth);
@@ -520,7 +521,7 @@ export function ExpeditionCanvas({ location, team, gold, characterName, characte
       for (const monster of monsters) {
         if (monster.spawned === false) continue;
         const foe = monster;
-        const x = foe.x * width, size = Math.max(1, Math.min(2, height / 300)) * (foe.data.boss ? 1.45 : 1);
+        const x = foe.x * width, size = Math.max(1, Math.min(2, height / 300)) * (foe.data.boss ? 1.45 : foe.data.semiBoss ? 1.2 : 1);
         if (location === "meadow") {
           let animation = meadowAnimation.get(foe.data.id);
           if (!animation) {
@@ -555,7 +556,7 @@ export function ExpeditionCanvas({ location, team, gold, characterName, characte
         }
         if (foe.data.type === "slime") ctx.scale(1 + strike * 0.22, 1 - strike * 0.16);
         const stride = foe.hp > 0 && foe.moving ? Math.sin(elapsed * 10) : 0;
-        if ((location === "meadow" || forest || harbor || tourney) && drawMonster(ctx, foe.data.type, elapsed, !!foe.moving, strike)) {
+        if ((location === "meadow" || forest || harbor || tourney || garnaland) && drawMonster(ctx, foe.data.type, elapsed, !!foe.moving, strike)) {
           // Generated poses replace the procedural fallback once loaded.
         } else if (deepsea && deepseaSprites.complete && deepseaSprites.naturalWidth > 0 && deepseaCells[foe.data.type] !== undefined) {
           const cell = foe.data.type === "fishpeople-rider" && location === "deepsea-2f" ? 4 : deepseaCells[foe.data.type];
@@ -719,7 +720,7 @@ export function ExpeditionCanvas({ location, team, gold, characterName, characte
       const nameX = layout.pad + 12, nameTop = layout.pad;
       box(layout.pad, nameTop, layout.nameWidth, layout.nameHeight);
       text(nameRef.current, nameX, nameTop + (layout.compact ? layout.nameHeight * 0.31 : 27), `600 ${layout.compact ? 14 : 17}px system-ui`, "#43311f", layout.nameWidth - 24);
-      text(`${deepsea ? deepSeaName : tourney ? "Zugwangs Battle Tourney" : harbor ? `Harbor · ${period}` : forest ? "Forest" : "Meadow"} · ${Math.floor(distance / 16)} m`, nameX, nameTop + (layout.compact ? layout.nameHeight * 0.59 : 49), `${layout.compact ? 10 : 12}px system-ui`, "#66513b", layout.nameWidth - 24);
+      text(`${deepsea ? deepSeaName : tourney ? "Zugwangs Battle Tourney" : harbor ? `Harbor · ${period}` : garnaland ? "Garnaland" : forest ? "Forest" : "Meadow"} · ${Math.floor(distance / 16)} m`, nameX, nameTop + (layout.compact ? layout.nameHeight * 0.59 : 49), `${layout.compact ? 10 : 12}px system-ui`, "#66513b", layout.nameWidth - 24);
       text(`Boss: ${meadowProgress.defeated}/${meadowProgress.target ?? (deepsea ? "30–40" : tourney ? "50–70" : "38–45")}`, nameX, nameTop + (layout.compact ? layout.nameHeight * 0.84 : 70), `${layout.compact ? 10 : 12}px system-ui`, "#68491e", layout.nameWidth - 24);
       if (!layout.compact) battleLog.forEach((entry, index) => {
         const y = layout.logY + index * (layout.rowHeight + layout.rowGap);

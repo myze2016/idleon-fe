@@ -1,6 +1,7 @@
 import { useSyncExternalStore } from "react";
 
 const sheets = [
+  { src: "/sprites/garnaland-enemies-v1.png", rows: ["mushroom-fighter", "mushroom-rager", "fairy", "mushroom-chicken", "mushroom-king"], heights: [44, 46, 42, 48, 56] },
   { src: "/sprites/tourney-enemies-v1.png", rows: ["gladiator", "spearman", "zugwang", "demon-prince"], heights: [60, 60, 62, 62] },
   { src: "/sprites/harbor-monsters-v1.png", rows: ["crab-day", "hermit", "starfish", "fishpeople-guide"], heights: [32, 38, 40, 52] },
   { src: "/sprites/harbor-night-monsters-v1.png", rows: ["fishpeople-spearman", "fishpeople-hunter", "fishpeople-magos"], heights: [50, 48, 52] },

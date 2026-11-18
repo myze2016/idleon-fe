@@ -14,8 +14,8 @@ interface GameState {
   isMapOpen: boolean;
   activePanel: "character" | "wish" | "team" | "shop" | "artifacts" | "inventory" | "wiki" | "pvp" | "donation" | "patch-notes" | null;
   togglePanel: (panel: "character" | "wish" | "team" | "shop" | "artifacts" | "inventory" | "wiki" | "pvp" | "donation" | "patch-notes") => void;
-  selectedLocation: "meadow" | "forest" | "harbor" | "tourney" | "deepsea" | "deepsea-2f" | "deepsea-palace";
-  selectLocation: (location: "meadow" | "forest" | "harbor" | "tourney" | "deepsea" | "deepsea-2f" | "deepsea-palace") => void;
+  selectedLocation: "meadow" | "forest" | "garnaland" | "harbor" | "tourney" | "deepsea" | "deepsea-2f" | "deepsea-palace";
+  selectLocation: (location: "meadow" | "forest" | "garnaland" | "harbor" | "tourney" | "deepsea" | "deepsea-2f" | "deepsea-palace") => void;
   togglePause: () => void;
   toggleMap: () => void;
   startRoom: () => void;

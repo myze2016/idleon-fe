@@ -5,10 +5,11 @@ export interface EnemyEncounter {
   yellowSpectator?: boolean;
   spectatorGroup?: number;
   additionalEnemies?: EnemyEncounter[];
-  id: string; type: "warrior" | "slinger" | "boar" | "slime" | "plant" | "mutant-boar" | "coco-klan-chief" | "crab-day" | "crab-night" | "hermit" | "starfish" | "fishpeople-spearman" | "fishpeople-hunter" | "fishpeople-magos" | "fishpeople-guide" | "gladiator" | "spearman" | "assassin" | "zugwang" | "demon-prince" | "fishpeople-guard" | "fishpeople-archer" | "fishpeople-rider" | "fishpeople-guardian" | "baracudon" | "fishpeople-cleric" | "fishpeople-researcher" | "fishpeople-knight" | "fishpeople-rifler" | "fishpeople-baron" | "fishpeople-lord"; name: string; stats: CharacterStats; gold: number;
-  boss: boolean; wishCurrency: number; meadowProgress?: { defeated: number; target: number | null };
+  id: string; type: "mushroom-fighter" | "mushroom-rager" | "fairy" | "mushroom-chicken" | "mushroom-king" | "warrior" | "slinger" | "boar" | "slime" | "plant" | "mutant-boar" | "coco-klan-chief" | "crab-day" | "crab-night" | "hermit" | "starfish" | "fishpeople-spearman" | "fishpeople-hunter" | "fishpeople-magos" | "fishpeople-guide" | "gladiator" | "spearman" | "assassin" | "zugwang" | "demon-prince" | "fishpeople-guard" | "fishpeople-archer" | "fishpeople-rider" | "fishpeople-guardian" | "baracudon" | "fishpeople-cleric" | "fishpeople-researcher" | "fishpeople-knight" | "fishpeople-rifler" | "fishpeople-baron" | "fishpeople-lord"; name: string; stats: CharacterStats; gold: number;
+  boss: boolean; semiBoss?: boolean; wishCurrency: number; meadowProgress?: { defeated: number; target: number | null };
   period?: "day" | "night"; harborProgress?: { defeated: number; target: number | null };
   tourneyProgress?: { defeated: number; target: number | null };
+  garnalandProgress?: { defeated: number; target: number; chickenAt: number };
   forestProgress?: { defeated: number; target: number | null };
 }
 export interface BattleStep {
@@ -25,5 +26,6 @@ export interface BattleResult { artifactsEarned?: (import("./artifact").Artifact
   initialTeamHp?: number[]; initialTeamMp?: number[]; teamHp?: number[]; teamMp?: number[];
   period?: "day" | "night"; harborProgress?: { defeated: number; target: number | null };
   tourneyProgress?: { defeated: number; target: number | null };
+  garnalandProgress?: { defeated: number; target: number; chickenAt: number };
   forestProgress?: { defeated: number; target: number | null };
 }
