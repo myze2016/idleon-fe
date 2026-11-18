@@ -13,6 +13,7 @@ import { GameStoreProvider, useGameState } from "./game-store";
 import { RoomCanvas } from "./room-canvas";
 import { ExpeditionCanvas } from "./expedition-canvas";
 import type { Character, AccountProgress } from "@/lib/character";
+import { infoBoxStyle } from "./info-box-skins";
 
 function GameScene({ character, characters, gold, progression }: { character: Character; characters: Character[]; gold: number; progression: AccountProgress }) {
   const exploring = useGameState((state) => state.isExploring);
@@ -25,6 +26,8 @@ export function GameEntry() {
   const router = useRouter();
   const session = useSession();
   const userId = session.data?.user.id;
+  const donationTier = session.data?.user.donationTier ?? 0;
+  useEffect(() => { window.dispatchEvent(new Event("info-skin-changed")); }, [donationTier]);
   const character = useCharacter(session.isError ? undefined : userId);
   const create = useCreateCharacter(userId);
   const failure = session.error ?? character.error ?? create.error;
@@ -41,5 +44,5 @@ export function GameEntry() {
   </div>;
   if (!character.data?.character) return <CharacterCreation pending={create.isPending} error={create.error?.message} onCreate={(input) => create.mutate(input)} />;
   const savedTeam = Array.from({ length: 6 }, (_, index) => character.data.characters.find((member) => member.id === character.data.teamSlots?.[index]) ?? null);
-  return <GameStoreProvider key={userId} initialTeam={savedTeam}><GameScene character={character.data.character} characters={character.data.characters} gold={character.data.gold} progression={character.data.progression} /></GameStoreProvider>;
+  return <div className="relative h-full w-full" data-donation-tier={donationTier} style={infoBoxStyle(donationTier)}><GameStoreProvider key={userId} initialTeam={savedTeam}><GameScene character={character.data.character} characters={character.data.characters} gold={character.data.gold} progression={character.data.progression} /></GameStoreProvider></div>;
 }

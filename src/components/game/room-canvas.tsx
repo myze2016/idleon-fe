@@ -18,6 +18,9 @@ import { CollectionPanel } from "./collection-panel";
 import { InventoryPanel } from "./inventory-panel";
 import { WikiPanel } from "./wiki-panel";
 import { PvpPanel } from "./pvp-panel";
+import { DonationPanel } from "./donation-panel";
+import { Heart, ScrollText } from "lucide-react";
+import { PatchNotesPanel } from "./patch-notes-panel";
 
 const movementKeys = new Set(["KeyA", "KeyD", "KeyW", "KeyS", "ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown"]);
 
@@ -45,7 +48,7 @@ export function RoomCanvas({ character, characters, gold, progression }: { chara
     if (!store.getState().isPaused) canvasRef.current?.focus({ preventScroll: true });
   }
 
-  function togglePanel(panel: "character" | "wish" | "team" | "shop" | "artifacts" | "inventory" | "wiki" | "pvp") {
+  function togglePanel(panel: "character" | "wish" | "team" | "shop" | "artifacts" | "inventory" | "wiki" | "pvp" | "donation" | "patch-notes") {
     input.current.clear(); destination.current = null;
     store.getState().togglePanel(panel);
     if (!store.getState().activePanel) canvasRef.current?.focus({ preventScroll: true });
@@ -259,6 +262,8 @@ export function RoomCanvas({ character, characters, gold, progression }: { chara
         };
       }
     }}>Your browser needs canvas support to display your room.</canvas>
+    <button type="button" onClick={() => togglePanel("donation")} aria-expanded={activePanel === "donation"} className="absolute bottom-[140px] left-4 flex min-h-9 cursor-pointer items-center gap-2 rounded-md border border-[#805b35] bg-[#51331e] px-3 py-2 text-xs font-semibold text-[#fff0cc] shadow focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ffe2a1]"><Heart size={14} aria-hidden="true" /><span>Support <span className="text-[#f1cf84]">· Any amount</span></span></button>
+    <button type="button" onClick={() => togglePanel("patch-notes")} aria-label="Patch notes" title="Patch notes" aria-expanded={activePanel === "patch-notes"} className="absolute bottom-[140px] left-[212px] flex min-h-9 cursor-pointer items-center gap-2 rounded-md border border-[#805b35] bg-[#51331e] px-3 py-2 text-xs font-semibold text-[#fff0cc] shadow focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ffe2a1]"><ScrollText size={14} aria-hidden="true" /><span className="hidden sm:inline">Patch notes</span></button>
     <p id="room-controls" className="sr-only">Move with WASD or arrow keys, or click or tap the floor to walk. Open Menu to pause. Press Escape to close the menu.</p>
     <p className="sr-only">{character.name}, {weaponDetails(character.weapon).label}. Room location: Id-leon City.</p>
     <p role="status" className="sr-only">Account level {progression.level}. EXP {progression.exp} of {progression.expToNextLevel}. Total EXP {progression.totalExp}. Gold {gold}.</p>
@@ -268,6 +273,8 @@ export function RoomCanvas({ character, characters, gold, progression }: { chara
     {toolbar.map((control) => <button key={control.id} type="button" aria-label={control.id === "menu" && menuOpen ? "Close menu" : control.label} title={control.label} aria-expanded={control.id === "menu" ? menuOpen : activePanel === control.id} onClick={() => control.id === "menu" ? toggleMenu() : togglePanel(control.id)} onPointerEnter={() => { focus.current = control.id; }} onPointerLeave={() => { focus.current = ""; }} onFocus={() => { focus.current = control.id; }} onBlur={() => { focus.current = ""; }} className="absolute cursor-pointer rounded-[10px] outline-none" style={{ left: control.x, top: control.y, width: control.width, height: control.height }}><span className="sr-only">{control.label}</span></button>)}
     </div>
     {mapOpen && <WorldMap onClose={() => roomAction("start")} />}
+    {activePanel === "patch-notes" && <PatchNotesPanel onClose={() => roomAction("start")} />}
+    {activePanel === "donation" && <DonationPanel onClose={() => roomAction("start")} />}
     {menuOpen && <RoomMenu onClose={() => roomAction("start")} />}
     {activePanel === "character" && <CharacterRoster characters={characters} onClose={() => roomAction("start")} />}
     {activePanel === "team" && <TeamScreen characters={characters} onClose={() => roomAction("start")} />}

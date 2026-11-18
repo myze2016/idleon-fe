@@ -96,8 +96,9 @@ export function TeamScreen({ characters, onClose }: { characters: Character[]; o
       ctx.moveTo(width - 47, 33); ctx.lineTo(width - 33, 47); ctx.moveTo(width - 33, 33); ctx.lineTo(width - 47, 47); ctx.stroke();
     }
     window.addEventListener("paper-art-ready", draw);
+    window.addEventListener("info-skin-changed", draw);
     const observer = new ResizeObserver(draw); observer.observe(canvas); draw();
-    return () => { observer.disconnect(); window.removeEventListener("paper-art-ready", draw); };
+    return () => { observer.disconnect(); window.removeEventListener("info-skin-changed", draw); window.removeEventListener("paper-art-ready", draw); };
   }, [closeFocused, slots, focusedSlot, selectedSlot, inspected, spriteVersion]);
 
   if (inspected) return <CharacterStatsScreen character={inspected} onClose={() => setInspected(null)} />;

@@ -1,0 +1,28 @@
+/* Scoped admin styles use standard CSS selectors for the Tailwind/Turbopack loader. */
+.admin-workspace { color: #43311f; background: #30251d; font-family: Arial, Helvetica, sans-serif; }
+.admin-workspace .paper-menu, .admin-workspace .paper-card { background-image: none; border-image: none; }
+.admin-header { border-bottom: 1px solid #9c784b; background: #3d2a1e; }
+.admin-header a { color: #fff0cc; }
+.admin-header a span { color: #d9bf98; }
+.admin-content { margin-top: 24px; margin-bottom: 24px; width: calc(100% - 32px); border: 2px solid var(--info-border, #805b35); border-radius: 8px; background: linear-gradient(var(--info-top, #efdfb8), var(--info-bottom, #d7bc8c)); box-shadow: 0 8px 30px #120b0744; }
+.admin-workspace .menu-info { border: 2px solid var(--info-border, #805b35); border-radius: 6px; background: linear-gradient(var(--info-top, #efdfb8), var(--info-bottom, #d7bc8c)); box-shadow: 0 2px 3px var(--info-shadow, #38231255); outline: 1px solid var(--info-inset, #b38a5288); outline-offset: -5px; color: #43311f; }
+.admin-workspace .menu-action, .admin-nav-trigger { display: inline-flex; min-height: 42px; justify-content: center; align-items: center; gap: 8px; border: 2px solid #4e301b; border-radius: 6px; background: linear-gradient(#886036, #51331e); color: #fff0cc; outline: 1px solid #d7b17588; outline-offset: -5px; box-shadow: 0 2px 3px #38231255; cursor: pointer; transition: filter .15s; }
+.admin-workspace .menu-action:hover:not(:disabled), .admin-nav-trigger:hover { filter: brightness(1.17); }
+.admin-workspace .menu-action:disabled { opacity: .55; cursor: not-allowed; filter: saturate(.4); }
+.admin-workspace button[type="submit"].menu-action { border-color: #60380f; background: linear-gradient(#a27741, #66401c); color: #fff3ce; }
+.admin-workspace .menu-field { min-height: 42px; color-scheme: dark; border: 2px solid #4e301b; border-radius: 6px; background: linear-gradient(#694627, #51331e); color: #fff0cc; outline: 1px solid #d7b17566; outline-offset: -5px; box-shadow: inset 0 2px 4px #27140755; }
+.admin-workspace .menu-field::placeholder { color: #dec7a4; opacity: 1; }
+.admin-workspace .menu-field option { background: #51331e; color: #fff0cc; }
+.admin-workspace .menu-action:focus-visible, .admin-workspace .menu-field:focus-visible, .admin-nav-trigger:focus-visible { outline: 3px solid #bd863c; outline-offset: 3px; }
+.admin-workspace input[type="checkbox"], .admin-workspace input[type="range"] { accent-color: #805523; }
+.admin-workspace input[type="file"]::file-selector-button { border: 2px solid #4e301b; background: #684525; color: #fff0cc; border-radius: 6px; }
+.admin-workspace .text-slate-500 { color: #71583c; }
+.admin-header .text-slate-500 { color: #d9bf98; }
+.admin-workspace .border-slate-200 { border-color: #a3835866; }
+.admin-nav-drawer { border-right: 2px solid #805b35; background: linear-gradient(var(--info-top, #efdfb8), var(--info-bottom, #d7bc8c)); color: #43311f; }
+.admin-nav-drawer h2, .admin-nav-drawer button, .admin-nav-drawer svg { color: #684525; }
+.admin-nav-drawer p, .admin-nav-drawer nav span span + span { color: #71583c; }
+.admin-nav-drawer a { color: #51331e; }
+.admin-nav-drawer nav a:hover { background: #bc945733; }
+.admin-nav-drawer nav a[aria-current="page"] { border: 1px solid #805b35; background: #805523; color: #fff0cc; }
+.admin-nav-drawer nav a[aria-current="page"] svg, .admin-nav-drawer nav a[aria-current="page"] span { color: #fff0cc; }

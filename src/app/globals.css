@@ -179,14 +179,15 @@
 
 /* Information panels echo the button frame with a lighter, readable face. */
 .paper-menu .menu-info:not(.menu-action):not(input):not(select),
-.battle-info {
+.battle-info,
+.skin-preview {
   border-image: none;
-  border: 2px solid #805b35;
+  border: 2px solid var(--info-border, #805b35);
   border-radius: 6px;
-  background: linear-gradient(#efdfb8, #d7bc8c);
-  outline: 1px solid #b38a5288;
+  background: linear-gradient(var(--info-top, #efdfb8), var(--info-bottom, #d7bc8c));
+  outline: 1px solid var(--info-inset, #b38a5288);
   outline-offset: -5px;
-  box-shadow: 0 2px 3px #38231255;
+  box-shadow: 0 2px 3px var(--info-shadow, #38231255);
   color: #43311f;
 }
 .paper-menu .menu-info[data-equipped="true"] {

@@ -115,8 +115,9 @@ export function CharacterStatsScreen({ character: initialCharacter, onClose }: {
       ctx.strokeStyle = "#fff0cc"; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(w - 47, 33); ctx.lineTo(w - 33, 47); ctx.moveTo(w - 33, 33); ctx.lineTo(w - 47, 47); ctx.stroke();
     }
     window.addEventListener("artifact-art-ready", draw);
+    window.addEventListener("info-skin-changed", draw);
     const observer = new ResizeObserver(draw); observer.observe(canvas); draw();
-    return () => { observer.disconnect(); window.removeEventListener("artifact-art-ready", draw); };
+    return () => { observer.disconnect(); window.removeEventListener("info-skin-changed", draw); window.removeEventListener("artifact-art-ready", draw); };
   }, [character, focused, gold, unlocked, canUnlock, error, unlock.isPending, equipped, artifactsOpen, upgradeDefinition, canUpgrade, upgrade.isPending, upgrade.error]);
 
   if (artifactsOpen && character.id) return <CollectionPanel title="Artifacts" characterId={character.id} onClose={() => { setArtifactsOpen(false); }} />;

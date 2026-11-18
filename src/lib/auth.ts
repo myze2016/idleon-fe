@@ -6,7 +6,7 @@ import { api, type User } from "@/lib/api";
 const sessionKey = ["auth", "session"] as const;
 
 export function useSession() {
-  return useQuery({ queryKey: sessionKey, queryFn: () => api<{ user: User }>("/auth/me") });
+  return useQuery({ queryKey: sessionKey, queryFn: () => api<{ user: User }>("/auth/me"), refetchInterval: 30000 });
 }
 
 export function useLogin() {

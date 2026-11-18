@@ -61,6 +61,7 @@ export function useCharacter(userId?: string) {
     queryKey: characterKey(userId),
     queryFn: () => api<CharacterState>("/character"),
     enabled: !!userId,
+    refetchInterval: 30000,
   });
 }
 

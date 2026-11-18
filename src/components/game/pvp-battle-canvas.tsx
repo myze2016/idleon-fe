@@ -5,9 +5,10 @@ import { drawCharacter } from "./character-design";
 import { drawCombatEffect } from "./combat-effects";
 import { isRangedSkill } from "@/lib/skill-range";
 import type { BattleStep } from "@/lib/encounter";
-import type { DuelFighter, DuelStep } from "./pvp-types";
+import type { ArenaFighter, DuelStep } from "./pvp-types";
+import { drawArenaEnemy } from "./arena-enemies";
 
-export function PvpBattleCanvas(props: { fighters: DuelFighter[]; steps: DuelStep[]; elapsed: number; playing: boolean; hostId: string }) {
+export function PvpBattleCanvas(props: { fighters: ArenaFighter[]; steps: DuelStep[]; elapsed: number; playing: boolean; hostId: string }) {
   const ref = useRef<HTMLCanvasElement>(null);
   const current = useRef({ ...props, updatedAt: 0 });
   useEffect(() => { current.current = { ...props, updatedAt: performance.now() }; }, [props]);
@@ -59,15 +60,18 @@ export function PvpBattleCanvas(props: { fighters: DuelFighter[]; steps: DuelSte
       ctx.textAlign = "center";
       for (let index = 0; index < state.fighters.length; index++) {
         const fighter = state.fighters[index], hp = last?.hp[index] ?? fighter.stats.hp, mp = last?.mp[index] ?? fighter.stats.mp;
+        if ((fighter.spawnAt ?? 0) > Math.max(0, elapsed)) continue;
         if (hp <= 0) continue;
         const direction = fighter.userId === state.hostId ? 1 : -1;
         const attack = steps.findLast((step) => step.actor === index && ["attack", "skill", "counter"].includes(step.kind));
         const age = attack ? elapsed - attack.at : Infinity;
         const swing = age < 0.45 ? Math.sin(Math.max(0, age) / 0.45 * Math.PI) : 0;
         const x = positions[index] + (fighter.stats.range === "melee" ? direction * swing * 14 : 0);
-        const walking = moving[index];
+        const walking = state.playing && moving[index];
         ctx.save(); ctx.translate(x, ground); ctx.scale(1.05, 1.05);
-        drawCharacter(ctx, fighter.weapon, { facing: direction, stride: walking ? Math.sin(time / 190 + index) : 0, swing }); ctx.restore();
+        if (fighter.weapon) drawCharacter(ctx, fighter.weapon, { facing: direction, stride: walking ? Math.sin(elapsed * 1000 / 190 + index) : 0, swing });
+        else if (fighter.enemyType) drawArenaEnemy(ctx, fighter.enemyType, Math.max(0, elapsed), walking, swing, direction);
+        ctx.restore();
         ctx.font = "600 11px system-ui"; ctx.fillStyle = "#17392e"; ctx.fillText(fighter.name, x, ground - 95, 72);
         ctx.fillStyle = "#253b32"; ctx.fillRect(x - 32, ground - 87, 64, 7);
         ctx.fillStyle = direction === 1 ? "#93d579" : "#f18f86"; ctx.fillRect(x - 31, ground - 86, 62 * hp / fighter.stats.hp, 5);
@@ -84,7 +88,7 @@ export function PvpBattleCanvas(props: { fighters: DuelFighter[]; steps: DuelSte
         for (const target of step.targets?.length ? step.targets : [actor]) {
           const converted: BattleStep = { at: step.at, actor: "team", characterId: fighter.id, damage: step.damage, enemyHp: 0, teamHp: step.hp,
             kind: step.kind as BattleStep["kind"], label: step.label, healing: step.healing, critical: step.critical, targetIds: [state.fighters[target]?.id] };
-          drawCombatEffect(ctx, { step: converted, startedAt: step.at, source: positions[actor], target: positions[target], weapon: fighter.weapon,
+          drawCombatEffect(ctx, { step: converted, startedAt: step.at, source: positions[actor], target: positions[target], weapon: fighter.weapon ?? fighter.enemyType ?? "enemy",
             ranged: fighter.stats.range === "range" || isRangedSkill(step.label) }, elapsed - step.at, ground, 1,
             (id) => { const i = state.fighters.findIndex((unit) => unit.id === id); return i < 0 ? undefined : positions[i]; });
         }

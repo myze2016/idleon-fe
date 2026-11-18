@@ -103,8 +103,9 @@ export function CharacterRoster({ characters, onClose, onSelect, selectionLabel 
       }
     }
     window.addEventListener("paper-art-ready", draw);
+    window.addEventListener("info-skin-changed", draw);
     const observer = new ResizeObserver(draw); observer.observe(canvas); draw();
-    return () => { observer.disconnect(); window.removeEventListener("paper-art-ready", draw); };
+    return () => { observer.disconnect(); window.removeEventListener("info-skin-changed", draw); window.removeEventListener("paper-art-ready", draw); };
   }, [characters, focus, page, selectionMode, selectionLabel, inspected, spriteVersion]);
 
   if (inspected) return <CharacterStatsScreen character={inspected} onClose={() => setInspected(null)} />;

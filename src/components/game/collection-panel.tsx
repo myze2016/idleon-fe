@@ -1,7 +1,8 @@
 "use client";
 import { ArtifactIcon } from "./artifact-icon";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type CSSProperties } from "react";
+import effects from "./artifact-effects.module.css";
 import { X } from "lucide-react";
 import { ResponsiveCanvasFrame } from "./responsive-canvas-frame";
 import { useSession } from "@/lib/auth";
@@ -20,6 +21,8 @@ export function CollectionPanel({ title, onClose, characterId }: { title: "Shop"
   const closeRef = useRef<HTMLButtonElement>(null), busy = useRef(false);
   const session = useSession(), state = useCharacter(session.data?.user.id), action = useArtifactAction(session.data?.user.id);
   const [notice, setNotice] = useState("");
+  const [burst, setBurst] = useState<{ id: string; level: number; key: number } | null>(null);
+  const burstTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const gold = state.data?.gold ?? 0;
   const character = state.data?.characters.find((member) => member.id === characterId);
   const items = title === "Shop"
@@ -27,11 +30,22 @@ export function CollectionPanel({ title, onClose, characterId }: { title: "Shop"
     : (state.data?.artifacts ?? []).map((item) => ({ ...artifactDetails(item.stat), ...item }));
 
   useEffect(() => { closeRef.current?.focus({ preventScroll: true }); }, []);
+  useEffect(() => () => { if (burstTimer.current) clearTimeout(burstTimer.current); }, []);
 
   function perform(input: Parameters<typeof action.mutate>[0], success: string) {
     if (busy.current) return;
     busy.current = true; setNotice("");
-    action.mutate(input, { onSuccess: () => setNotice(success), onSettled: () => { busy.current = false; } });
+    action.mutate(input, { onSuccess: (updated) => {
+      setNotice(success);
+      if ("enhanceId" in input) {
+        const artifact = updated.artifacts.find(item => item.id === input.enhanceId);
+        if (artifact) {
+          if (burstTimer.current) clearTimeout(burstTimer.current);
+          setBurst({ id: artifact.id, level: artifact.enhancementLevel, key: performance.now() });
+          burstTimer.current = setTimeout(() => setBurst(null), 1900);
+        }
+      }
+    }, onSettled: () => { busy.current = false; } });
   }
 
   const buttonClass = "menu-action cursor-pointer rounded-lg border border-[#a38358] paper-card bg-[#e4d895] px-4 py-2 text-sm font-semibold text-[#43311f] outline-none focus-visible:ring-2 focus-visible:ring-[#805523] disabled:cursor-not-allowed disabled:opacity-50";
@@ -62,9 +76,12 @@ export function CollectionPanel({ title, onClose, characterId }: { title: "Shop"
         const equipped = !!characterId && item.id === character?.artifactId;
         const owned = state.data?.artifacts.filter((artifact) => artifact.stat === item.stat).length ?? 0;
         const enhancing = action.isPending && action.variables && "enhanceId" in action.variables && action.variables.enhanceId === item.id;
-        return <article key={item.id} data-equipped={equipped} className={`paper-card menu-info bg-[#e9d4a7] p-4 ${equipped ? "border-[#805523]" : "border-[#a38358]"}`}>
+        return <article key={item.id} data-equipped={equipped} className={`paper-card menu-info bg-[#e9d4a7] p-4 ${effects.card} ${burst?.id === item.id ? effects.enhanced : ""} ${equipped ? "border-[#805523]" : "border-[#a38358]"}`}>
           <div className="flex items-center gap-4">
-            <div className="shrink-0 border-2 border-solid border-[#a38358] bg-[#efdfb8] p-2"><ArtifactIcon stat={item.stat} /></div>
+            <div className={`${effects.icon} shrink-0 border-2 border-solid border-[#a38358] bg-[#efdfb8] p-2`}>
+              <div key={burst?.id === item.id ? burst.key : "idle"} className={burst?.id === item.id ? effects.pop : ""}><ArtifactIcon stat={item.stat} /></div>
+              {burst?.id === item.id && <div key={burst.key} className={effects.burst} aria-hidden="true"><span className={effects.seal} />{Array.from({ length: 12 }, (_, index) => <i key={index} className={effects.spark} style={{ "--spark-x": `${Math.cos(index * Math.PI / 6) * 65}px`, "--spark-y": `${Math.sin(index * Math.PI / 6) * 65}px`, animationDelay: `${index % 3 * 40}ms` } as CSSProperties} />)}<span className={effects.level}>Enhance +{burst.level}</span></div>}
+            </div>
             <div className="min-w-0"><h3 className="font-semibold">{item.name}{item.enhancementLevel > 0 && <span style={{ color: enhancementColor(item.enhancementLevel) }}> · Enhance +{item.enhancementLevel}</span>}</h3>
               <p className="mt-1 text-sm" style={{ color: "#70502e" }}>{artifactStatText(item.stat, item.enhancementLevel)}</p>
               <p className="mt-1 text-xs text-[#71583c]">{title === "Shop" ? `Owned: ${owned}` : owner ? `Equipped: ${owner.name}${equipped ? " · Selected" : ""}` : "Not equipped"}</p>
