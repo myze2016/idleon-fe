@@ -1,4 +1,5 @@
 "use client";
+import { tourneySpectatorPlacement } from "./tourney-crowd";
 import { drawRpgButton } from "./rpg-button";
 import { drawMenuInfo } from "./menu-button";
 import { drawMonster } from "./meadow-monsters";
@@ -78,14 +79,12 @@ export function ExpeditionCanvas({ location, team, gold, characterName, characte
     const canvas = canvasRef.current, ctx = canvas?.getContext("2d");
     if (!canvas || !ctx) return;
     const buttonIcons = new Image(); buttonIcons.src = "/ui/adventure-button-icons-v2.png";
-    const meadowArtwork = new Image(); meadowArtwork.src = location === "tourney" ? "/maps/tourney-painted-v1.png" : location === "harbor" ? "/maps/harbor-painted-v1.png" : location === "forest" ? "/maps/forest-painted-v1.png" : "/maps/meadow-painted-v1.png";
+    const meadowArtwork = new Image(); meadowArtwork.src = location === "tourney" ? "/maps/tourney-seated-crowd-v2.png" : location === "harbor" ? "/maps/harbor-painted-v1.png" : location === "forest" ? "/maps/forest-painted-v1.png" : "/maps/meadow-painted-v1.png";
     const forest = location === "forest";
     const harbor = location === "harbor";
     const tourney = location === "tourney";
-    const spectators = new Image();
     const yellowSpectatorArt = new Image();
     if (tourney) {
-      spectators.src = "/sprites/tourney-spectators-front-v2.png";
       yellowSpectatorArt.src = "/sprites/yellow-spectator-front-v2.png";
     }
     const deepsea = location.startsWith("deepsea");
@@ -208,9 +207,9 @@ export function ExpeditionCanvas({ location, team, gold, characterName, characte
     function visibility() { last = 0; }
     document.addEventListener("visibilitychange", visibility);
     function random(seed: number) { const n = Math.sin(seed * 127.1 + 31.7) * 43758.5453; return n - Math.floor(n); }
-    function spectatorPosition(index: number) {
-      // Stable offsets create gaps of 40?88px without shifting between frames.
-      return index * 64 + (random(index + crowdGroup * 137) - 0.5) * 24 - crowdOffset;
+    function specialSpectator() {
+      const aspect = meadowArtwork.naturalWidth > 0 ? meadowArtwork.naturalWidth / meadowArtwork.naturalHeight : 1.5;
+      return tourneySpectatorPlacement(width, height, distance, crowdOffset, aspect);
     }
     function rect(x: number, y: number, w: number, h: number, color: string) {
       ctx!.fillStyle = color; ctx!.fillRect(x, y, w, h);
@@ -262,10 +261,12 @@ export function ExpeditionCanvas({ location, team, gold, characterName, characte
         if (crowdOffset >= width + 40 && !refreshingCrowd && !summonBusy) void nextCrowd();
       }
       if (spectatorButton.current) {
-        const spectatorX = spectatorPosition(Math.floor(width * 0.82 / 64));
-        spectatorButton.current.style.left = `${spectatorX}px`;
-        spectatorButton.current.style.top = `${height * 0.72 - 32}px`;
-        spectatorButton.current.style.visibility = spectatorX < -24 ? "hidden" : "visible";
+        const seat = specialSpectator();
+        spectatorButton.current.style.left = seat.x + "px";
+        spectatorButton.current.style.top = seat.baseline - seat.height / 2 + "px";
+        spectatorButton.current.style.width = Math.max(28, seat.height * 0.7) + "px";
+        spectatorButton.current.style.height = seat.height + "px";
+        spectatorButton.current.style.visibility = seat.x < -24 || seat.x > width + 24 ? "hidden" : "visible";
       }
       if (!spawning && !summonBusy && elapsed >= nextSpawn && !document.hidden && !monsters.some((monster) => monster.data.boss)) void spawn();
       ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
@@ -352,21 +353,31 @@ export function ExpeditionCanvas({ location, team, gold, characterName, characte
         }
       }
       if (tourney) {
-        const feetY = height * 0.72;
-        const yellowX = spectatorPosition(Math.floor(width * 0.82 / 64));
-        for (let column = Math.floor(crowdOffset / 64) - 1; column <= Math.ceil((width + crowdOffset) / 64) + 1; column++) {
-          const sx = spectatorPosition(column);
-          if (spectatorAvailable && column === Math.floor(width * 0.82 / 64)) continue;
-          if (spectators.complete && spectators.naturalWidth > 0) {
-            const cell = spectators.naturalWidth / 4;
-            const variant = Math.floor(random(column + crowdGroup * 137 + 53) * 4);
-            const spriteWidth = 68 * cell / spectators.naturalHeight;
-            ctx.drawImage(spectators, variant * cell, 0, cell, spectators.naturalHeight, sx - spriteWidth / 2, feetY - 68, spriteWidth, 68);
-          }
-        }
+        // Everyone else is painted into the seated audience, not floating sprites.
         if (spectatorAvailable && yellowSpectatorArt.complete && yellowSpectatorArt.naturalWidth > 0) {
-          const spriteWidth = 72 * yellowSpectatorArt.naturalWidth / yellowSpectatorArt.naturalHeight;
-          ctx.drawImage(yellowSpectatorArt, yellowX - spriteWidth / 2, feetY - 68, spriteWidth, 72);
+          const seat = specialSpectator();
+          const sourceWidth = yellowSpectatorArt.naturalWidth * 0.6;
+          const sourceHeight = yellowSpectatorArt.naturalHeight * 0.76;
+          const spriteWidth = seat.height * sourceWidth / sourceHeight;
+          ctx.drawImage(yellowSpectatorArt, yellowSpectatorArt.naturalWidth * 0.2, 0, sourceWidth, sourceHeight,
+            seat.x - spriteWidth / 2, seat.baseline - seat.height, spriteWidth, seat.height);
+        }
+        // Repaint the actual foreground railing from the same scrolling tiles.
+        // This occludes the front row instead of placing people over the fence.
+        if (meadowArtwork.complete && meadowArtwork.naturalWidth > 0) {
+          const sourceTop = meadowArtwork.naturalHeight * 0.595;
+          const horizon = Math.round(meadowArtwork.naturalHeight * 0.75);
+          const tileWidth = Math.max(width, height * meadowArtwork.naturalWidth / meadowArtwork.naturalHeight);
+          const firstTile = Math.floor(distance / tileWidth), offset = distance % tileWidth;
+          const railY = ground * sourceTop / horizon;
+          for (let i = 0; i < 2; i++) {
+            const mirrored = (firstTile + i) % 2 !== 0;
+            ctx.save(); ctx.translate(i * tileWidth - offset + (mirrored ? tileWidth : 0), 0);
+            if (mirrored) ctx.scale(-1, 1);
+            ctx.drawImage(meadowArtwork, 0, sourceTop, meadowArtwork.naturalWidth, horizon - sourceTop,
+              0, railY, tileWidth, ground - railY);
+            ctx.restore();
+          }
         }
       }
       if (harbor && period === "night") {
