@@ -20,13 +20,13 @@ export function WishPaymentPanel({ userId, onClose }: { userId: string; onClose:
     requestKey.current ??= crypto.randomUUID();
     return api<WishPayment>("/payments/wish", { method: "POST", headers: { "Idempotency-Key": requestKey.current } });
   }, onSuccess: (payment) => { setOrder(payment); requestKey.current = null; }, onError: () => { void latest.refetch(); } });
-  const status = useQuery({ queryKey: ["wish-payment", userId, order?.id], queryFn: () => api<WishPayment>(`/payments/wish/${encodeURIComponent(order!.id)}`), enabled: !!order, retry: false,
-    refetchInterval: (query) => { const payment = query.state.data ?? order; return payment && payment.status !== "paid" && new Date(payment.expiresAt).getTime() > Date.now() ? 5000 : false; } });
-  const payment = status.data ?? order, paid = payment?.status === "paid";
+  const activeOrder = order ?? latest.data?.order ?? null;
+  const status = useQuery({ queryKey: ["wish-payment", userId, activeOrder?.id], queryFn: () => api<WishPayment>(`/payments/wish/${encodeURIComponent(activeOrder!.id)}`), enabled: !!activeOrder, retry: false,
+    refetchInterval: (query) => { const payment = query.state.data ?? activeOrder; return payment && payment.status !== "paid" && new Date(payment.expiresAt).getTime() > Date.now() ? 5000 : false; } });
+  const payment = status.data ?? activeOrder, paid = payment?.status === "paid";
   const expired = !!payment && !paid && new Date(payment.expiresAt).getTime() <= now;
   const remaining = payment ? Math.max(0, Math.ceil((new Date(payment.expiresAt).getTime() - now) / 1000)) : 0;
   useEffect(() => { closeRef.current?.focus({ preventScroll: true }); const timer = setInterval(() => setNow(Date.now()), 1000); return () => clearInterval(timer); }, []);
-  useEffect(() => { if (latest.data?.order && !order) setOrder(latest.data.order); }, [latest.data, order]);
   useEffect(() => {
     if (paid && payment && credited.current !== payment.id) {
       credited.current = payment.id;

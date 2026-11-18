@@ -1,8 +1,7 @@
 import type { NextConfig } from "next";
+import { deploymentBackendOrigin } from "./deployment-config.mjs";
 
-const backendUrl = (process.env.BACKEND_URL
-  ?? process.env.NEXT_PUBLIC_API_URL?.replace(/\/api\/?$/, "")
-  ?? "http://localhost:8020").replace(/\/+$/, "");
+const backendUrl = deploymentBackendOrigin();
 
 const nextConfig: NextConfig = {
   allowedDevOrigins: ["172.50.254.22", "172.50.254.29"],

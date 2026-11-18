@@ -13,9 +13,9 @@ export class ApiError extends Error {
 export async function api<T>(path: string, options: RequestInit = {}): Promise<T> {
   let response: Response;
   try {
-    const baseUrl = process.env.NEXT_PUBLIC_API_URL ?? (typeof window === "undefined"
-      ? `${process.env.BACKEND_URL ?? "http://localhost:8020"}/api`
-      : "/api");
+    const baseUrl = typeof window === "undefined"
+      ? `${(process.env.BACKEND_URL ?? "http://localhost:8000").replace(/\/+$/, "")}/api`
+      : (process.env.NEXT_PUBLIC_API_URL || "/api").trim().replace(/\/+$/, "");
     response = await fetch(`${baseUrl}${path}`, {
       ...options,
       credentials: "include",

@@ -1,5 +1,7 @@
 IdleOn workspace frontend built with Next.js, TypeScript, and shadcn/ui.
 
+Vercel setup: [deployment guide](docs/vercel-deployment.md). Add `NEXT_PUBLIC_API_URL=/api` and `BACKEND_URL=https://YOUR-BACKEND.up.railway.app` in Vercel before building. Use the variables in `vercel.env.example`; keep backend secrets in Railway.
+
 TanStack Query manages session requests, login, and logout through `src/lib/auth.ts`.
 Shared character queries and creation mutations are in `src/lib/character-api.ts`.
 The dashboard displays the saved character and links to creation or the game.
@@ -90,9 +92,10 @@ allow 3–30 letters, numbers, or underscores; passwords require at least 8 char
 Successful login opens `/game` directly. New players see character creation drawn
 on the canvas; saved characters enter their room immediately. The name field and keyboard
 controls use native accessible inputs over the canvas. `/dashboard` remains available.
-The API URL defaults to the browser's current hostname on port 8020, allowing LAN
-devices to open `http://<server-PC-private-IPv4>:3020/login`. Set
-`NEXT_PUBLIC_API_URL` in `.env.local` to override it (see `.env.example`).
+Browser API requests default to the frontend's `/api` proxy. For local or LAN
+development, set `BACKEND_URL=http://localhost:8000` and optionally
+`NEXT_PUBLIC_API_URL=/api` in `.env.local` so devices can use the frontend's origin.
+On Vercel, use `/api` with the public Railway HTTPS backend URL as documented above.
 
 PvP in the room opens a two-player lobby: create/join a room, choose 1–6 owned
 characters each, and press Ready. Uneven teams such as 6v1 are allowed. Use room
