@@ -11,14 +11,14 @@ import { weaponDetails, type WeaponType } from "@/lib/character";
 
 export type Stats = { hp: number; mp: number; atk: number; def: number; magic: number; magicDef: number; speed: number; range: string };
 type Skill = { id: string; name: string; description: string; passive: boolean; mpCost: number; hpCost: number; baseCastTime: number; cooldown: number; damage?: { base: number; stat: string }; power?: number; duration?: number; chance?: number; multiplier?: number; bounces?: number };
-export type Config = { stats: Record<string, Stats>; skills: Record<string, Skill>; enemies: Record<string, Stats & Record<string, unknown>> };
+export type Config = { stats: Record<string, Stats>; skills: Record<string, Skill>; enemies: Record<string, Stats & Record<string, unknown>>; rewards: Record<string, { gold: number; experience: number }> };
 export type Catalog = { version: number; config: Config; defaults: Config; weapons: { weapon: string; skills: string[] }[]; monsters: { id: string; name: string; stats: Stats }[]; history: { id: number; note: string; createdAt: string }[] };
 const action = "menu-action min-h-10 px-4 py-2 text-sm disabled:opacity-50";
 const field = "menu-field min-h-10 w-full px-3 py-2 text-sm";
 const labels: Record<string, string> = { hp: "HP", mp: "MP", atk: "Attack", def: "Defense", magic: "Magic", magicDef: "Magic defense", speed: "Speed", mpCost: "MP cost", hpCost: "HP cost", baseCastTime: "Cast time (seconds)", cooldown: "Cooldown (seconds)", power: "Effect amount", duration: "Effect duration (seconds)", chance: "Chance (0–1)", multiplier: "Critical multiplier", bounces: "Extra bounces" };
 
 export function AdminBalanceControls() {
-  const query = useQuery({ queryKey: ["admin", "balance"], queryFn: () => api<Catalog>("/admin/balance"), staleTime: Infinity, refetchOnWindowFocus: false });
+  const query = useQuery({ queryKey: ["admin", "balance", "rewards"], queryFn: () => api<Catalog>("/admin/balance"), staleTime: Infinity, refetchOnWindowFocus: false });
   if (query.isPending) return <p className="mt-6" role="status">Loading balance tools…</p>;
   if (query.error) return <div className="mt-6"><p role="alert">{query.error.message}</p><button className={action} onClick={() => void query.refetch()}>Retry balance tools</button></div>;
   return <BalanceEditor key={query.data.version} catalog={query.data} />;
@@ -38,7 +38,7 @@ function BalanceEditor({ catalog }: { catalog: Catalog }) {
     await Promise.all([client.invalidateQueries({ queryKey: ["admin", "balance"] }), client.invalidateQueries({ queryKey: ["character"] }), client.invalidateQueries({ queryKey: ["character-wiki"] }), client.invalidateQueries({ queryKey: ["enemy-wiki"] }), client.invalidateQueries({ queryKey: ["patch-notes"] })]);
   } });
   const restore = useMutation({ mutationFn: (id: number) => api<{ config: Config }>(`/admin/balance/history/${id}`), onSuccess: data => { setConfig(data.config); setNotice("Revision loaded as a draft. Test it or publish with a change note."); } });
-  const reload = useMutation({ mutationFn: () => api<Catalog>("/admin/balance"), onSuccess: data => { client.setQueryData(["admin", "balance"], data); setConfig(structuredClone(data.config)); setNotice("Published values loaded. Draft changes discarded."); } });
+  const reload = useMutation({ mutationFn: () => api<Catalog>("/admin/balance"), onSuccess: data => { client.setQueryData(["admin", "balance", "rewards"], data); setConfig(structuredClone(data.config)); setNotice("Published values loaded. Draft changes discarded."); } });
   function stat(key: string, value: number) { setConfig(previous => ({ ...previous, stats: { ...previous.stats, [weapon]: { ...previous.stats[weapon], [key]: value } } })); }
   function skill(id: string, key: string, value: number) {
     setConfig(previous => ({ ...previous, skills: { ...previous.skills, [id]: key === "damage" ? { ...previous.skills[id], damage: { ...previous.skills[id].damage!, base: value } } : { ...previous.skills[id], [key]: value } } }));
