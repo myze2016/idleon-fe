@@ -61,7 +61,7 @@ export function PvpPanel({ onClose }: { onClose: () => void }) {
         <p className="text-sm text-[#71583c]">Create a room and share its code, or join another player on this server.</p>
         <div className="flex flex-wrap gap-3"><button type="button" disabled={busy} className={button} onClick={() => action.mutate({ path: "/pvp" })}>Create room</button>
           <form className="flex flex-wrap gap-2" onSubmit={(event) => { event.preventDefault(); action.mutate({ path: `/pvp/${joinCode.trim().toUpperCase()}/join` }); }}>
-            <input aria-label="Room code" placeholder="Room code" maxLength={10} value={joinCode} onChange={(event) => setJoinCode(event.target.value.toUpperCase())} className="w-40 rounded-lg border border-[#a38358] paper-card bg-[#e9d4a7] px-3 py-2 font-mono text-sm outline-none focus-visible:ring-2 focus-visible:ring-[#805523]" />
+            <input aria-label="Room code" placeholder="Room code" maxLength={10} value={joinCode} onChange={(event) => setJoinCode(event.target.value.toUpperCase())} className="menu-field min-h-11 min-w-0 w-40 px-3 py-2 font-mono text-sm outline-none focus-visible:ring-2 focus-visible:ring-[#805523]" />
             <button type="submit" disabled={busy || !/^[A-F0-9]{10}$/.test(joinCode.trim())} className={button}>Join</button>
           </form>
         </div>

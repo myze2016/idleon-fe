@@ -21,7 +21,7 @@ export function DonationPanel({ onClose }: { onClose: () => void }) {
       else if (!event.shiftKey && document.activeElement === controls.at(-1)) { event.preventDefault(); controls[0]?.focus(); }
     }
   }}>
-    <header className="mx-auto max-w-5xl"><h2 id="donation-title" className="flex items-center gap-2 pr-14 text-2xl font-semibold"><Heart size={24} aria-hidden="true" /> Support the game</h2>
+    <header className="menu-info mx-auto max-w-5xl p-5"><h2 id="donation-title" className="flex items-center gap-2 pr-14 text-2xl font-semibold"><Heart size={24} className="shrink-0" aria-hidden="true" /> Support the game</h2>
       <p className="mt-3 max-w-2xl text-sm leading-relaxed text-[#71583c]">Donate any amount to help the game grow. These skins are a thank-you for your support, not fixed-price packages. Everyone earns wishes through gameplay.</p>
       <p className="mt-2 text-sm font-semibold">We sometimes give freebies to supporters.</p><p className="mt-1 text-xs text-[#71583c]">Occasional gifts are a surprise, not a guaranteed reward or a scheduled benefit.</p>
       <p className="mt-2 text-sm">Your tier: <strong>{donationTiers.find((entry) => entry.tier === tier)?.name ?? "Community"}</strong> · {infoBoxSkin(tier).name} skin</p>
@@ -35,7 +35,6 @@ export function DonationPanel({ onClose }: { onClose: () => void }) {
       <p className="text-sm text-[#71583c]">{entry.skin} info boxes throughout your room, battles, and menus.</p>
       {tier === entry.tier && <p className="mt-auto text-sm font-semibold">Currently active</p>}
     </article>)}</div>
-    <div className="menu-info mx-auto mt-5 max-w-5xl p-4 text-sm leading-relaxed"><p className="font-semibold">Any amount helps</p><p className="mt-1 text-[#71583c]">Scan the donation QR and send any amount you’re comfortable with. Then enter the amount sent, your sender GCash number, and transaction reference so the admin can match your support to your account. Donations below ₱10 are welcome too; skins start at the thresholds above.</p><p className="mt-2 text-xs text-[#71583c]">Skins are activated manually after verification. No automatic wish currency, gold, stats, or combat advantages.</p></div>
     </>}
   </div></ResponsiveCanvasFrame>;
 }

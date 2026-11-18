@@ -19,7 +19,6 @@ import { InventoryPanel } from "./inventory-panel";
 import { WikiPanel } from "./wiki-panel";
 import { PvpPanel } from "./pvp-panel";
 import { DonationPanel } from "./donation-panel";
-import { Heart, ScrollText } from "lucide-react";
 import { PatchNotesPanel } from "./patch-notes-panel";
 
 const movementKeys = new Set(["KeyA", "KeyD", "KeyW", "KeyS", "ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown"]);
@@ -81,7 +80,7 @@ export function RoomCanvas({ character, characters, gold, progression }: { chara
       if (!canvas) return;
       width = canvas.clientWidth; height = canvas.clientHeight;
       trail.length = 0;
-      setToolbar(roomToolbarLayout(width));
+      setToolbar(roomToolbarLayout(width, height));
       ratio = Math.min(window.devicePixelRatio || 1, 2);
       canvas.width = Math.round(width * ratio); canvas.height = Math.round(height * ratio);
     }
@@ -207,7 +206,7 @@ export function RoomCanvas({ character, characters, gold, progression }: { chara
         ctx.restore();
       }
       // HUD is rendered in screen coordinates, keeping both corners anchored on resize.
-      const controls = roomToolbarLayout(width);
+      const controls = roomToolbarLayout(width, height);
       const nameWidth = Math.max(70, Math.min(300, width >= 1060 ? controls[0].x - 32 : width - 32));
       drawMenuInfo(ctx, 16, 16, nameWidth, 62);
       text(leader.name, 38, 42, "600 17px system-ui", "#43311f", nameWidth - 44);
@@ -262,8 +261,6 @@ export function RoomCanvas({ character, characters, gold, progression }: { chara
         };
       }
     }}>Your browser needs canvas support to display your room.</canvas>
-    <button type="button" onClick={() => togglePanel("donation")} aria-expanded={activePanel === "donation"} className="absolute bottom-[140px] left-4 flex min-h-9 cursor-pointer items-center gap-2 rounded-md border border-[#805b35] bg-[#51331e] px-3 py-2 text-xs font-semibold text-[#fff0cc] shadow focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ffe2a1]"><Heart size={14} aria-hidden="true" /><span>Support <span className="text-[#f1cf84]">· Any amount</span></span></button>
-    <button type="button" onClick={() => togglePanel("patch-notes")} aria-label="Patch notes" title="Patch notes" aria-expanded={activePanel === "patch-notes"} className="absolute bottom-[140px] left-[212px] flex min-h-9 cursor-pointer items-center gap-2 rounded-md border border-[#805b35] bg-[#51331e] px-3 py-2 text-xs font-semibold text-[#fff0cc] shadow focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ffe2a1]"><ScrollText size={14} aria-hidden="true" /><span className="hidden sm:inline">Patch notes</span></button>
     <p id="room-controls" className="sr-only">Move with WASD or arrow keys, or click or tap the floor to walk. Open Menu to pause. Press Escape to close the menu.</p>
     <p className="sr-only">{character.name}, {weaponDetails(character.weapon).label}. Room location: Id-leon City.</p>
     <p role="status" className="sr-only">Account level {progression.level}. EXP {progression.exp} of {progression.expToNextLevel}. Total EXP {progression.totalExp}. Gold {gold}.</p>

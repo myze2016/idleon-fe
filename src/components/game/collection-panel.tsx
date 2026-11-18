@@ -2,7 +2,6 @@
 import { ArtifactIcon } from "./artifact-icon";
 
 import { useEffect, useRef, useState, type CSSProperties } from "react";
-import effects from "./artifact-effects.module.css";
 import { X } from "lucide-react";
 import { ResponsiveCanvasFrame } from "./responsive-canvas-frame";
 import { useSession } from "@/lib/auth";
@@ -29,7 +28,10 @@ export function CollectionPanel({ title, onClose, characterId }: { title: "Shop"
     ? artifactCatalog.map((item) => ({ ...item, id: item.stat, characterId: null as string | null, enhancementLevel: 0 }))
     : (state.data?.artifacts ?? []).map((item) => ({ ...artifactDetails(item.stat), ...item }));
 
-  useEffect(() => { closeRef.current?.focus({ preventScroll: true }); }, []);
+  useEffect(() => {
+    closeRef.current?.focus({ preventScroll: true });
+    const seal = new Image(); seal.src = "/ui/summon-seal-v1.png";
+  }, []);
   useEffect(() => () => { if (burstTimer.current) clearTimeout(burstTimer.current); }, []);
 
   function perform(input: Parameters<typeof action.mutate>[0], success: string) {
@@ -76,11 +78,12 @@ export function CollectionPanel({ title, onClose, characterId }: { title: "Shop"
         const equipped = !!characterId && item.id === character?.artifactId;
         const owned = state.data?.artifacts.filter((artifact) => artifact.stat === item.stat).length ?? 0;
         const enhancing = action.isPending && action.variables && "enhanceId" in action.variables && action.variables.enhanceId === item.id;
-        return <article key={item.id} data-equipped={equipped} className={`paper-card menu-info bg-[#e9d4a7] p-4 ${effects.card} ${burst?.id === item.id ? effects.enhanced : ""} ${equipped ? "border-[#805523]" : "border-[#a38358]"}`}>
+        return <article key={item.id} data-equipped={equipped} className={`paper-card menu-info artifact-enhance-card bg-[#e9d4a7] p-4 ${equipped ? "border-[#805523]" : "border-[#a38358]"}`}>
+          {burst?.id === item.id && <div key={`glow-${burst.key}`} className="artifact-enhance-enhanced" aria-hidden="true" />}
           <div className="flex items-center gap-4">
-            <div className={`${effects.icon} shrink-0 border-2 border-solid border-[#a38358] bg-[#efdfb8] p-2`}>
-              <div key={burst?.id === item.id ? burst.key : "idle"} className={burst?.id === item.id ? effects.pop : ""}><ArtifactIcon stat={item.stat} /></div>
-              {burst?.id === item.id && <div key={burst.key} className={effects.burst} aria-hidden="true"><span className={effects.seal} />{Array.from({ length: 12 }, (_, index) => <i key={index} className={effects.spark} style={{ "--spark-x": `${Math.cos(index * Math.PI / 6) * 65}px`, "--spark-y": `${Math.sin(index * Math.PI / 6) * 65}px`, animationDelay: `${index % 3 * 40}ms` } as CSSProperties} />)}<span className={effects.level}>Enhance +{burst.level}</span></div>}
+            <div className="artifact-enhance-icon shrink-0 border-2 border-solid border-[#a38358] bg-[#efdfb8] p-2">
+              <div key={burst?.id === item.id ? `icon-${burst.key}` : "icon-idle"} className={burst?.id === item.id ? "artifact-enhance-pop" : ""}><ArtifactIcon stat={item.stat} /></div>
+              {burst?.id === item.id && <div key={`effects-${burst.key}`} className="artifact-enhance-burst" aria-hidden="true"><span className="artifact-enhance-seal" />{Array.from({ length: 12 }, (_, index) => <i key={index} className="artifact-enhance-spark" style={{ "--spark-x": `${Math.cos(index * Math.PI / 6) * 65}px`, "--spark-y": `${Math.sin(index * Math.PI / 6) * 65}px`, animationDelay: `${index % 3 * 40}ms` } as CSSProperties} />)}<span className="artifact-enhance-level">Enhance +{burst.level}</span></div>}
             </div>
             <div className="min-w-0"><h3 className="font-semibold">{item.name}{item.enhancementLevel > 0 && <span style={{ color: enhancementColor(item.enhancementLevel) }}> · Enhance +{item.enhancementLevel}</span>}</h3>
               <p className="mt-1 text-sm" style={{ color: "#70502e" }}>{artifactStatText(item.stat, item.enhancementLevel)}</p>

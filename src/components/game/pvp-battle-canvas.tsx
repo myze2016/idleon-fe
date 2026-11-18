@@ -8,13 +8,15 @@ import type { BattleStep } from "@/lib/encounter";
 import type { ArenaFighter, DuelStep } from "./pvp-types";
 import { drawArenaEnemy } from "./arena-enemies";
 
-export function PvpBattleCanvas(props: { fighters: ArenaFighter[]; steps: DuelStep[]; elapsed: number; playing: boolean; hostId: string }) {
+export function PvpBattleCanvas(props: { fighters: ArenaFighter[]; steps: DuelStep[]; elapsed: number; playing: boolean; hostId: string; fullScreen?: boolean; backgroundSrc?: string }) {
   const ref = useRef<HTMLCanvasElement>(null);
   const current = useRef({ ...props, updatedAt: 0 });
   useEffect(() => { current.current = { ...props, updatedAt: performance.now() }; }, [props]);
   useEffect(() => {
     const canvas = ref.current, ctx = canvas?.getContext("2d");
     if (!canvas || !ctx) return;
+    const background = props.backgroundSrc ? new Image() : null;
+    if (background && props.backgroundSrc) background.src = props.backgroundSrc;
     let frame = 0;
     const width = 1200, height = 420, ground = 310;
     function draw(time: number) {
@@ -43,6 +45,7 @@ export function PvpBattleCanvas(props: { fighters: ArenaFighter[]; steps: DuelSt
       ctx.fillStyle = "#6a8c4d"; ctx.fillRect(0, ground + 8, width, 4);
       ctx.fillStyle = "#74613f";
       for (let i = 0; i < 45; i++) ctx.fillRect(i * 29 % width, ground + 26 + i % 4 * 20, 9, 2);
+      if (background?.complete && background.naturalWidth > 0) ctx.drawImage(background, 0, 0, width, height);
       const steps = state.steps.filter((step) => step.at <= elapsed);
       const last = steps.at(-1);
       const next = state.steps.find((step) => step.at > elapsed);
@@ -100,6 +103,6 @@ export function PvpBattleCanvas(props: { fighters: ArenaFighter[]; steps: DuelSt
       frame = requestAnimationFrame(draw);
     }
     frame = requestAnimationFrame(draw); return () => cancelAnimationFrame(frame);
-  }, []);
-  return <div className="overflow-x-auto rounded-xl border border-[#708360]"><canvas ref={ref} width={1200} height={420} role="img" aria-label="PvP teams start at opposite ends. Ranged units attack from a distance while melee units advance into reach. Health and mana bars appear above every living character." className="block h-auto w-full min-w-[760px]" /></div>;
+  }, [props.backgroundSrc]);
+  return <div className={props.fullScreen ? "h-full w-full bg-[#8b7750]" : "overflow-x-auto rounded-xl border border-[#708360]"}><canvas ref={ref} width={1200} height={420} role="img" aria-label="Teams start at opposite ends. Ranged units attack from a distance while melee units advance into reach. Health and mana bars appear above every living fighter." className={props.fullScreen ? "block h-full w-full object-contain" : "block h-auto w-full min-w-[760px]"} /></div>;
 }

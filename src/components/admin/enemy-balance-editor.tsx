@@ -1,6 +1,7 @@
 "use client";
 import { useState } from "react";
 import type { Catalog, Config } from "./balance-controls";
+import { BalancePicker } from "./balance-picker";
 
 const field = "menu-field mt-1 min-h-10 w-full px-3 py-2 text-sm";
 const labels: Record<string, string> = { hp: "HP", mp: "MP", atk: "Attack", def: "Defense", magic: "Magic", magicDef: "Magic defense", speed: "Speed", blockChance: "Block chance (0–1)", mana: "MP cost", damage: "Damage", cooldown: "Cooldown (seconds)", duration: "Duration (seconds)", skill: "Native skill", burnAll: "Burn all", slashAll: "Slash all", bubbleBeam: "Bubble beam" };
@@ -17,7 +18,7 @@ export function EnemyBalanceEditor({ config, catalog, onChange }: { config: Conf
     onChange({ ...config, enemies: { ...config.enemies, [id]: next } });
   }
   return <section className="menu-info space-y-4 p-4" aria-labelledby="enemy-balance-title"><h4 id="enemy-balance-title" className="font-semibold">Enemy balancing</h4>
-    <label className="block text-xs font-semibold">Enemy<select className={field} value={id} onChange={event => setId(event.target.value)}>{catalog.monsters.map(enemy => <option key={enemy.id} value={enemy.id}>{enemy.name} ({enemy.id})</option>)}</select></label>
+    <BalancePicker label="Enemies" options={catalog.monsters.map(enemy => ({ id: enemy.id, name: `${enemy.name} (${enemy.id})` }))} selected={id} onSelect={setId} />
     <p className="text-xs">Edit base stats and native skill numbers. Publish below to apply changes and generate patch notes. Attack range: {stats.range}.</p>
     <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">{fields(stats).map(({ path, value }) => {
       const key = path.at(-1)!;
