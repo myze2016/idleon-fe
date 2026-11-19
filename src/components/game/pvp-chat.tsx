@@ -1,17 +1,17 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { memo, useEffect, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 
 interface ChatMessage { id: string; userId: string; name: string; body: string; createdAt: string }
 interface ChatHistory { messages: ChatMessage[] }
 
-export function PvpChat({ code, userId, ended }: { code: string; userId: string; ended: boolean }) {
+export const PvpChat = memo(function PvpChat({ code, userId, ended }: { code: string; userId: string; ended: boolean }) {
   const [draft, setDraft] = useState("");
   const scroll = useRef<HTMLDivElement>(null), follow = useRef(true);
   const client = useQueryClient(), key = ["pvp-chat", userId, code];
-  const history = useQuery({ queryKey: key, queryFn: () => api<ChatHistory>(`/pvp/${code}/chat`), retry: false,
+  const history = useQuery({ queryKey: key, queryFn: ({ signal }) => api<ChatHistory>(`/pvp/${code}/chat`, { signal }), retry: false,
     refetchInterval: (query) => ended || query.state.error ? false : 1000 });
   const send = useMutation({ mutationFn: (body: string) => api<ChatHistory>(`/pvp/${code}/chat`, { method: "POST", body: JSON.stringify({ body }) }),
     onSuccess: async (data) => { setDraft(""); follow.current = true; await client.cancelQueries({ queryKey: key }); client.setQueryData(key, data); } });
@@ -37,4 +37,4 @@ export function PvpChat({ code, userId, ended }: { code: string; userId: string;
     </form>
     {error && <p role="alert" className="text-xs text-[#ffbca8]">{error}</p>}
   </section>;
-}
+});

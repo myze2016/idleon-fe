@@ -8,4 +8,5 @@ export interface RoomState {
   code: string; phase: "waiting" | "countdown" | "battle" | "complete" | "canceled" | "closed" | "expired"; serverNow: string; startsAt: string | null;
   players: ({ id: string; name: string; username: string; ready: boolean; selected: boolean; selectedCount: number; characterIds: string[]; fighters: DuelFighter[] } | null)[];
   result: DuelResult | null;
+  resultUnchanged?: boolean;
 }

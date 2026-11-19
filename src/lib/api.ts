@@ -20,9 +20,10 @@ export async function api<T>(path: string, options: RequestInit = {}): Promise<T
       ...options,
       credentials: "include",
       cache: "no-store",
-      headers: { "Content-Type": "application/json", ...options.headers },
+      headers: { ...(options.body ? { "Content-Type": "application/json" } : {}), ...options.headers },
     });
-  } catch {
+  } catch (error) {
+    if (options.signal?.aborted) throw error;
     throw new Error("Cannot reach the server. Make sure the API is running and try again.");
   }
   if (response.status === 204) return undefined as T;

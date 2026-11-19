@@ -18,18 +18,32 @@ export function PvpPanel({ onClose, initialCode = "" }: { onClose: () => void; i
   const [code, setCode] = useState(initialCode), [joinCode, setJoinCode] = useState(""), [now, setNow] = useState(() => Date.now());
   const session = useSession(), userId = session.data?.user.id, roster = useCharacter(userId), client = useQueryClient();
   const lobby = useQuery({ queryKey: ["pvp-lobby", userId], enabled: !!userId && !code, refetchInterval: 1500,
-    queryFn: async () => {
-      const data = await api<{ rooms: { code: string; hostName: string; hostUsername: string; isMine: boolean }[]; activeCode: string | null }>("/pvp");
+    queryFn: async ({ signal }) => {
+      const data = await api<{ rooms: { code: string; hostName: string; hostUsername: string; isMine: boolean }[]; activeCode: string | null }>("/pvp", { signal });
       if (data.activeCode) setCode(data.activeCode);
       return data;
     } });
-  const room = useQuery({ queryKey: ["pvp-room", userId, code], enabled: !!userId && !!code, queryFn: () => api<RoomState>(`/pvp/${code}`), retry: false,
-    refetchInterval: (query) => query.state.error || ["complete", "canceled", "closed", "expired"].includes(query.state.data?.phase ?? "") ? false : 500 });
+  const room = useQuery({ queryKey: ["pvp-room", userId, code], enabled: !!userId && !!code, queryFn: async ({ signal }) => {
+    const previous = client.getQueryData<RoomState>(["pvp-room", userId, code]);
+    const known = previous?.result && previous.startsAt ? previous.startsAt : null;
+    const next = await api<RoomState>(`/pvp/${code}${known ? `?battle=${encodeURIComponent(known)}` : ""}`, { signal });
+    if (next.resultUnchanged && previous?.result && previous.startsAt === next.startsAt) return {
+      ...next, result: previous.result,
+      players: next.players.map((player, index) => player ? { ...player, fighters: previous.players[index]?.id === player.id ? previous.players[index]!.fighters : player.fighters } : null),
+    };
+    return next;
+  }, retry: false,
+    refetchInterval: (query) => query.state.error || ["complete", "canceled", "closed", "expired"].includes(query.state.data?.phase ?? "") ? false : query.state.data?.phase === "battle" && query.state.data.result ? 1500 : 500 });
   const action = useMutation({ mutationFn: (input: { path: string; body?: object }) => api<{ code: string }>(input.path, { method: "POST", ...(input.body ? { body: JSON.stringify(input.body) } : {}) }),
     onSuccess: async (data) => { setCode(data.code); await client.invalidateQueries({ queryKey: ["pvp-room", userId, data.code] }); await client.invalidateQueries({ queryKey: ["pvp-lobby", userId] }); } });
   const leave = useMutation({ mutationFn: () => code ? api(`/pvp/${code}/leave`, { method: "POST" }) : Promise.resolve(),
     onSuccess: async () => { await client.invalidateQueries({ queryKey: ["pvp-lobby", userId] }); onClose(); } });
-  useEffect(() => { closeRef.current?.focus({ preventScroll: true }); const timer = setInterval(() => setNow(Date.now()), 100); return () => clearInterval(timer); }, []);
+  useEffect(() => { closeRef.current?.focus({ preventScroll: true }); }, []);
+  useEffect(() => {
+    if (!room.data?.startsAt || !["countdown", "battle"].includes(room.data.phase)) return;
+    const timer = setInterval(() => setNow(Date.now()), 100);
+    return () => clearInterval(timer);
+  }, [room.data?.startsAt, room.data?.phase]);
   const data = room.data, me = data?.players.find((player) => player?.id === userId);
   const selected = me?.characterIds ?? [];
   const serverTime = data ? Date.parse(data.serverNow) + Math.max(0, now - room.dataUpdatedAt) : now;

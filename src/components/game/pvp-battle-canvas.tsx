@@ -7,6 +7,7 @@ import { isRangedSkill } from "@/lib/skill-range";
 import type { BattleStep } from "@/lib/encounter";
 import type { ArenaFighter, DuelStep } from "./pvp-types";
 import { drawArenaEnemy } from "./arena-enemies";
+import { eventCursor, indexDuelActions, latestDuelAction } from "@/lib/duel-playback";
 
 export function PvpBattleCanvas(props: { fighters: ArenaFighter[]; steps: DuelStep[]; elapsed: number; playing: boolean; hostId: string; fullScreen?: boolean; backgroundSrc?: string; adventure?: boolean; arena?: boolean; distance?: number }) {
   const ref = useRef<HTMLCanvasElement>(null);
@@ -15,9 +16,11 @@ export function PvpBattleCanvas(props: { fighters: ArenaFighter[]; steps: DuelSt
   useEffect(() => {
     const canvas = ref.current, ctx = canvas?.getContext("2d");
     if (!canvas || !ctx) return;
-    const background = props.backgroundSrc ? new Image() : null;
+    const background = props.backgroundSrc && !props.arena ? new Image() : null;
     if (background && props.backgroundSrc) background.src = props.backgroundSrc;
     let frame = 0;
+    let indexedSteps: DuelStep[] | null = null;
+    let playbackIndex = indexDuelActions([]);
     function draw(time: number) {
       if (!ctx || !canvas) return;
       const state = current.current;
@@ -29,6 +32,8 @@ export function PvpBattleCanvas(props: { fighters: ArenaFighter[]; steps: DuelSt
       const ratio = Math.min(window.devicePixelRatio || 1, 2);
       if (canvas.width !== Math.round(width * ratio) || canvas.height !== Math.round(height * ratio)) { canvas.width = Math.round(width * ratio); canvas.height = Math.round(height * ratio); }
       ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
+      ctx.clearRect(0, 0, width, height);
+      if (!state.arena || !state.backgroundSrc) {
       const sky = ctx.createLinearGradient(0, 0, 0, ground);
       sky.addColorStop(0, "#a8d5d2"); sky.addColorStop(1, "#f0ebbb");
       ctx.fillStyle = sky; ctx.fillRect(0, 0, width, height);
@@ -71,9 +76,11 @@ export function PvpBattleCanvas(props: { fighters: ArenaFighter[]; steps: DuelSt
           ctx.drawImage(background, (width - artWidth) / 2, (height - artHeight) / 2, artWidth, artHeight);
         } else ctx.drawImage(background, 0, 0, width, height);
       }
-      const steps = state.steps.filter((step) => step.at <= elapsed);
-      const last = steps.at(-1);
-      const next = state.steps.find((step) => step.at > elapsed);
+      }
+      if (indexedSteps !== state.steps) { indexedSteps = state.steps; playbackIndex = indexDuelActions(state.steps); }
+      const cursor = eventCursor(state.steps, elapsed);
+      const last = state.steps[cursor - 1];
+      const next = state.steps[cursor];
       const blend = next ? Math.max(0, Math.min(1, (elapsed - (last?.at ?? 0)) / Math.max(0.001, next.at - (last?.at ?? 0)))) : 0;
       const moving: boolean[] = [];
       const positions = state.fighters.map((fighter, index) => {
@@ -94,7 +101,7 @@ export function PvpBattleCanvas(props: { fighters: ArenaFighter[]; steps: DuelSt
         if ((fighter.spawnAt ?? 0) > Math.max(0, elapsed)) continue;
         if (hp <= 0) continue;
         const direction = fighter.userId === state.hostId ? 1 : -1;
-        const attack = steps.findLast((step) => step.actor === index && ["attack", "skill", "counter"].includes(step.kind));
+        const attack = latestDuelAction(playbackIndex.attacks.get(index), elapsed);
         const age = attack ? elapsed - attack.at : Infinity;
         const swing = age < 0.45 ? Math.sin(Math.max(0, age) / 0.45 * Math.PI) : 0;
         const x = positions[index] + (fighter.stats.range === "melee" ? direction * swing * 14 : 0);
@@ -110,10 +117,12 @@ export function PvpBattleCanvas(props: { fighters: ArenaFighter[]; steps: DuelSt
         ctx.fillStyle = "#73bdf0"; ctx.fillRect(x - 31, ground - 76, fighter.stats.mp ? 62 * mp / fighter.stats.mp : 0, 2);
         ctx.fillStyle = "#f4f0d2"; ctx.fillText(`${hp}/${fighter.stats.hp}`, x, ground + 29);
         ctx.fillStyle = "#b9ddf0"; ctx.fillText(`${mp} MP`, x, ground + 44);
-        const cast = steps.findLast((step) => step.actor === index && !["mana", "move"].includes(step.kind));
+        const cast = latestDuelAction(playbackIndex.actions.get(index), elapsed);
         if (cast?.kind === "cast" && elapsed - cast.at < 5) { ctx.fillStyle = "#3d4586"; ctx.fillText(cast.label.replace("Casting ", ""), x, ground - 108, 76); }
       }
-      for (const step of steps.filter((entry) => !["mana", "move"].includes(entry.kind) && elapsed - entry.at < 0.9)) {
+      for (let event = eventCursor(state.steps, elapsed - 0.9); event < cursor; event++) {
+        const step = state.steps[event];
+        if (["mana", "move"].includes(step.kind)) continue;
         const actor = step.actor ?? step.side, fighter = state.fighters[actor];
         if (!fighter) continue;
         for (const target of step.targets?.length ? step.targets : [actor]) {
@@ -134,6 +143,6 @@ export function PvpBattleCanvas(props: { fighters: ArenaFighter[]; steps: DuelSt
       frame = requestAnimationFrame(draw);
     }
     frame = requestAnimationFrame(draw); return () => cancelAnimationFrame(frame);
-  }, [props.backgroundSrc]);
-  return <div className={props.fullScreen ? "h-full w-full bg-[#8b7750]" : "overflow-x-auto rounded-xl border border-[#708360]"}><canvas ref={ref} width={1200} height={420} role="img" aria-label={props.adventure ? "Endless adventure battlefield. Your team advances through a scrolling meadow as enemies continuously approach from the right." : "Teams start at opposite ends. Ranged units attack from a distance while melee units advance into reach. Health and mana bars appear above every living fighter."} className={props.fullScreen ? `block h-full w-full ${props.adventure || props.arena ? "" : "object-contain"}` : "block h-auto w-full min-w-[760px]"} /></div>;
+  }, [props.backgroundSrc, props.arena]);
+  return <div style={props.arena && props.backgroundSrc ? { backgroundImage: `url('${props.backgroundSrc}')`, backgroundSize: "cover", backgroundPosition: "center" } : undefined} className={props.fullScreen ? "h-full w-full bg-[#8b7750]" : "overflow-x-auto rounded-xl border border-[#708360]"}><canvas ref={ref} width={1200} height={420} role="img" aria-label={props.adventure ? "Endless adventure battlefield. Your team advances through a scrolling meadow as enemies continuously approach from the right." : "Teams start at opposite ends. Ranged units attack from a distance while melee units advance into reach. Health and mana bars appear above every living fighter."} className={props.fullScreen ? `block h-full w-full ${props.adventure || props.arena ? "" : "object-contain"}` : "block h-auto w-full min-w-[760px]"} /></div>;
 }

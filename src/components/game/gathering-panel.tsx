@@ -30,7 +30,7 @@ export function GatheringPanel({ onClose }: { onClose: () => void }) {
   const chatEnd = useRef<HTMLDivElement>(null);
   const closeButton = useRef<HTMLButtonElement>(null);
   const lobby = useQuery({ queryKey: ["gathering-lobby", userId], enabled: !!userId && (!membership || choosingRoom), refetchInterval: 5000,
-    queryFn: () => api<{ capacity: number; rooms: { id: number; capacity: number; players: number }[] }>("/gathering") });
+    queryFn: ({ signal }) => api<{ capacity: number; rooms: { id: number; capacity: number; players: number }[] }>("/gathering", { signal }) });
   const join = useMutation({ mutationFn: (body: { roomId?: number; create?: boolean; firstAvailable?: boolean }) => api<GatheringMembership>("/gathering/join", { method: "POST", body: JSON.stringify(body) }),
     onSuccess: data => { membershipRef.current = data; position.current = { x: data.x, y: data.y }; setMembership(data); setChoosingRoom(false); setSelected(""); setNotice(""); setDraft(""); action.reset(); } });
   const enter = join.mutate;
@@ -39,12 +39,12 @@ export function GatheringPanel({ onClose }: { onClose: () => void }) {
     initialJoinRequested.current = true;
     enter({ firstAvailable: true });
   }, [userId, enter]);
-  const room = useQuery({ queryKey: ["gathering-room", userId, membership?.token], enabled: !!membership && !!userId,
-    retry: false, refetchInterval: query => query.state.error instanceof ApiError && [401, 409].includes(query.state.error.status) ? false : 1000, refetchOnWindowFocus: true,
-    queryFn: async () => {
+  const room = useQuery<GatheringState>({ queryKey: ["gathering-room", userId, membership?.token], enabled: !!membership && !!userId,
+    retry: false, refetchInterval: query => query.state.error instanceof ApiError && [401, 409].includes(query.state.error.status) ? false : pvpCode ? 10000 : 1000, refetchOnWindowFocus: true,
+    queryFn: async ({ signal }) => {
       const current = membershipRef.current;
       if (!current) throw new Error("Join a gathering room first");
-      const data = await api<GatheringState>(`/gathering/${current.roomId}/presence`, { method: "POST", body: JSON.stringify({ token: current.token, ...position.current }) });
+      const data = await api<GatheringState>(`/gathering/${current.roomId}/presence`, { method: "POST", signal, body: JSON.stringify({ token: current.token, ...position.current }) });
       if (data.pvpCode && consumedDuel.current !== data.pvpCode) { consumedDuel.current = data.pvpCode; setPvpCode(data.pvpCode); }
       return data;
     } });
@@ -114,7 +114,7 @@ export function GatheringPanel({ onClose }: { onClose: () => void }) {
           {challenge.toId === userId ? <><span><Swords className="mr-1 inline" size={16} />{data.players.find(player => player.id === challenge.fromId)?.username ?? "An adventurer"} invites you to PvP.</span><div className="flex gap-2"><button className={button} disabled={action.isPending} onClick={() => action.mutate({ path: `challenge/${challenge.id}/answer`, body: { accept: true } })}>Accept</button><button className={button} disabled={action.isPending} onClick={() => action.mutate({ path: `challenge/${challenge.id}/answer`, body: { accept: false } })}>Decline</button></div></> : <span>Waiting for {data.players.find(player => player.id === challenge.toId)?.username ?? "the other player"} to answer your PvP invitation…</span>}
         </div>)}
         <div className="relative flex min-h-0 flex-1">
-          <GatheringScene data={data} userId={userId!} position={position} selected={selected} onSelect={id => { setSelected(id); if (id && id !== userId) { setTab("players"); setChatOpen(true); } }} />
+          <GatheringScene data={data} userId={userId!} position={position} selected={selected} paused={!!pvpCode} onSelect={id => { setSelected(id); if (id && id !== userId) { setTab("players"); setChatOpen(true); } }} />
           {chatOpen && <aside id="gathering-sidebar" className="absolute inset-y-0 right-0 z-[150] flex w-80 max-w-[calc(100%_-_3rem)] min-h-0 shrink-0 flex-col border-l-2 border-[#a38358] bg-[#efdfb8] shadow-[-8px_0_24px_#24180e33] md:static md:max-w-none" aria-label="Gathering chat and players">
             <div className="flex shrink-0 items-center gap-2 border-b border-[#a3835866] p-2"><button className={button} aria-pressed={tab === "chat"} onClick={() => setTab("chat")}><MessageCircle size={16} />Chat</button><button className={button} aria-pressed={tab === "players"} onClick={() => setTab("players")}><Users size={16} />Players ({data.players.length})</button><button type="button" className={button + " ml-auto"} aria-label="Collapse chat panel" onClick={() => { setChatOpen(false); chatToggle.current?.focus({ preventScroll: true }); }}><ChevronRight size={18} /></button></div>
             {tab === "chat" ? <>
