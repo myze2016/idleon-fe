@@ -20,6 +20,8 @@ import { WishScreen } from "./wish-screen";
 import { CollectionPanel } from "./collection-panel";
 import { InventoryPanel } from "./inventory-panel";
 import { WikiPanel } from "./wiki-panel";
+import { EndlessPanel } from "./endless-panel";
+import { GatheringPanel } from "./gathering-panel";
 import { PvpPanel } from "./pvp-panel";
 import { DonationPanel } from "./donation-panel";
 import { PatchNotesPanel } from "./patch-notes-panel";
@@ -52,7 +54,7 @@ export function RoomCanvas({ character, characters, gold, wishCurrency, progress
     if (!store.getState().isPaused) canvasRef.current?.focus({ preventScroll: true });
   }
 
-  function togglePanel(panel: "character" | "wish" | "team" | "shop" | "artifacts" | "inventory" | "wiki" | "pvp" | "donation" | "patch-notes") {
+  function togglePanel(panel: "character" | "wish" | "team" | "shop" | "artifacts" | "inventory" | "wiki" | "pvp" | "donation" | "patch-notes" | "gathering" | "endless") {
     input.current.clear(); destination.current = null;
     store.getState().togglePanel(panel);
     if (!store.getState().activePanel) canvasRef.current?.focus({ preventScroll: true });
@@ -71,10 +73,10 @@ export function RoomCanvas({ character, characters, gold, wishCurrency, progress
     if (!canvas || !ctx) return;
 
     const buttonIcons = new Image();
-    buttonIcons.src = "/ui/adventure-button-icons-v2.png";
+    buttonIcons.src = "/optimized/ui/adventure-button-icons-v2.c022326897c4.webp";
     const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
     const roomArtwork = new Image();
-    roomArtwork.src = "/room/cozy-cabin-v5.png";
+    roomArtwork.src = "/optimized/room/cozy-cabin-v5.340078ed8788.webp";
 
     const player = { x: 0.5, y: 0.7, facing: 1 };
     let width = 0, height = 0, ratio = 1, last = 0, frame = 0;
@@ -212,7 +214,7 @@ export function RoomCanvas({ character, characters, gold, wishCurrency, progress
       }
       // Keep currencies beside the character information, before the toolbar.
       const controls = roomToolbarLayout(width, height);
-      const infoWidth = width >= 1560 ? controls[0].x - 32 : width - 32;
+      const infoWidth = controls[0].y === 16 ? controls[0].x - 32 : width - 32;
       const nameWidth = Math.min(260, Math.max(104, infoWidth * .4));
       const badgeWidth = Math.min(180, (infoWidth - nameWidth - 24) / 2);
       drawMenuInfo(ctx, 16, 16, nameWidth, 62);
@@ -261,7 +263,7 @@ export function RoomCanvas({ character, characters, gold, wishCurrency, progress
     };
   }, [character, store]);
 
-  return <ResponsiveCanvasFrame overlay={false} minHeight={560} narrowMinHeight={600}><div className="relative h-full w-full overflow-hidden bg-[#59432f]">
+  return <ResponsiveCanvasFrame fit overlay={false} minHeight={560} narrowMinHeight={600}><div className="relative h-full w-full overflow-hidden bg-[#59432f]">
     <div inert={menuOpen || mapOpen || activePanel !== null} className="h-full w-full">
     <canvas ref={canvasRef} tabIndex={0} aria-label={`${character.name}'s room`} aria-describedby="room-controls" className="block h-full w-full touch-none outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[#d6aa4e]" onPointerDown={(event) => {
       if (store.getState().isPaused || store.getState().isMapOpen || store.getState().activePanel) return;
@@ -290,6 +292,8 @@ export function RoomCanvas({ character, characters, gold, wishCurrency, progress
     {menuOpen && <RoomMenu onClose={() => roomAction("start")} />}
     {activePanel === "character" && <CharacterRoster characters={characters} onClose={() => roomAction("start")} />}
     {activePanel === "team" && <TeamScreen characters={characters} onClose={() => roomAction("start")} />}
+    {activePanel === "endless" && <EndlessPanel onClose={() => roomAction("start")} />}
+    {activePanel === "gathering" && <GatheringPanel onClose={() => roomAction("start")} />}
     {activePanel === "pvp" && <PvpPanel onClose={() => roomAction("start")} />}
     {activePanel === "wiki" && <WikiPanel onClose={() => roomAction("start")} />}
     {activePanel === "inventory" && <InventoryPanel onClose={() => roomAction("start")} />}

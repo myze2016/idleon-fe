@@ -3,7 +3,7 @@ function artwork() {
   if (!paperArt && typeof Image !== "undefined") {
     paperArt = new Image();
     paperArt.onload = () => window.dispatchEvent(new Event("paper-art-ready"));
-    paperArt.src = "/ui/parchment-panel-v1.png";
+    paperArt.src = "/optimized/ui/parchment-panel-v1.8631202f66cb.webp";
   }
   return paperArt;
 }

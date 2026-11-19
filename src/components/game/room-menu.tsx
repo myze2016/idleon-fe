@@ -40,12 +40,18 @@ export function RoomMenu({ onClose }: { onClose: () => void }) {
       box(left + panelWidth - 56, top + 14, 40, 40, "#ddc292", focus === "close" ? "#fff0b8" : "#a38358");
       ctx.strokeStyle = "#fff0cc"; ctx.beginPath(); ctx.moveTo(left + panelWidth - 42, top + 28); ctx.lineTo(left + panelWidth - 30, top + 40); ctx.moveTo(left + panelWidth - 30, top + 28); ctx.lineTo(left + panelWidth - 42, top + 40); ctx.stroke();
       box(left + 20, top + 78, panelWidth - 40, 50, "#ddc292", focus === "dashboard" ? "#fff0b8" : "#a38358");
-      box(left + 20, top + 142, panelWidth - 40, 50, "#d8ae95", focus === "delete" ? "#fff0b8" : "#b47b63");
+      const danger = ctx.createLinearGradient(0, top + 142, 0, top + 192);
+      danger.addColorStop(0, "#b94436"); danger.addColorStop(1, "#76251f");
+      ctx.beginPath(); ctx.roundRect(left + 20, top + 142, panelWidth - 40, 50, 6);
+      ctx.fillStyle = danger; ctx.fill();
+      ctx.strokeStyle = focus === "delete" ? "#ffe2a1" : "#641d18"; ctx.lineWidth = focus === "delete" ? 3 : 2; ctx.stroke();
+      ctx.beginPath(); ctx.roundRect(left + 24, top + 146, panelWidth - 48, 42, 3);
+      ctx.strokeStyle = "#f1a18b88"; ctx.lineWidth = 1; ctx.stroke();
       ctx.textAlign = "center";
       text("Dashboard", width / 2, top + 109, "600 15px system-ui", "#fff0cc");
       text(remove.isPending ? "Deleting..." : "Delete account", width / 2, top + 173, "600 15px system-ui", "#fff0cc");
-      text("Removes your character.", width / 2, top + 221, "12px system-ui", "#71583c");
-      text("Choose a new character afterward.", width / 2, top + 241, "12px system-ui", "#71583c");
+      text("Warning: permanently resets your progress.", width / 2, top + 221, "600 12px system-ui", "#a13725", panelWidth - 40);
+      text("Your sign-in account is kept. Cannot be undone.", width / 2, top + 241, "12px system-ui", "#a13725", panelWidth - 40);
       ctx.textAlign = "left";
       if (error) text(error, left + 20, top + 278, "12px system-ui", "#a13725", panelWidth - 40);
     }
@@ -66,9 +72,11 @@ export function RoomMenu({ onClose }: { onClose: () => void }) {
     <canvas ref={canvasRef} aria-hidden="true" className="absolute inset-0 h-full w-full" />
     <div className="absolute top-1/2 left-1/2 h-[300px] w-[min(360px,calc(100%-32px))] -translate-x-1/2 -translate-y-1/2">
       <button ref={closeRef} type="button" aria-label="Close menu" disabled={remove.isPending} onClick={onClose} onFocus={() => setFocus("close")} onBlur={() => setFocus("")} className="absolute top-[14px] right-4 size-10 cursor-pointer rounded-xl outline-none"><span className="sr-only">Close menu</span></button>
-      <Link href="/dashboard" onFocus={() => setFocus("dashboard")} onBlur={() => setFocus("")} className="absolute top-[78px] right-5 left-5 h-[50px] rounded-xl outline-none"><span className="sr-only">Dashboard</span></Link>
-      <button type="button" disabled={remove.isPending || !session.data} onClick={() => remove.mutate()} onFocus={() => setFocus("delete")} onBlur={() => setFocus("")} className="absolute top-[142px] right-5 left-5 h-[50px] cursor-pointer rounded-xl outline-none disabled:cursor-wait"><span className="sr-only">{remove.isPending ? "Deleting character" : "Delete account"}</span></button>
-      <p className="sr-only">Removes your character and returns to character creation. Your sign-in is kept.</p>
+      <Link href="/dashboard" onNavigate={onClose} onFocus={() => setFocus("dashboard")} onBlur={() => setFocus("")} className="absolute top-[78px] right-5 left-5 h-[50px] rounded-xl outline-none"><span className="sr-only">Dashboard</span></Link>
+      <button type="button" aria-describedby="delete-account-warning" disabled={remove.isPending || !session.data} onClick={() => {
+        if (window.confirm("Warning: this permanently deletes your characters and resets your progress, artifacts, gold, and wishes. Your sign-in account is kept. This cannot be undone.\n\nDelete your progress?")) remove.mutate();
+      }} onFocus={() => setFocus("delete")} onBlur={() => setFocus("")} className="absolute top-[142px] right-5 left-5 h-[50px] cursor-pointer rounded-xl outline-none disabled:cursor-wait"><span className="sr-only">{remove.isPending ? "Deleting character" : "Delete account"}</span></button>
+      <p id="delete-account-warning" className="sr-only">Warning: permanently resets your characters and progress. Your sign-in account is kept. This cannot be undone.</p>
       {error && <p role="alert" className="sr-only">{error}</p>}
     </div>
   </div></ResponsiveCanvasFrame>;

@@ -11,6 +11,8 @@ const modules = [
   { href: "/dashboard/admin/gold", label: "Gold", description: "Add by account or donation tier", icon: Coins },
   { href: "/dashboard/admin/levels", label: "Account levels", description: "Add by account or donation tier", icon: TrendingUp },
   { href: "/dashboard/admin/balance", label: "Balance", description: "Characters, enemies and battle lab", icon: SlidersHorizontal },
+  { href: "/dashboard/admin/economy", label: "Economy", description: "EXP per level, upgrade costs and gains", icon: Coins },
+  { href: "/dashboard/admin/endless", label: "Endless", description: "Enemy pool and wave difficulty", icon: TrendingUp },
   { href: "/dashboard/admin/support", label: "Support", description: "Donation QR and submissions", icon: HeartHandshake },
 ];
 export function AdminNavigation({ username }: { username: string }) {

@@ -7,6 +7,7 @@ import { X } from "lucide-react";
 import { ResponsiveCanvasFrame } from "./responsive-canvas-frame";
 import { useSession } from "@/lib/auth";
 import { useArtifactAction, useCharacter } from "@/lib/character-api";
+import { upgradeStep } from "@/lib/economy";
 import { artifactCatalog, artifactDetails, artifactBonus, artifactStatText } from "@/lib/artifact";
 
 function enhancementColor(level: number) {
@@ -24,6 +25,7 @@ export function CollectionPanel({ title, onClose, characterId }: { title: "Shop"
   const [burst, setBurst] = useState<{ id: string; level: number; key: number } | null>(null);
   const burstTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const gold = state.data?.gold ?? 0;
+  const economy = state.data?.economy;
   const character = state.data?.characters.find((member) => member.id === characterId);
   const items = title === "Shop"
     ? artifactCatalog.map((item) => ({ ...item, id: item.stat, characterId: null as string | null, enhancementLevel: 0 }))
@@ -31,7 +33,7 @@ export function CollectionPanel({ title, onClose, characterId }: { title: "Shop"
 
   useEffect(() => {
     closeRef.current?.focus({ preventScroll: true });
-    const seal = new Image(); seal.src = "/ui/summon-seal-v1.png";
+    const seal = new Image(); seal.src = "/optimized/ui/summon-seal-v1.e9dffcda0c77.webp";
   }, []);
   useEffect(() => () => { if (burstTimer.current) clearTimeout(burstTimer.current); }, []);
 
@@ -68,7 +70,7 @@ export function CollectionPanel({ title, onClose, characterId }: { title: "Shop"
           <button ref={closeRef} type="button" aria-label={`Close ${title}`} onClick={onClose} className="grid size-12 shrink-0 menu-action cursor-pointer place-items-center rounded-xl border border-[#4e301b] bg-[#51331e] text-[#fff0cc] outline-none focus-visible:ring-2 focus-visible:ring-[#805523]"><X size={20} /></button>
         </div>
       </div>
-      <p className="mt-2 text-sm text-[#71583c]">{title === "Shop" ? "Artifacts cost 500 gold" : "Enhance for 1,000 gold · +2 main stat per level"}</p>
+      <p className="mt-2 text-sm text-[#71583c]">{title === "Shop" ? "Artifact prices are listed below" : "Upgrade costs and stat gains are listed below"}</p>
       {characterId && <p className="mt-1 text-xs text-[#71583c]">One equipped artifact per character.</p>}
       <p role={action.error ? "alert" : "status"} className={`mt-2 min-h-5 text-sm ${action.error ? "text-[#a13725]" : "text-[#805523]"}`}>{action.error?.message ?? (action.isPending ? "Saving…" : notice)}</p>
     </header>
@@ -80,6 +82,7 @@ export function CollectionPanel({ title, onClose, characterId }: { title: "Shop"
         <button type="button" className={buttonClass} disabled={action.isPending || !character?.artifactId} onClick={() => perform({ characterId, artifactId: null }, "Artifact unequipped.")}>Unequip</button>
       </div>}
       {items.map((item) => {
+        const itemCost = title === "Shop" ? economy?.shopPrices[item.stat] ?? 500 : (economy ? upgradeStep(economy.artifactEnhancements, item.enhancementLevel).cost : 1000);
         const owner = state.data?.characters.find((member) => member.id === item.characterId);
         const equipped = !!characterId && item.id === character?.artifactId;
         const owned = state.data?.artifacts.filter((artifact) => artifact.stat === item.stat).length ?? 0;
@@ -92,18 +95,18 @@ export function CollectionPanel({ title, onClose, characterId }: { title: "Shop"
               {burst?.id === item.id && <div key={`effects-${burst.key}`} className="artifact-enhance-burst" aria-hidden="true"><span className="artifact-enhance-seal" />{Array.from({ length: 12 }, (_, index) => <i key={index} className="artifact-enhance-spark" style={{ "--spark-x": `${Math.cos(index * Math.PI / 6) * 65}px`, "--spark-y": `${Math.sin(index * Math.PI / 6) * 65}px`, animationDelay: `${index % 3 * 40}ms` } as CSSProperties} />)}<span className="artifact-enhance-level">Enhance +{burst.level}</span></div>}
             </div>
             <div className="min-w-0"><h3 className="font-semibold">{item.name}{item.enhancementLevel > 0 && <span style={{ color: enhancementColor(item.enhancementLevel) }}> · Enhance +{item.enhancementLevel}</span>}</h3>
-              <p className="mt-1 text-sm" style={{ color: "#70502e" }}>{artifactStatText(item.stat, item.enhancementLevel)}</p>
+              <p className="mt-1 text-sm" style={{ color: "#70502e" }}>{artifactStatText(item.stat, item.enhancementLevel, economy?.artifactEnhancements)}</p>
               <p className="mt-1 text-xs text-[#71583c]">{title === "Shop" ? `Owned: ${owned}` : owner ? `Equipped: ${owner.name}${equipped ? " · Selected" : ""}` : "Not equipped"}</p>
             </div>
           </div>
           <div className="mt-4 flex flex-wrap items-center gap-3">
-            {title === "Shop" ? <button type="button" className={buttonClass} disabled={action.isPending || gold < 500} onClick={() => perform({ stat: item.stat }, `${item.name} purchased.`)} aria-label={`Buy ${item.name} for 500 gold`}>Buy · 500 gold</button> : <>
+            {title === "Shop" ? <button type="button" className={buttonClass} disabled={action.isPending || gold < itemCost} onClick={() => perform({ stat: item.stat }, `${item.name} purchased.`)} aria-label={`Buy ${item.name} for ${itemCost.toLocaleString()} gold`}>Buy · {itemCost.toLocaleString()} gold</button> : <>
               {characterId && <button type="button" className={buttonClass} disabled={action.isPending || equipped || (!!item.characterId && item.characterId !== characterId)} onClick={() => perform({ characterId, artifactId: item.id }, "Artifact equipment saved.")} aria-label={`Equip ${item.name}`}>{equipped ? "Equipped" : "Equip"}</button>}
-              <button type="button" className={buttonClass} disabled={action.isPending || gold < 1000} onClick={() => perform({ enhanceId: item.id }, `${item.name} enhanced! +${artifactBonus(item.enhancementLevel + 1)} ${item.label}.`)} aria-label={`Enhance ${item.name} for 1,000 gold`}>{enhancing ? "Enhancing…" : "Enhance · 1,000 gold"}</button>
-              <span className="text-xs text-[#71583c]">Next: {artifactStatText(item.stat, item.enhancementLevel + 1)}</span>
+              <button type="button" className={buttonClass} disabled={action.isPending || gold < itemCost} onClick={() => perform({ enhanceId: item.id }, `${item.name} enhanced! +${artifactBonus(item.enhancementLevel + 1, economy?.artifactEnhancements)} ${item.label}.`)} aria-label={`Enhance ${item.name} for ${itemCost.toLocaleString()} gold`}>{enhancing ? "Enhancing…" : `Enhance · ${itemCost.toLocaleString()} gold`}</button>
+              <span className="text-xs text-[#71583c]">Next: {artifactStatText(item.stat, item.enhancementLevel + 1, economy?.artifactEnhancements)}</span>
             </>}
           </div>
-          {gold < (title === "Shop" ? 500 : 1000) && <p className="mt-2 text-xs text-[#805523]">Need {((title === "Shop" ? 500 : 1000) - gold).toLocaleString()} more gold to {title === "Shop" ? "buy" : "enhance"}.</p>}
+          {gold < itemCost && <p className="mt-2 text-xs text-[#805523]">Need {(itemCost - gold).toLocaleString()} more gold to {title === "Shop" ? "buy" : "enhance"}.</p>}
         </article>;
       })}
       {!state.isPending && !state.isError && !items.length && <p className="text-[#71583c]">No artifacts yet. Visit the Shop to buy one.</p>}

@@ -1,0 +1,97 @@
+"use client";
+import { useEffect, useRef, type MutableRefObject } from "react";
+import { drawCharacter } from "./character-design";
+import type { GatheringState } from "./gathering-types";
+
+interface Position { x: number; y: number }
+export function GatheringScene({ data, userId, position, selected, onSelect }: {
+  data: GatheringState; userId: string; position: MutableRefObject<Position>;
+  selected: string; onSelect: (id: string) => void;
+}) {
+  const canvas = useRef<HTMLCanvasElement>(null);
+  const actors = useRef(new Map<string, Position & { facing: number }>());
+  const labels = useRef(new Map<string, HTMLButtonElement>());
+  const scene = useRef({ data, selected });
+  const destination = useRef<Position | null>(null);
+  useEffect(() => { scene.current = { data, selected }; }, [data, selected]);
+  useEffect(() => {
+    const element = canvas.current, ctx = element?.getContext("2d");
+    if (!element || !ctx) return;
+    const background = new Image(); background.src = "/optimized/room/gathering-hall-v1.c5d8180560ff.webp";
+    const reduced = window.matchMedia("(prefers-reduced-motion: reduce)");
+    let frame = 0, previous = 0, width = 1, height = 1;
+    const resize = () => {
+      width = element.clientWidth; height = element.clientHeight;
+      const dpr = Math.min(window.devicePixelRatio || 1, 2);
+      element.width = width * dpr; element.height = height * dpr; ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    };
+    const observer = new ResizeObserver(resize); observer.observe(element); resize();
+    function draw(time: number) {
+      if (!ctx) return;
+      const dt = Math.min(.05, (time - (previous || time)) / 1000); previous = time;
+      ctx.fillStyle = "#59432f"; ctx.fillRect(0, 0, width, height);
+      if (background.complete && background.naturalWidth) {
+        const scale = Math.max(width / background.naturalWidth, height / background.naturalHeight);
+        ctx.drawImage(background, (width - background.naturalWidth * scale) / 2, (height - background.naturalHeight * scale) / 2, background.naturalWidth * scale, background.naturalHeight * scale);
+      }
+      if (destination.current) {
+        const dx = destination.current.x - position.current.x, dy = destination.current.y - position.current.y;
+        const distance = Math.hypot(dx * width, dy * height), amount = Math.min(1, dt * 140 / Math.max(1, distance));
+        position.current = { x: position.current.x + dx * amount, y: position.current.y + dy * amount };
+        if (distance < 1) destination.current = null;
+      }
+      const active = new Set(scene.current.data.players.map(player => player.id));
+      for (const id of actors.current.keys()) if (!active.has(id)) actors.current.delete(id);
+      const ordered = scene.current.data.players.map(player => {
+        const target = player.id === userId ? position.current : player;
+        let actor = actors.current.get(player.id);
+        if (!actor) { actor = { x: target.x, y: target.y, facing: 1 }; actors.current.set(player.id, actor); }
+        const dx = target.x - actor.x, dy = target.y - actor.y;
+        const moving = Math.hypot(dx * width, dy * height) > .5;
+        if (Math.abs(dx) > .0001) actor.facing = dx > 0 ? 1 : -1;
+        const factor = player.id === userId ? 1 : Math.min(1, dt * 8);
+        actor.x += dx * factor; actor.y += dy * factor;
+        return { player, actor, moving };
+      }).sort((a, b) => a.actor.y - b.actor.y);
+      for (const { player, actor, moving } of ordered) {
+        const x = actor.x * width, y = actor.y * height;
+        if (scene.current.selected === player.id || player.id === userId) {
+          ctx.beginPath(); ctx.ellipse(x, y + 1, 23, 7, 0, 0, Math.PI * 2);
+          ctx.strokeStyle = player.id === userId ? "#f8d88a" : "#e8e9ee"; ctx.lineWidth = 2; ctx.stroke();
+        }
+        ctx.save(); ctx.translate(x, y);
+        drawCharacter(ctx, player.weapon, { facing: actor.facing, stride: reduced.matches || !moving ? 0 : Math.sin(time / 160), idle: reduced.matches || moving ? 0 : Math.sin(time / 800) });
+        ctx.restore();
+        const label = labels.current.get(player.id);
+        if (label) { label.style.left = `${x}px`; label.style.top = `${y}px`; label.style.zIndex = String(Math.round(actor.y * 100)); }
+      }
+      frame = requestAnimationFrame(draw);
+    }
+    frame = requestAnimationFrame(draw);
+    return () => { observer.disconnect(); cancelAnimationFrame(frame); };
+  }, [position, userId]);
+  return <div role="group" aria-label="Gathering floor. Use arrow keys or WASD to walk." tabIndex={0} className="relative min-h-56 min-w-0 flex-1 overflow-hidden bg-[#59432f] outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[#f8d88a]" onKeyDown={event => {
+    const directions: Record<string, [number, number]> = { ArrowLeft: [-1, 0], a: [-1, 0], ArrowRight: [1, 0], d: [1, 0], ArrowUp: [0, -1], w: [0, -1], ArrowDown: [0, 1], s: [0, 1] };
+    const direction = directions[event.key];
+    if (!direction) return;
+    event.preventDefault();
+    const origin = destination.current ?? position.current;
+    destination.current = { x: Math.max(.05, Math.min(.95, origin.x + direction[0] * .04)), y: Math.max(.48, Math.min(.9, origin.y + direction[1] * .04)) };
+  }} onPointerDown={event => {
+    const bounds = event.currentTarget.getBoundingClientRect();
+    const y = (event.clientY - bounds.top) / bounds.height;
+    if (y < .44) return;
+    destination.current = { x: Math.max(.05, Math.min(.95, (event.clientX - bounds.left) / bounds.width)), y: Math.max(.48, Math.min(.9, y)) };
+    onSelect("");
+  }}>
+    <canvas ref={canvas} className="absolute inset-0 h-full w-full touch-none" aria-label="Gathering room. Tap the floor to walk; select another player to challenge them." />
+    <p className="pointer-events-none absolute top-3 left-3 rounded bg-[#2b1a10b8] px-3 py-1.5 text-xs text-[#fff0cc]">Tap the floor to walk · Select a player for PvP</p>
+    {data.players.map(player => {
+      const message = [...data.messages].reverse().find(entry => entry.userId === player.id && Date.parse(data.serverNow) - Date.parse(entry.createdAt) < 7000);
+      return <button key={player.id} ref={element => { if (element) labels.current.set(player.id, element); else labels.current.delete(player.id); }} type="button" aria-label={`${player.name}, ${player.username}${player.id === userId ? ", you" : ", select to challenge"}`} aria-pressed={selected === player.id} className="absolute h-20 w-14 -translate-x-1/2 -translate-y-full cursor-pointer rounded-lg outline-none focus-visible:ring-2 focus-visible:ring-[#f8d88a]" style={{ left: `${player.x * 100}%`, top: `${player.y * 100}%` }} onPointerDown={event => event.stopPropagation()} onClick={() => onSelect(player.id)}>
+        {message && <span className="pointer-events-none absolute bottom-[92px] left-1/2 w-40 -translate-x-1/2 rounded-xl border border-[#9e7a46] bg-[#fff3d5] px-3 py-2 text-xs text-[#43311f] shadow-md"><span className="line-clamp-3 break-words">{message.body}</span><span aria-hidden="true" className="absolute -bottom-1.5 left-1/2 size-3 -translate-x-1/2 rotate-45 border-r border-b border-[#9e7a46] bg-[#fff3d5]" /></span>}
+        <span className={`pointer-events-none absolute top-full left-1/2 max-w-32 -translate-x-1/2 truncate rounded px-2 py-0.5 text-[11px] font-semibold whitespace-nowrap shadow ${player.id === userId ? "bg-[#f4d895] text-[#43311f]" : "bg-[#2b1a10cc] text-[#fff0cc]"}`}>{player.username}{player.id === userId ? " (You)" : ""}</span>
+      </button>;
+    })}
+  </div>;
+}

@@ -7,12 +7,12 @@ import { EnemyBalanceEditor } from "./enemy-balance-editor";
 import { AdminArenaLab } from "./arena-lab";
 import { BalancePicker } from "./balance-picker";
 import { useRouter, useSearchParams } from "next/navigation";
-import { weaponDetails, type WeaponType } from "@/lib/character";
+import { weaponDetails, specialWeapons, type WeaponType } from "@/lib/character";
 
 export type Stats = { hp: number; mp: number; atk: number; def: number; magic: number; magicDef: number; speed: number; range: string };
 type Skill = { id: string; name: string; description: string; passive: boolean; mpCost: number; hpCost: number; baseCastTime: number; cooldown: number; damage?: { base: number; stat: string }; power?: number; duration?: number; chance?: number; multiplier?: number; bounces?: number };
 export type Config = { stats: Record<string, Stats>; skills: Record<string, Skill>; enemies: Record<string, Stats & Record<string, unknown>>; rewards: Record<string, { gold: number; experience: number }> };
-export type Catalog = { version: number; config: Config; defaults: Config; weapons: { weapon: string; skills: string[] }[]; monsters: { id: string; name: string; stats: Stats }[]; history: { id: number; note: string; createdAt: string }[] };
+export type Catalog = { version: number; config: Config; defaults: Config; weapons: { weapon: string; skills: string[] }[]; monsters: { id: string; name: string; stats: Stats; locations?: string[] }[]; history: { id: number; note: string; createdAt: string }[] };
 const action = "menu-action min-h-10 px-4 py-2 text-sm disabled:opacity-50";
 const field = "menu-field min-h-10 w-full px-3 py-2 text-sm";
 const labels: Record<string, string> = { hp: "HP", mp: "MP", atk: "Attack", def: "Defense", magic: "Magic", magicDef: "Magic defense", speed: "Speed", mpCost: "MP cost", hpCost: "HP cost", baseCastTime: "Cast time (seconds)", cooldown: "Cooldown (seconds)", power: "Effect amount", duration: "Effect duration (seconds)", chance: "Chance (0–1)", multiplier: "Critical multiplier", bounces: "Extra bounces" };
@@ -31,6 +31,12 @@ function BalanceEditor({ catalog }: { catalog: Catalog }) {
   const client = useQueryClient();
   const [config, setConfig] = useState<Config>(() => structuredClone(catalog.config));
   const [weapon, setWeapon] = useState(catalog.weapons[0].weapon);
+  const [characterType, setCharacterType] = useState("all");
+  function matchesCharacterType(id: string, type: string) {
+    const special = specialWeapons.some(entry => entry.id === id);
+    return type === "all" || (type === "special" ? special : !special);
+  }
+  const filteredWeapons = catalog.weapons.filter(entry => matchesCharacterType(entry.weapon, characterType));
   const [note, setNote] = useState("");
   const [notice, setNotice] = useState("");
   const dirty = JSON.stringify(config) !== JSON.stringify(catalog.config);
@@ -59,7 +65,15 @@ function BalanceEditor({ catalog }: { catalog: Catalog }) {
       setTab(next); document.getElementById(`balance-tab-${next}`)?.focus();
     }}>{value === "characters" ? "Characters" : "Enemies"}</button>)}</div>
     <div role="tabpanel" id="balance-panel-characters" aria-labelledby="balance-tab-characters" hidden={tab !== "characters"} className="menu-info space-y-5 p-4">
-      <BalancePicker label="Characters" options={catalog.weapons.map(entry => { const details = weaponDetails(entry.weapon as WeaponType); const name = ({ glaive: "Kent", "ice-staff": "Juan", "dual-axe": "Jeffrey" } as Record<string, string>)[entry.weapon]; return { id: entry.weapon, name: name ? `${name} · ${details.label}` : details.label, aliases: details.description }; })} selected={weapon} onSelect={setWeapon} />
+      <label className="block text-xs font-semibold">Character type<select className={field + " mt-1"} value={characterType} onChange={event => {
+        const next = event.target.value;
+        setCharacterType(next);
+        if (!matchesCharacterType(weapon, next)) {
+          const first = catalog.weapons.find(entry => matchesCharacterType(entry.weapon, next));
+          if (first) setWeapon(first.weapon);
+        }
+      }}><option value="all">All characters</option><option value="standard">Standard</option><option value="special">Special</option></select></label>
+      <BalancePicker label="Characters" options={filteredWeapons.map(entry => { const details = weaponDetails(entry.weapon as WeaponType); const name = ({ glaive: "Kent", "ice-staff": "Juan", "dual-axe": "Jeffrey" } as Record<string, string>)[entry.weapon]; return { id: entry.weapon, name: name ? `${name} · ${details.label}` : details.label, aliases: details.description }; })} selected={weapon} onSelect={setWeapon} />
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">{Object.entries(config.stats[weapon]).filter(([key]) => key !== "range").map(([key, value]) => numeric(labels[key], Number(value), value => stat(key, value), key === "hp" ? 1 : 0, key === "speed" ? 1000 : 100000))}</div>
       <p className="text-xs">Base stats before upgrades and artifacts. Attack range: {config.stats[weapon].range}.</p>
       {catalog.weapons.find(entry => entry.weapon === weapon)!.skills.map(id => {

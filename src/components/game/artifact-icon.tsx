@@ -4,7 +4,7 @@ export function ArtifactIcon({ stat }: { stat: string }) {
   const index = stats.indexOf(stat);
   if (index < 0) return null;
   return <span aria-hidden="true" className="block size-14 shrink-0 bg-no-repeat" style={{
-    backgroundImage: "url('/ui/artifact-icons-v1.png')", backgroundSize: "400% 200%",
+    backgroundImage: "url('/optimized/ui/artifact-icons-v1.a44f85eb7f99.webp')", backgroundSize: "400% 200%",
     backgroundPosition: `${index % 4 / 3 * 100}% ${Math.floor(index / 4) * 100}%`,
   }} />;
 }
@@ -15,7 +15,7 @@ export function drawArtifactIcon(ctx: CanvasRenderingContext2D, stat: string, x:
   if (index < 0) return;
   if (!atlas) {
     atlas = new Image(); atlas.onload = () => window.dispatchEvent(new Event("artifact-art-ready"));
-    atlas.src = "/ui/artifact-icons-v1.png";
+    atlas.src = "/optimized/ui/artifact-icons-v1.a44f85eb7f99.webp";
   }
   if (!atlas.complete || !atlas.naturalWidth) return;
   const width = atlas.naturalWidth / 4, height = atlas.naturalHeight / 2;

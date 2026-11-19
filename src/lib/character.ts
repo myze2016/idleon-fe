@@ -29,7 +29,7 @@ export interface Character { name: string; weapon: WeaponType; id?: string; isSt
 export interface AccountProgress { level: number; totalExp: number; exp: number; expToNextLevel: number }
 export interface QuestItem { id: string; name: string; description: string; quantity: 1 }
 
-export interface CharacterState { deepSeaFloor: number; deepSeaMothUnlocked: boolean; garnalandUnlocked: boolean; questItems: QuestItem[]; character: Character | null; characters: Character[]; artifacts: import("./artifact").Artifact[]; teamSlots: (string | null)[]; wishCurrency: number; gold: number; progression: AccountProgress }
+export interface CharacterState { economy?: import("./economy").EconomySettings; deepSeaFloor: number; deepSeaMothUnlocked: boolean; garnalandUnlocked: boolean; questItems: QuestItem[]; character: Character | null; characters: Character[]; artifacts: import("./artifact").Artifact[]; teamSlots: (string | null)[]; wishCurrency: number; gold: number; progression: AccountProgress }
 
 export function weaponDetails(id: WeaponType) {
   return [...weapons, ...specialWeapons].find((weapon) => weapon.id === id)!;

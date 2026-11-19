@@ -63,7 +63,7 @@ export default function LoginPage() {
     login.mutate({ username, password }, { onSuccess: () => router.replace("/dashboard") });
   }
   const inputClass = "min-w-0 text-base sm:text-sm border-[#ac8a5d] bg-[#fff3d4]/70 text-[#43311f] placeholder:text-[#927957] focus-visible:border-[#805523] focus-visible:ring-[#805523]/20";
-  return <main className="relative isolate min-h-dvh overflow-x-hidden bg-[#352619] text-[#43311f]" style={{ backgroundImage: "linear-gradient(90deg, #21170dcc, #21170d66), url('/room/cozy-cabin-v5.png')", backgroundSize: "cover", backgroundPosition: "center" }}>
+  return <main className="relative isolate min-h-dvh overflow-x-hidden bg-[#352619] text-[#43311f]" style={{ backgroundImage: "linear-gradient(90deg, #21170dcc, #21170d66), url('/optimized/room/cozy-cabin-v5.340078ed8788.webp')", backgroundSize: "cover", backgroundPosition: "center" }}>
     {toast && <div key={toast.id} role="alert" className="fixed top-4 right-4 left-4 z-50 flex items-center gap-3 rounded-lg border border-[#d0a875] bg-[#51331e] py-2 pr-1 pl-4 text-sm text-[#fff0cc] shadow-xl sm:left-auto sm:w-full sm:max-w-sm">
       <CircleAlert aria-hidden="true" className="size-5 shrink-0 text-[#efbd79]" />
       <p className="min-w-0 flex-1 break-words">{toast.message}</p>
@@ -76,7 +76,7 @@ export default function LoginPage() {
           <p className="text-xs uppercase tracking-[0.2em] text-[#d9ba80]">Your adventure awaits</p>
           <h1 className="mt-4 font-serif text-4xl leading-tight sm:text-5xl">A warm hearth.<br />A new adventure.</h1>
           <p className="mt-5 max-w-sm text-sm leading-7 text-[#e1ccb0]">Gather your team, explore the wilds, and return to a cabin of your own.</p>
-          <div aria-hidden="true" className="mt-6 hidden h-44 w-28 bg-no-repeat lg:block" style={{ backgroundImage: "url('/sprites/assassin-moe-walk-sheet.png')", backgroundSize: "auto 100%", backgroundPosition: "left center" }} />
+          <div aria-hidden="true" className="mt-6 hidden h-44 w-28 bg-no-repeat lg:block" style={{ backgroundImage: "url('/optimized/sprites/assassin-moe-walk-sheet.efc8af484f44.webp')", backgroundSize: "auto 100%", backgroundPosition: "left center" }} />
         </div>
       </section>
       <section aria-labelledby="login-title" className="paper-menu auth-parchment mx-auto w-full min-w-0 max-w-md rounded-sm shadow-2xl lg:mx-0">

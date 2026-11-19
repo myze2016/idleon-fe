@@ -129,13 +129,13 @@
   }
 }
 .paper-menu {
-  background-image: url('/ui/parchment-panel-v1.png');
+  background-image: url('/optimized/ui/parchment-panel-v1.8631202f66cb.webp');
   background-size: 100% 100%;
   background-attachment: local;
 }
 
 .paper-card {
-  border-image-source: url('/ui/parchment-panel-v1.png');
+  border-image-source: url('/optimized/ui/parchment-panel-v1.8631202f66cb.webp');
   border-image-slice: 12% fill;
   border-image-width: 12px;
   border-image-repeat: stretch;
@@ -146,7 +146,7 @@
   background-image: none;
   background-color: #eed9ad;
   border: 20px solid transparent;
-  border-image: url('/ui/parchment-panel-v1.png') 12% fill / 20px stretch;
+  border-image: url('/optimized/ui/parchment-panel-v1.8631202f66cb.webp') 12% fill / 20px stretch;
   padding: clamp(12px, 2.5vw, 20px);
 }
 
@@ -202,4 +202,43 @@
 .paper-menu .menu-info[data-equipped="true"] {
   border-color: #805523;
   outline-color: #805523;
+}
+
+/* A short parchment-and-gold celebration, with no ongoing particle work. */
+.level-up-card {
+  border: 2px solid #9c783f;
+  border-radius: 16px;
+  background: linear-gradient(#fff0cebd, #ead09abb), url('/optimized/ui/parchment-panel-v1.8631202f66cb.webp') center / 100% 100%;
+  box-shadow: 0 16px 64px #20140788, inset 0 0 0 5px #f4dda9, inset 0 0 0 7px #b18b50;
+  animation: level-up-arrive 650ms cubic-bezier(.16, 1, .3, 1) both;
+}
+.level-up-rays {
+  background: repeating-conic-gradient(from 0deg, #f8d78400 0deg 15deg, #f8d78444 15deg 25deg, #f8d78400 25deg 40deg);
+  mask-image: radial-gradient(circle, #0005, transparent 68%);
+  animation: level-up-rays 3s ease-out both;
+}
+.level-up-spark { position: absolute; color: #bc8c35; opacity: 0; animation: level-up-spark 1.8s ease-out 2 both; }
+.level-up-spark-0 { left: 7%; top: 24%; }
+.level-up-spark-1 { right: 9%; top: 17%; animation-delay: .2s; }
+.level-up-spark-2 { left: 16%; top: 53%; animation-delay: .4s; }
+.level-up-spark-3 { right: 12%; top: 49%; animation-delay: .6s; }
+.level-up-spark-4 { left: 28%; top: 12%; animation-delay: .3s; }
+.level-up-spark-5 { right: 26%; top: 65%; animation-delay: .7s; }
+@keyframes level-up-arrive {
+  from { opacity: 0; transform: translateY(22px) scale(.88); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+@keyframes level-up-rays {
+  from { opacity: 0; transform: rotate(-18deg) scale(.8); }
+  25% { opacity: 1; }
+  to { opacity: 0; transform: rotate(18deg) scale(1.2); }
+}
+@keyframes level-up-spark {
+  0% { opacity: 0; transform: translateY(8px) scale(.5); }
+  30% { opacity: 1; }
+  100% { opacity: 0; transform: translateY(-20px) scale(1.15); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .level-up-card { animation: none; }
+  .level-up-rays, .level-up-spark { display: none; }
 }

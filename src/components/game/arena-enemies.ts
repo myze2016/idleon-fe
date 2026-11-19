@@ -6,7 +6,7 @@ const feet = new Map<number, number>();
 export function drawArenaEnemy(ctx: CanvasRenderingContext2D, type: string, time: number, moving: boolean, swing: number, facing: number) {
   ctx.save(); ctx.scale(facing, 1);
   if (cells[type] !== undefined) {
-    if (!atlas) { atlas = new Image(); atlas.src = "/sprites/deepsea-enemies-simple-v2.png"; }
+    if (!atlas) { atlas = new Image(); atlas.src = "/optimized/sprites/deepsea-enemies-simple-v2.805283925014.webp"; }
     if (atlas.complete && atlas.naturalWidth) {
       const cell = cells[type], cw = atlas.naturalWidth / 4, ch = atlas.naturalHeight / 3;
       if (!feet.has(cell)) {

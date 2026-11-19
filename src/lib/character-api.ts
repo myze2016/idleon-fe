@@ -75,6 +75,7 @@ export function useCreateCharacter(userId?: string) {
     onSuccess: async (result) => {
       await client.cancelQueries({ queryKey });
       client.setQueryData(queryKey, result);
+      await client.invalidateQueries({ queryKey: ["auth", "session"] });
     },
     onError: (error) => {
       if (error instanceof ApiError && error.status === 409) void client.invalidateQueries({ queryKey });

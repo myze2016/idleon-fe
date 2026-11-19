@@ -4,6 +4,7 @@
   "private": true,
   "engines": { "node": "22.x" },
   "scripts": {
+    "assets:optimize": "node scripts/optimize-game-assets.mjs",
     "dev": "next dev --port 3020",
     "build": "next build",
     "start": "next start --port 3020",
@@ -23,6 +24,7 @@
     "zustand": "^5.1.0"
   },
   "devDependencies": {
+    "sharp": "0.35.5",
     "@tailwindcss/turbopack": "4.3.3",
     "@types/node": "^20",
     "@types/react": "^19",

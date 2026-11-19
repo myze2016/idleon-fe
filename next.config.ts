@@ -5,6 +5,9 @@ const backendUrl = deploymentBackendOrigin();
 
 const nextConfig: NextConfig = {
   allowedDevOrigins: ["172.50.254.22", "172.50.254.29"],
+  async headers() {
+    return [{ source: "/optimized/:path*", headers: [{ key: "Cache-Control", value: "public, max-age=31536000, immutable" }] }];
+  },
   async rewrites() {
     return [{ source: "/api/:path*", destination: `${backendUrl}/api/:path*` }];
   },

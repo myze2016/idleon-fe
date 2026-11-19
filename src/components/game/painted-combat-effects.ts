@@ -5,7 +5,7 @@ let atlas: HTMLImageElement | undefined;
 /** Animate the generated effects without changing combat timing or damage. */
 export function drawPaintedCombatEffect(ctx: CanvasRenderingContext2D, effect: CombatEffect, age: number,
   ground: number, scale: number, memberX: (id: string) => number | undefined) {
-  if (!atlas) { atlas = new Image(); atlas.src = "/sprites/combat-effects-v1.png"; }
+  if (!atlas) { atlas = new Image(); atlas.src = "/optimized/sprites/combat-effects-v1.9173f404f145.webp"; }
   if (!atlas.complete || !atlas.naturalWidth) return false;
   const { step, source, target, weapon, ranged } = effect;
   const label = step.label ?? "", p = Math.max(0, Math.min(1, age / 0.4));

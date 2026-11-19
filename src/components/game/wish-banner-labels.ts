@@ -41,7 +41,7 @@ export function drawWishBannerLabels(ctx: CanvasRenderingContext2D, pool: "norma
     ctx.fillStyle = pool === "special" ? "#d1deff" : "#624a30";
     ctx.font = `500 ${compact ? 9 : font * .76}px system-ui`;
     const weaponX = compact ? x + 8 : nameX, weaponSize = compact ? 12 : 15;
-    drawWeaponTypeIcon(ctx, character.weapon, weaponX, y + height * .73 - weaponSize / 2, weaponSize, pool === "special" ? "#dac285" : "#805523");
+    drawWeaponTypeIcon(ctx, character.weapon, weaponX, y + height * .73 - weaponSize / 2, weaponSize);
     ctx.fillText(weaponDetails(character.weapon).label, weaponX + weaponSize + 5, y + height * .73, width - (weaponX - x) - weaponSize - 11);
   });
   ctx.restore();

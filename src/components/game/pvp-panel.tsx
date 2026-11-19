@@ -10,11 +10,12 @@ import { weaponDetails } from "@/lib/character";
 import { ResponsiveCanvasFrame } from "./responsive-canvas-frame";
 import { PvpBattleCanvas } from "./pvp-battle-canvas";
 import { PvpChat } from "./pvp-chat";
+import { PvpArena } from "./pvp-arena";
 import type { RoomState } from "./pvp-types";
 
-export function PvpPanel({ onClose }: { onClose: () => void }) {
+export function PvpPanel({ onClose, initialCode = "" }: { onClose: () => void; initialCode?: string }) {
   const closeRef = useRef<HTMLButtonElement>(null);
-  const [code, setCode] = useState(""), [joinCode, setJoinCode] = useState(""), [now, setNow] = useState(() => Date.now());
+  const [code, setCode] = useState(initialCode), [joinCode, setJoinCode] = useState(""), [now, setNow] = useState(() => Date.now());
   const session = useSession(), userId = session.data?.user.id, roster = useCharacter(userId), client = useQueryClient();
   const lobby = useQuery({ queryKey: ["pvp-lobby", userId], enabled: !!userId && !code, refetchInterval: 1500,
     queryFn: async () => {
@@ -41,6 +42,8 @@ export function PvpPanel({ onClose }: { onClose: () => void }) {
   const error = action.error?.message ?? leave.error?.message ?? room.error?.message ?? lobby.error?.message;
   function close() { if (!busy) { if (code && data && ["waiting", "countdown", "battle", "complete"].includes(data.phase)) leave.mutate(); else onClose(); } }
   function select(characterIds: string[]) { action.mutate({ path: `/pvp/${code}/select`, body: { characterIds } }); }
+
+  if (data && ["countdown", "battle", "complete"].includes(data.phase)) return <PvpArena data={data} userId={userId!} elapsed={elapsed} busy={busy} error={error} onClose={close} onReturn={() => action.mutate({ path: `/pvp/${code}/return` })} />;
 
   return <ResponsiveCanvasFrame minHeight={520}><div role="dialog" aria-modal="true" aria-labelledby="pvp-title" className="paper-menu absolute inset-0 z-40 overflow-auto paper-menu paper-card bg-[#efdfb8] text-[#43311f]" onKeyDown={(event) => {
     if (event.key === "Escape") { event.preventDefault(); event.stopPropagation(); close(); }

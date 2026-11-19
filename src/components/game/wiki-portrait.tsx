@@ -32,7 +32,7 @@ export function WikiPortrait({ subject, name }: { subject: { character: WeaponTy
   useEffect(() => {
     const image = new Image();
     image.onload = () => setDeepseaArtwork(image);
-    image.src = "/sprites/deepsea-enemies-simple-v2.png";
+    image.src = "/optimized/sprites/deepsea-enemies-simple-v2.805283925014.webp";
     return () => { image.onload = null; };
   }, []);
   const characters = useCharacterSprites(), monsters = useMonsterSprites();

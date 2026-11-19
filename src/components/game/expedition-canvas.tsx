@@ -18,6 +18,7 @@ import { CollectionPanel } from "./collection-panel";
 import { InventoryPanel } from "./inventory-panel";
 import { WikiPanel } from "./wiki-panel";
 import { battleHudLayout } from "./battle-hud-layout";
+import { ResponsiveCanvasFrame } from "./responsive-canvas-frame";
 import { isRangedSkill } from "@/lib/skill-range";
 import { drawCombatEffect, type CombatEffect } from "./combat-effects";
 import { recordDamage, type DamageEntry } from "@/lib/battle-damage";
@@ -90,25 +91,25 @@ export function ExpeditionCanvas({ location, team, gold, wishCurrency, character
   useEffect(() => {
     const canvas = canvasRef.current, ctx = canvas?.getContext("2d");
     if (!canvas || !ctx) return;
-    const buttonIcons = new Image(); buttonIcons.src = "/ui/adventure-button-icons-v2.png";
-    const meadowArtwork = new Image(); meadowArtwork.src = location === "garnaland" ? "/maps/garnaland-painted-v1.png" : location === "tourney" ? "/maps/tourney-seated-crowd-v2.png" : location === "harbor" ? "/maps/harbor-painted-v1.png" : location === "forest" ? "/maps/forest-painted-v1.png" : "/maps/meadow-painted-v1.png";
+    const buttonIcons = new Image(); buttonIcons.src = "/optimized/ui/adventure-button-icons-v2.c022326897c4.webp";
+    const meadowArtwork = new Image(); if (!location.startsWith("deepsea")) meadowArtwork.src = location === "garnaland" ? "/optimized/maps/garnaland-painted-v1.1a69c9e916ff.webp" : location === "tourney" ? "/optimized/maps/tourney-seated-crowd-v2.bb8eb62bd7e4.webp" : location === "harbor" ? "/optimized/maps/harbor-painted-v1.f0301e091aa5.webp" : location === "forest" ? "/optimized/maps/forest-painted-v1.2233514177d4.webp" : "/optimized/maps/meadow-painted-v1.0509ccc36dff.webp";
     const garnaland = location === "garnaland";
     const forest = location === "forest";
     const harbor = location === "harbor";
     const tourney = location === "tourney";
     const yellowSpectatorArt = new Image();
     if (tourney) {
-      yellowSpectatorArt.src = "/sprites/yellow-spectator-front-v2.png";
+      yellowSpectatorArt.src = "/optimized/sprites/yellow-spectator-front-v2.c134c981238b.webp";
     }
     const deepsea = location.startsWith("deepsea");
     const deepseaBackground = new Image();
-    deepseaBackground.src = location === "deepsea" ? "/maps/deepsea-floor1-harbor-v4.png" : location === "deepsea-2f" ? "/maps/deepsea-floor2-harbor-v4.png" : "/maps/deepsea-palace-harbor-v4.png";
+    if (deepsea) deepseaBackground.src = location === "deepsea" ? "/optimized/maps/deepsea-floor1-harbor-v4.7d2f476449e3.webp" : location === "deepsea-2f" ? "/optimized/maps/deepsea-floor2-harbor-v4.271cd3940422.webp" : "/optimized/maps/deepsea-palace-harbor-v4.f1cb7b684899.webp";
     const deepseaSprites = new Image();
-    deepseaSprites.src = "/sprites/deepsea-enemies-simple-v2.png";
+    if (deepsea) deepseaSprites.src = "/optimized/sprites/deepsea-enemies-simple-v2.805283925014.webp";
     const deepseaFeet = new Map<number, number>();
     const deepseaCells: Record<string, number> = { "fishpeople-guard": 0, "fishpeople-archer": 1, "fishpeople-rider": 2, "fishpeople-guardian": 3, baracudon: 5, "fishpeople-cleric": 6, "fishpeople-researcher": 7, "fishpeople-knight": 8, "fishpeople-rifler": 9, "fishpeople-baron": 10, "fishpeople-lord": 11 };
     const meadowEffects = new Image();
-    meadowEffects.src = "/sprites/meadow-hit-death.png";
+    meadowEffects.src = "/optimized/sprites/meadow-hit-death.a9920b82286e.webp";
     const meadowAnimation = new Map<string, { hp: number; hurtAt: number; diedAt?: number }>();
     const deepSeaName = location === "deepsea-palace" ? "DeepSea Moot Royal Palace" : location === "deepsea-2f" ? "DeepSea Moot 2F" : "DeepSea Moot";
     let period: "day" | "night" = "day";
@@ -788,12 +789,12 @@ export function ExpeditionCanvas({ location, team, gold, wishCurrency, character
     return () => { alive = false; summonAction.current = null; cancelAnimationFrame(frame); observer.disconnect(); document.removeEventListener("visibilitychange", visibility); };
   }, [location, team, client, userId, returnToRoom]);
 
-  return <div className="relative h-full w-full overflow-hidden bg-[#173d3a]" onKeyDown={(event) => {
+  return <ResponsiveCanvasFrame fit overlay={false} minHeight={560} narrowMinHeight={600}><div className="relative h-full w-full overflow-hidden bg-[#173d3a]" onKeyDown={(event) => {
     if (event.key === "Escape") { event.preventDefault(); if (rosterOpen) closeRoster(); else if (collectionOpen) closeCollection(); else void returnToRoom(); }
   }}>
     <div inert={overlayOpen} className="h-full w-full">
     <canvas ref={canvasRef} role="img" aria-label={`Your team is automatically walking from left to right through an endless ${location}.`} className="block h-full w-full" />
-    <DamageSpread rows={damageSpread} compact={hud.compact} top={hud.controls[0].y + hud.controls[0].height + hud.gap} pad={hud.pad} />
+    <DamageSpread rows={damageSpread} compact={hud.compact} top={Math.max(hud.returnButton.y + hud.returnButton.height, ...hud.controls.map((control) => control.y + control.height)) + hud.gap} pad={hud.pad} />
     {location === "tourney" && yellowSpectator && hasEvidence && <button ref={spectatorButton} type="button" aria-label="Recognize the yellow spectator from Zugwangs Evidence" disabled={summoning} onClick={() => void summonAction.current?.()}
       className="absolute left-[82%] top-[41%] z-10 h-[72px] w-12 -translate-x-1/2 -translate-y-1/2 cursor-pointer rounded outline-none focus-visible:ring-2 focus-visible:ring-yellow-200 disabled:cursor-wait">
       <span className="sr-only">{summoning ? "Summoning Demon Prince…" : "A yellow-headed person hidden among the spectators"}</span>
@@ -809,5 +810,5 @@ export function ExpeditionCanvas({ location, team, gold, wishCurrency, character
     {collectionOpen === "Wiki" && <WikiPanel onClose={closeCollection} />}
     {collectionOpen === "Inventory" && <InventoryPanel onClose={closeCollection} />}
     {collectionOpen && collectionOpen !== "Inventory" && collectionOpen !== "Wiki" && <CollectionPanel title={collectionOpen} onClose={closeCollection} />}
-  </div>;
+  </div></ResponsiveCanvasFrame>;
 }

@@ -1,12 +1,12 @@
 import { useSyncExternalStore } from "react";
 
 const sheets = [
-  { src: "/sprites/garnaland-enemies-v1.png", rows: ["mushroom-fighter", "mushroom-rager", "fairy", "mushroom-chicken", "mushroom-king"], heights: [44, 46, 42, 48, 56] },
-  { src: "/sprites/tourney-enemies-v1.png", rows: ["gladiator", "spearman", "zugwang", "demon-prince"], heights: [60, 60, 62, 62] },
-  { src: "/sprites/harbor-monsters-v1.png", rows: ["crab-day", "hermit", "starfish", "fishpeople-guide"], heights: [32, 38, 40, 52] },
-  { src: "/sprites/harbor-night-monsters-v1.png", rows: ["fishpeople-spearman", "fishpeople-hunter", "fishpeople-magos"], heights: [50, 48, 52] },
-  { src: "/sprites/meadow-monsters-v1.png", rows: ["boar", "slime", "plant", "mutant-boar"], heights: [42, 32, 50, 48] },
-  { src: "/sprites/forest-monsters-v1.png", rows: ["warrior", "slinger", "coco-klan-chief"], heights: [48, 46, 52] },
+  { src: "/optimized/sprites/garnaland-enemies-v1.e342187f2734.webp", rows: ["mushroom-fighter", "mushroom-rager", "fairy", "mushroom-chicken", "mushroom-king"], heights: [44, 46, 42, 48, 56] },
+  { src: "/optimized/sprites/tourney-enemies-v1.f113c0748f4b.webp", rows: ["gladiator", "spearman", "zugwang", "demon-prince"], heights: [60, 60, 62, 62] },
+  { src: "/optimized/sprites/harbor-monsters-v1.ad48155c85dd.webp", rows: ["crab-day", "hermit", "starfish", "fishpeople-guide"], heights: [32, 38, 40, 52] },
+  { src: "/optimized/sprites/harbor-night-monsters-v1.c2f016253e3d.webp", rows: ["fishpeople-spearman", "fishpeople-hunter", "fishpeople-magos"], heights: [50, 48, 52] },
+  { src: "/optimized/sprites/meadow-monsters-v1.274e92c35b16.webp", rows: ["boar", "slime", "plant", "mutant-boar"], heights: [42, 32, 50, 48] },
+  { src: "/optimized/sprites/forest-monsters-v1.3048a91bf0ef.webp", rows: ["warrior", "slinger", "coco-klan-chief"], heights: [48, 46, 52] },
 ];
 const atlases = new Map<string, HTMLImageElement>();
 const listeners = new Set<() => void>();
@@ -21,7 +21,7 @@ const metrics = new Map<string, { feet: number[]; scale: number }>();
 /** Returns false while loading so the original monster drawing remains available. */
 export function drawMonster(ctx: CanvasRenderingContext2D, type: string, time: number, moving: boolean, strike: number) {
   if (type === "assassin") {
-    const src = "/sprites/tourney-assassin-v2.png";
+    const src = "/optimized/sprites/tourney-assassin-v2.daecb426df2d.webp";
     let image = atlases.get(src);
     if (!image) { image = new Image(); image.onload = loaded; image.onerror = loaded; image.src = src; atlases.set(src, image); }
     if (!image.complete || !image.naturalWidth) return false;

@@ -57,12 +57,12 @@ export function WishScreen({ onClose }: { onClose: () => void }) {
     const canvas = canvasRef.current, ctx = canvas?.getContext("2d");
     if (!canvas || !ctx) return;
     const banner = new Image();
-    const seal = new Image(); seal.src = "/ui/summon-seal-v1.png";
+    const seal = new Image(); seal.src = "/optimized/ui/summon-seal-v1.e9dffcda0c77.webp";
     seal.onload = () => draw();
     const motion = window.matchMedia("(prefers-reduced-motion: reduce)");
     let frame = 0;
     banner.onload = () => draw();
-    banner.src = pool === "special" ? "/ui/wish-special-banner-v1.png" : "/ui/wish-regular-banner-v1.png";
+    banner.src = pool === "special" ? "/optimized/ui/wish-special-banner-v1.366c807a65f2.webp" : "/optimized/ui/wish-regular-banner-v1.f7debb26a2ea.webp";
     function draw() {
       if (!canvas || !ctx) return;
       const width = canvas.clientWidth, height = canvas.clientHeight;

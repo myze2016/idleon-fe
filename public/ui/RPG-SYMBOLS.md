@@ -1,0 +1,7 @@
+# RPG symbols
+
+`rpg-symbols-v1.png` is a transparent 5 by 5 atlas generated with the built-in imagegen tool. Consumed by `rpg-symbols.ts` for all 14 weapon types and 9 locations. The final two cells are unused. Previous icon assets are retained.
+
+Final prompt:
+
+> Use case: stylized-concept. Asset: one transparent square RPG UI symbol atlas, exact 5 columns x 5 rows equal square cells. Each symbol centered with 12% padding, consistent size. Monochrome medium charcoal grey shapes with restrained light grey inner cutouts, bold elegant heraldic fantasy pictograms. Recognizable crafted emblems, slight angular stylization, strong silhouettes with a few intentional negative-space details. No texture, no gradient, no colored accents, no background, no frames, no text, no shadows. Readable at 24px. Row1: sword overlapping shield, bow and arrow, star wand, curled magic staff, spellbook. Row2: spear, battle axe, rifle, crossed pistols, greatsword. Row3: crossed daggers, four-point shuriken, crystal ice staff, crossed axes, meadow flower and rolling hill. Row4: forest pine grove, pair of spotted mushrooms, harbor anchor and wave, tournament trophy, ocean wave and downward arrow. Row5: deeper ocean double downward chevron and wave, underwater royal castle and wave, city skyline and roof, empty transparent cell, empty transparent cell. Exact ordering and even 5x5 layout. Make the symbols charming adventure game insignia with enough distinction to recognize every weapon and location; avoid plain primitive triangles.

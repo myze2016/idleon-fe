@@ -4,12 +4,19 @@ import type { Catalog, Config } from "./balance-controls";
 import { BalancePicker } from "./balance-picker";
 
 const field = "menu-field mt-1 min-h-10 w-full px-3 py-2 text-sm";
+const locationNames: Record<string, string> = {
+  meadow: "Meadow", forest: "Forest", garnaland: "Garnaland", harbor: "Harbor",
+  tourney: "Zugwang's Battle Tourney", deepsea: "DeepSea Moot Floor 1",
+  "deepsea-2f": "DeepSea Moot Floor 2", "deepsea-palace": "DeepSea Moot Royal Palace",
+};
 const labels: Record<string, string> = { hp: "HP", mp: "MP", atk: "Attack", def: "Defense", magic: "Magic", magicDef: "Magic defense", speed: "Speed", blockChance: "Block chance (0–1)", mana: "MP cost", damage: "Damage", cooldown: "Cooldown (seconds)", duration: "Duration (seconds)", skill: "Native skill", burnAll: "Burn all", slashAll: "Slash all", bubbleBeam: "Bubble beam" };
 function fields(value: Record<string, unknown>, path: string[] = []): { path: string[]; value: number }[] {
   return Object.entries(value).flatMap(([key, entry]) => typeof entry === "number" ? [{ path: [...path, key], value: entry }] : entry && typeof entry === "object" ? fields(entry as Record<string, unknown>, [...path, key]) : []);
 }
 export function EnemyBalanceEditor({ config, catalog, onChange }: { config: Config; catalog: Catalog; onChange: (config: Config) => void }) {
   const [id, setId] = useState(catalog.monsters[0].id);
+  const [location, setLocation] = useState("all");
+  const filtered = catalog.monsters.filter(enemy => location === "all" || enemy.locations?.includes(location));
   const stats = config.enemies[id];
   function update(path: string[], value: number) {
     const next = structuredClone(stats); let node: Record<string, unknown> = next;
@@ -18,7 +25,13 @@ export function EnemyBalanceEditor({ config, catalog, onChange }: { config: Conf
     onChange({ ...config, enemies: { ...config.enemies, [id]: next } });
   }
   return <section className="menu-info space-y-4 p-4" aria-labelledby="enemy-balance-title"><h4 id="enemy-balance-title" className="font-semibold">Enemy balancing</h4>
-    <BalancePicker label="Enemies" options={catalog.monsters.map(enemy => ({ id: enemy.id, name: `${enemy.name} (${enemy.id})` }))} selected={id} onSelect={setId} />
+    <label className="block text-xs font-semibold">Location<select className={field} value={location} onChange={event => {
+      const next = event.target.value;
+      setLocation(next);
+      const matches = catalog.monsters.filter(enemy => next === "all" || enemy.locations?.includes(next));
+      if (matches.length && !matches.some(enemy => enemy.id === id)) setId(matches[0].id);
+    }}><option value="all">All locations</option>{Object.entries(locationNames).map(([key, name]) => <option key={key} value={key}>{name}</option>)}</select></label>
+    <BalancePicker label="Enemies" options={filtered.map(enemy => ({ id: enemy.id, name: `${enemy.name} (${enemy.id})` }))} selected={id} onSelect={setId} />
     <p className="text-xs">Edit base stats and native skill numbers. Publish below to apply changes and generate patch notes. Attack range: {stats.range}.</p>
     <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">{fields(stats).map(({ path, value }) => {
       const key = path.at(-1)!;

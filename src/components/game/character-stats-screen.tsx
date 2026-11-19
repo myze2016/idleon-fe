@@ -27,7 +27,8 @@ export function CharacterStatsScreen({ character: initialCharacter, onClose }: {
   const character = state.data?.characters.find((member) => member.id === initialCharacter.id) ?? initialCharacter;
   const gold = state.data?.gold ?? 0;
   const unlocked = !!character.skill2Unlocked;
-  const canUnlock = !!character.id && gold >= 1000 && !unlocked && !unlock.isPending;
+  const unlockCost = state.data?.economy?.skillUnlockCost ?? 1000;
+  const canUnlock = !!character.id && gold >= unlockCost && !unlocked && !unlock.isPending;
   const error = upgrade.error?.message ?? unlock.error?.message;
   const upgradeDefinition = character.upgrade;
   const canUpgrade = !!character.id && !!upgradeDefinition && gold >= upgradeDefinition.cost && !upgrade.isPending;
@@ -102,20 +103,20 @@ export function CharacterStatsScreen({ character: initialCharacter, onClose }: {
       setUnlockRect({ x: buttonX, y: buttonY, width: buttonWidth });
       drawMenuButton(ctx, buttonX, buttonY, buttonWidth, 44, focused === "unlock", !canUnlock);
       ctx.textAlign = "center";
-      text(unlocked ? "Unlocked" : unlock.isPending ? "Unlocking..." : "Unlock · 1,000 gold", buttonX + buttonWidth / 2, buttonY + 27, "600 12px system-ui", "#fff0cc", buttonWidth - 12);
+      text(unlocked ? "Unlocked" : unlock.isPending ? "Unlocking..." : `Unlock · ${unlockCost.toLocaleString()} gold`, buttonX + buttonWidth / 2, buttonY + 27, "600 12px system-ui", "#fff0cc", buttonWidth - 12);
       ctx.textAlign = "left";
       drawCurrencyIcon(ctx, "gold", left, 809, 26);
       text(`Gold: ${gold.toLocaleString()}`, left + 30, 830, "600 14px system-ui", "#805523", area - 30);
-      text(error ?? (!unlocked && gold < 1000 ? `Need ${(1000 - gold).toLocaleString()} more gold to unlock Skill 2.` : "Available skills are used automatically during combat."), left, 854, "12px system-ui", error ? "#a13725" : "#71583c", area);
+      text(error ?? (!unlocked && gold < unlockCost ? `Need ${(unlockCost - gold).toLocaleString()} more gold to unlock Skill 2.` : "Available skills are used automatically during combat."), left, 854, "12px system-ui", error ? "#a13725" : "#71583c", area);
       drawMenuButton(ctx, left, 880, area, 66, focused === "artifact");
       text("Artifact · Select to equip or unequip", left + 12, 903, "600 14px system-ui", "#fff0cc", area - 24);
       if (equipped) drawArtifactIcon(ctx, equipped.stat, left + area - 58, 889, 46);
-      text(equipped ? `${artifactDetails(equipped.stat).name} · ${artifactStatText(equipped.stat, equipped.enhancementLevel)}` : "Empty · Buy artifacts in the Shop", left + 12, 927, "13px system-ui", "#eed6af", area - (equipped ? 76 : 24));
+      text(equipped ? `${artifactDetails(equipped.stat).name} · ${artifactStatText(equipped.stat, equipped.enhancementLevel, state.data?.economy?.artifactEnhancements)}` : "Empty · Buy artifacts in the Shop", left + 12, 927, "13px system-ui", "#eed6af", area - (equipped ? 76 : 24));
       text(`Character upgrades: ${character.upgradeLevel ?? 0}`, left, 974, "600 15px system-ui", "#805523", area);
-      text(upgradeDefinition ? `Each upgrade: +${upgradeDefinition.amount} ${upgradeDefinition.label}. Permanent and repeatable.` : "Upgrades are not available for this class yet.", left, 995, "12px system-ui", "#71583c", area);
+      text(upgradeDefinition ? `Next upgrade: +${upgradeDefinition.amount} ${upgradeDefinition.label}. Permanent and repeatable.` : "Upgrades are not available for this class yet.", left, 995, "12px system-ui", "#71583c", area);
       drawMenuButton(ctx, buttonX, 1010, buttonWidth, 44, focused === "upgrade", !canUpgrade);
       ctx.textAlign = "center";
-      text(upgrade.isPending ? "Upgrading..." : upgradeDefinition ? `Upgrade +${upgradeDefinition.amount} ${upgradeDefinition.label} · 1,000 gold` : "Upgrade unavailable", buttonX + buttonWidth / 2, 1038, "600 12px system-ui", "#fff0cc", buttonWidth - 12);
+      text(upgrade.isPending ? "Upgrading..." : upgradeDefinition ? `Upgrade +${upgradeDefinition.amount} ${upgradeDefinition.label} · ${upgradeDefinition.cost.toLocaleString()} gold` : "Upgrade unavailable", buttonX + buttonWidth / 2, 1038, "600 12px system-ui", "#fff0cc", buttonWidth - 12);
       ctx.textAlign = "left";
       if (upgrade.error) text(upgrade.error.message, left, 1080, "12px system-ui", "#a13725", area);
       drawMenuButton(ctx, w - 64, 16, 48, 48, focused === "close");
@@ -125,7 +126,7 @@ export function CharacterStatsScreen({ character: initialCharacter, onClose }: {
     window.addEventListener("info-skin-changed", draw);
     const observer = new ResizeObserver(draw); observer.observe(canvas); draw();
     return () => { observer.disconnect(); window.removeEventListener("info-skin-changed", draw); window.removeEventListener("artifact-art-ready", draw); };
-  }, [character, focused, gold, unlocked, canUnlock, error, unlock.isPending, equipped, artifactsOpen, upgradeDefinition, canUpgrade, upgrade.isPending, upgrade.error, currencyArt, portraitVersion]);
+  }, [character, focused, gold, unlocked, canUnlock, error, unlock.isPending, equipped, artifactsOpen, upgradeDefinition, canUpgrade, upgrade.isPending, upgrade.error, currencyArt, portraitVersion, unlockCost, state.data?.economy]);
 
   if (artifactsOpen && character.id) return <CollectionPanel title="Artifacts" characterId={character.id} onClose={() => { setArtifactsOpen(false); }} />;
 
@@ -141,11 +142,11 @@ export function CharacterStatsScreen({ character: initialCharacter, onClose }: {
     <div className="relative h-full min-h-[1110px] w-full">
     <canvas ref={canvasRef} aria-hidden="true" className="block h-full w-full" />
     <button ref={closeRef} type="button" aria-label="Back to character list" onClick={onClose} onFocus={() => setFocused("close")} onBlur={() => setFocused("")} className="absolute top-4 right-4 size-12 cursor-pointer rounded-xl outline-none"><span className="sr-only">Back to character list</span></button>
-    <button type="button" disabled={!canUnlock} onClick={() => { if (character.id) unlock.mutate(character.id, { onSuccess: () => closeRef.current?.focus({ preventScroll: true }) }); }} onFocus={() => setFocused("unlock")} onBlur={() => setFocused("")} className="absolute h-11 cursor-pointer rounded-lg outline-none disabled:cursor-default" style={{ left: unlockRect.x, top: unlockRect.y, width: unlockRect.width }}><span className="sr-only">{unlocked ? "Skill 2 unlocked" : "Unlock Skill 2 for 1,000 gold"}</span></button>
+    <button type="button" disabled={!canUnlock} onClick={() => { if (character.id) unlock.mutate(character.id, { onSuccess: () => closeRef.current?.focus({ preventScroll: true }) }); }} onFocus={() => setFocused("unlock")} onBlur={() => setFocused("")} className="absolute h-11 cursor-pointer rounded-lg outline-none disabled:cursor-default" style={{ left: unlockRect.x, top: unlockRect.y, width: unlockRect.width }}><span className="sr-only">{unlocked ? "Skill 2 unlocked" : `Unlock Skill 2 for ${unlockCost.toLocaleString()} gold`}</span></button>
     <button type="button" disabled={!character.id} onClick={() => setArtifactsOpen(true)} onFocus={() => setFocused("artifact")} onBlur={() => setFocused("")} className="absolute top-[880px] h-[66px] cursor-pointer rounded-lg outline-none" style={{ left: unlockRect.x - 12, width: unlockRect.width + 24 }}><span className="sr-only">Equip or unequip artifact. {equipped ? artifactDetails(equipped.stat).name : "Empty slot"}.</span></button>
-    <button type="button" disabled={!canUpgrade} onClick={() => { if (character.id) upgrade.mutate(character.id); }} onFocus={() => setFocused("upgrade")} onBlur={() => setFocused("")} className="absolute top-[1010px] h-11 cursor-pointer rounded-lg outline-none disabled:cursor-default" style={{ left: unlockRect.x, width: unlockRect.width }}><span className="sr-only">{upgradeDefinition ? `Upgrade character: +${upgradeDefinition.amount} ${upgradeDefinition.label}, costs 1,000 gold` : "Upgrade unavailable"}</span></button>
+    <button type="button" disabled={!canUpgrade} onClick={() => { if (character.id) upgrade.mutate(character.id); }} onFocus={() => setFocused("upgrade")} onBlur={() => setFocused("")} className="absolute top-[1010px] h-11 cursor-pointer rounded-lg outline-none disabled:cursor-default" style={{ left: unlockRect.x, width: unlockRect.width }}><span className="sr-only">{upgradeDefinition ? `Upgrade character: +${upgradeDefinition.amount} ${upgradeDefinition.label}, costs ${upgradeDefinition.cost.toLocaleString()} gold` : "Upgrade unavailable"}</span></button>
     <p role="status" className="sr-only">Character upgrades: {character.upgradeLevel ?? 0}. {upgrade.isPending ? "Upgrading." : ""}</p>
-    <p role="status" className="sr-only">Attack: {character.stats?.range === "range" ? "Ranged" : "Melee"}. Skill 2: {unlocked ? "unlocked" : "locked, costs 1,000 gold"}. Gold: {gold}.</p>
+    <p role="status" className="sr-only">Attack: {character.stats?.range === "range" ? "Ranged" : "Melee"}. Skill 2: {unlocked ? "unlocked" : `locked, costs ${unlockCost.toLocaleString()} gold`}. Gold: {gold}.</p>
     <ul className="sr-only">{character.skills?.map((skill) => <li key={skill.id}>{skill.name}. {skill.description} {skill.passive ? "Passive" : `${skill.mpCost} MP, ${skill.hpCost} HP, ${skill.cooldown} second cooldown.`} {skill.unlocked ? "Available" : "Locked"}.</li>)}</ul>
     {error && <p role="alert" className="sr-only">{error}</p>}
     <dl className="sr-only">{entries.map(([label, value]) => <div key={label}><dt>{label}</dt><dd>{value}</dd></div>)}</dl>

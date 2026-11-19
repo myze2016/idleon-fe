@@ -3,7 +3,7 @@
 .artifact-enhance-icon { position: relative; }
 .artifact-enhance-pop { animation: artifactEnhanceIconPop .7s cubic-bezier(.2,.8,.2,1) both; }
 .artifact-enhance-burst { position: absolute; inset: -34px; pointer-events: none; z-index: 2; }
-.artifact-enhance-seal { position: absolute; inset: 0; background: url('/ui/summon-seal-v1.png') center / contain no-repeat; animation: artifactEnhanceSealBurst 1.8s ease-out both; }
+.artifact-enhance-seal { position: absolute; inset: 0; background: url('/optimized/ui/summon-seal-v1.e9dffcda0c77.webp') center / contain no-repeat; animation: artifactEnhanceSealBurst 1.8s ease-out both; }
 .artifact-enhance-spark { position: absolute; left: 50%; top: 50%; width: 5px; height: 5px; background: #fff3b0; box-shadow: 0 0 7px #e7b852; border-radius: 1px; animation: artifactEnhanceSparkBurst 1.1s ease-out both; }
 .artifact-enhance-level { position: absolute; z-index: 3; top: -18px; left: 50%; transform: translateX(-50%); white-space: nowrap; color: #fff3b0; text-shadow: 0 2px 3px #392410, 0 0 9px #8b5e20; font-weight: 800; font-size: 17px; animation: artifactEnhanceLevelRise 1.8s ease-out both; }
 @keyframes artifactEnhanceCardGlow { 0%, 25% { box-shadow: 0 0 0 2px #e8bd68, 0 0 28px #d6a84699; } 100% { box-shadow: 0 2px 3px #38231255; } }

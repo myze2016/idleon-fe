@@ -111,8 +111,8 @@ export function WorldMap({ onClose }: { onClose: () => void }) {
       ctx.fillStyle = "#49351f"; ctx.font = "600 13px system-ui";
       ctx.fillText(selected ? `Destination: ${selected.startsWith("deepsea") ? "DeepSea Moot" : selected === "tourney" ? "Zugwangs Battle Tourney" : selected === "harbor" ? "Harbor" : selected === "garnaland" ? "Garnaland" : selected === "meadow" ? "Meadow" : "Forest"}` : "Select Meadow, Forest, Harbor, or Zugwangs Battle Tourney", 24, h - 24);
     }
-    mapArtwork.onload = draw; mapArtwork.src = "/maps/world-map-painted-v1.png";
-    buttonIcons.onload = draw; buttonIcons.src = "/ui/adventure-button-icons-v2.png";
+    mapArtwork.onload = draw; mapArtwork.src = "/optimized/maps/world-map-painted-v1.f9a891c81704.webp";
+    buttonIcons.onload = draw; buttonIcons.src = "/optimized/ui/adventure-button-icons-v2.c022326897c4.webp";
     window.addEventListener("paper-art-ready", draw);
     const observer = new ResizeObserver(draw); observer.observe(canvas); draw();
     return () => { observer.disconnect(); window.removeEventListener("paper-art-ready", draw); mapArtwork.onload = null; buttonIcons.onload = null; };
@@ -172,7 +172,7 @@ export function WorldMap({ onClose }: { onClose: () => void }) {
     }} onPointerCancel={() => { drag.current = null; }} onLostPointerCapture={() => { drag.current = null; }} onClickCapture={(event) => {
       if (dragged.current) { event.preventDefault(); event.stopPropagation(); dragged.current = false; }
     }}>
-    <div className="relative" style={{ width: 2400, height: 1600, backgroundColor: "#83aaa1", backgroundImage: "url('/maps/world-map-medium-v1.png')", backgroundSize: "100% 100%" }}>
+    <div className="relative" style={{ width: 2400, height: 1600, backgroundColor: "#83aaa1", backgroundImage: "url('/optimized/maps/world-map-medium-v1.cd880f5f3c8c.webp')", backgroundSize: "100% 100%" }}>
     <svg aria-hidden="true" className="hidden" viewBox="0 0 2400 1600" xmlns="http://www.w3.org/2000/svg">
       <defs>
         <pattern id="map-waves" width="90" height="60" patternUnits="userSpaceOnUse"><path d="M12 30q12-8 24 0t24 0" fill="none" stroke="#648c8d" strokeWidth="2" opacity=".3" /></pattern>
