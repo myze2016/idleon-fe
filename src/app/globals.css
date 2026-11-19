@@ -141,6 +141,15 @@
   border-image-repeat: stretch;
 }
 
+/* Keep the illustrated border outside login text, even on tall registration forms. */
+.auth-parchment {
+  background-image: none;
+  background-color: #eed9ad;
+  border: 20px solid transparent;
+  border-image: url('/ui/parchment-panel-v1.png') 12% fill / 20px stretch;
+  padding: clamp(12px, 2.5vw, 20px);
+}
+
 .paper-menu .menu-action,
 .paper-menu .menu-field {
   border-image: none;
