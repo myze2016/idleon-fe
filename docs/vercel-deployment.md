@@ -33,7 +33,15 @@ TRUST_PROXY_HOPS=1
 
 `CORS_ORIGIN` must exactly match the frontend origin, without a trailing slash. Add the exact callback URL to your Google OAuth web application's authorized redirect URIs. Keep the backend's existing `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `RESEND_API_KEY`, `RESEND_FROM_EMAIL`, `SESSION_SECRET` and `DATABASE_URL` in Railway only. Restart/redeploy the backend after changing its variables.
 
-All browser API requests and Google login go through the frontend `/api` rewrite. This keeps the HttpOnly session cookie on the frontend domain and avoids cross-site cookie issues. Do not set `NEXT_PUBLIC_API_URL` to the Railway domain for this deployment. Server-side API calls use the backend origin directly.
+All browser HTTP API requests and Google login go through the frontend `/api` rewrite. This keeps the HttpOnly session cookie on the frontend domain and avoids cross-site cookie issues. Do not set `NEXT_PUBLIC_API_URL` to the Railway domain for this deployment. Server-side API calls use the backend origin directly.
+
+Realtime multiplayer opens a separate authenticated WebSocket directly to the
+Railway backend. The frontend obtains its short-lived ticket and socket URL from
+`POST /api/realtime/ticket`; no extra Vercel environment variable is needed.
+Railway normally provides the domain automatically. For a custom backend domain,
+set Railway's `REALTIME_PUBLIC_URL=wss://YOUR-BACKEND-DOMAIN/realtime`. Redeploy
+both apps to enable it. The client reconnects automatically and uses HTTP polling
+while the socket is unavailable.
 
 For previews, use a dedicated staging backend and an exact allowed frontend domain. Arbitrary Vercel preview origins are not automatically accepted by the production backend. Vercel deployment protection may also require a visitor to sign in to Vercel before reaching a preview or its Google callback.
 

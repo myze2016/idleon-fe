@@ -150,6 +150,110 @@
   padding: clamp(12px, 2.5vw, 20px);
 }
 
+/* Keep the journal's decorative frame outside content at every card size. */
+.dashboard-parchment {
+  background-image: none;
+  background-color: #eed9ad;
+  border: 24px solid transparent;
+  border-image: url('/optimized/ui/parchment-panel-v1.8631202f66cb.webp') 12% fill / 24px stretch;
+  overflow-wrap: anywhere;
+}
+
+.dashboard-screen {
+  display: flex;
+  flex-direction: column;
+  gap: clamp(8px, 1.4dvh, 16px);
+  height: 100dvh;
+  padding: clamp(8px, 2dvh, 20px) clamp(12px, 3vw, 40px);
+}
+.dashboard-home { display: flex; flex: 1; min-height: 0; align-items: center; }
+.dashboard-journal { width: 100%; max-width: 896px; margin: auto; }
+.dashboard-home-parchment {
+  border-width: clamp(12px, 2dvh, 24px);
+  border-image-width: clamp(12px, 2dvh, 24px);
+  padding: clamp(10px, 2dvh, 24px);
+}
+.dashboard-intro { display: grid; gap: clamp(6px, 1.4dvh, 14px); }
+.dashboard-eyebrow { font-size: 11px; }
+.dashboard-title { font-size: clamp(22px, 4dvh, 44px); line-height: 1.12; }
+.dashboard-description { max-width: 440px; font-size: 13px; line-height: 1.5; }
+.dashboard-adventure { display: grid; gap: clamp(6px, 1.4dvh, 14px); margin-top: clamp(10px, 2dvh, 24px); border-top: 1px solid #ac8a5d80; padding-top: clamp(10px, 2dvh, 24px); }
+.dashboard-companion { font-size: 12px; line-height: 1.4; }
+.dashboard-stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
+.dashboard-stat { min-width: 0; padding: clamp(8px, 1.4dvh, 14px); }
+.dashboard-stat-value { margin-top: 3px; font-size: clamp(16px, 2.8dvh, 28px); line-height: 1.15; }
+.dashboard-start { justify-self: start; font-size: 14px; }
+.dashboard-hint { font-size: 11px; line-height: 1.4; }
+.dashboard-footer { display: flex; justify-content: space-between; gap: 12px; margin-top: 8px; padding-inline: 2px; }
+.character-info-screen { display: flex; flex-direction: column; gap: 10px; padding: clamp(8px, 2dvh, 18px); }
+.character-info-header { display: flex; flex-shrink: 0; align-items: center; gap: 10px; padding: 8px 10px; }
+.character-info-portrait { width: 52px; height: 52px; }
+.character-info-name { font-size: clamp(20px, 3.5dvh, 28px); line-height: 1.2; }
+.character-info-nav { display: grid; flex-shrink: 0; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
+.character-info-screen button[data-active="true"] { outline-color: #ffe2a1; filter: brightness(1.16); }
+.character-info-panels { display: grid; flex: 1; min-height: 0; align-content: start; }
+.character-info-panel { display: none; min-width: 0; flex-direction: column; gap: 10px; padding: 12px; overflow-wrap: anywhere; }
+.character-info-panel[data-active="true"] { display: flex; }
+.character-info-stat-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; }
+.character-info-stat { min-width: 0; padding: 6px; }
+.character-basic-attack { padding: 8px 10px; }
+.character-info-note { font-size: 11px; line-height: 1.4; color: #71583c; }
+.character-skill-selector { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; }
+.character-skill-card { display: grid; gap: 8px; }
+.character-skill-description { font-size: 13px; line-height: 1.5; }
+.character-skill-meta { font-size: 11px; line-height: 1.45; color: #805523; }
+.character-artifact-button { min-height: 70px; justify-content: space-between; }
+.character-upgrade-card { display: grid; gap: 10px; }
+.character-info-footer { display: flex; flex-shrink: 0; flex-wrap: wrap; align-items: center; gap: 6px 16px; padding-inline: 4px; font-size: 13px; }
+.artifact-inventory-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(88px, 1fr)); gap: 8px; }
+.artifact-inventory-item { display: flex; min-height: 96px; align-items: center; justify-content: center; padding: 10px 8px 24px; }
+.artifact-inventory-item[data-team-slot] { box-shadow: inset 0 0 0 2px #c89b4d; }
+.artifact-inventory-item:hover { filter: brightness(1.08); }
+@media (max-height: 550px) {
+  .character-info-screen { gap: 6px; }
+  .character-info-header { padding: 4px 8px; }
+  .character-info-portrait { width: 44px; height: 44px; }
+  .character-info-nav button { min-height: 40px; }
+  .character-info-panel { gap: 8px; padding: 8px; }
+  .character-panel-heading { display: none; }
+  .character-skill-description { font-size: 12px; line-height: 1.4; }
+}
+@media (max-height: 450px) and (min-width: 600px) {
+  .character-skill-card { grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr); grid-template-areas: "title title" "description meta" "description unlock"; }
+  .character-skill-title { grid-area: title; }
+  .character-skill-description { grid-area: description; }
+  .character-skill-meta { grid-area: meta; }
+  .character-skill-unlock { grid-area: unlock; }
+}
+@media (min-width: 1000px) and (min-height: 650px) {
+  .character-info-nav { display: none; }
+  .character-info-panels { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; align-content: stretch; }
+  .character-info-panel, .character-info-panel[data-active="true"] { display: flex; }
+  .character-info-stat-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 599px) {
+  .dashboard-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .dashboard-start { width: 100%; }
+}
+@media (max-height: 540px) {
+  .dashboard-title { font-size: 22px; }
+  .dashboard-home-parchment { padding: 8px; }
+  .dashboard-eyebrow { display: none; }
+  .dashboard-intro, .dashboard-adventure { gap: 5px; }
+  .dashboard-description { font-size: 12px; line-height: 1.35; }
+  .dashboard-adventure { margin-top: 6px; padding-top: 6px; }
+}
+@media (max-height: 600px) { .dashboard-footer { display: none; } }
+@media (max-height: 480px) and (min-width: 600px) {
+  .dashboard-home-parchment { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.1fr); gap: 18px; align-items: center; }
+  .dashboard-adventure { margin: 0; border-top: 0; border-left: 1px solid #ac8a5d80; padding-top: 0; padding-left: 18px; }
+  .dashboard-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; }
+  .dashboard-stat { padding: 6px 8px; }
+}
+@media (max-height: 360px) {
+  .dashboard-adventure-title { display: none; }
+}
+
 .paper-menu .menu-action,
 .paper-menu .menu-field {
   border-image: none;

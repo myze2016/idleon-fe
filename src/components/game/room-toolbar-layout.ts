@@ -18,9 +18,9 @@ export function roomToolbarLayout(width: number, height = 600) {
   const singleRow = width >= 1560, gap = 8;
   const columns = singleRow ? actions.length : width >= 960 ? 6 : width >= 640 ? 5 : 3;
   const rows = Math.ceil(actions.length / columns);
-  const top = width >= 960 ? 16 : 128;
+  const top = width >= 960 ? 16 : 164;
   // Reserve the bottom HUD and fit all toolbar rows on smaller screens.
-  const buttonHeight = Math.min(88, Math.max(56, (height - 158 - top - gap * (rows - 1)) / rows));
+  const buttonHeight = Math.min(88, Math.max(44, (height - 158 - top - gap * (rows - 1)) / rows));
   const buttonWidth = Math.min(singleRow ? 80 : 88, (width - 32 - gap * (columns - 1)) / columns);
   const totalWidth = buttonWidth * columns + gap * (columns - 1);
   const left = width - 16 - totalWidth;

@@ -13,14 +13,15 @@ import { weaponDetails, type Character } from "@/lib/character";
 import { useAssignTeamSlot } from "@/lib/character-api";
 import { useSession } from "@/lib/auth";
 
-export function TeamScreen({ characters, onClose }: { characters: Character[]; onClose: () => void }) {
+export function TeamScreen({ characters, onClose, selection }: { characters: Character[]; onClose: () => void; selection?: { slots: (Character | null)[]; busy: boolean; error?: string; onAssign: (slot: number, character: Character | null) => void } }) {
   const spriteVersion = useCharacterSprites();
   const portraitVersion = useCharacterPortraits();
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const closeRef = useRef<HTMLButtonElement>(null);
   const [closeFocused, setCloseFocused] = useState(false);
   const [inspected, setInspected] = useState<Character | null>(null);
-  const slots = useGameState((state) => state.teamSlots);
+  const savedSlots = useGameState((state) => state.teamSlots);
+  const slots = selection?.slots ?? savedSlots;
   const store = useGameStoreApi();
   const session = useSession();
   const save = useAssignTeamSlot(session.data?.user.id);
@@ -114,6 +115,10 @@ export function TeamScreen({ characters, onClose }: { characters: Character[]; o
 
   if (selectedSlot !== null) return <div className="paper-menu absolute inset-0 z-30">
     <CharacterRoster characters={characters} selectionLabel={`Assign to ${selectedSlot < 3 ? "Front" : "Back"} ${selectedSlot % 3 + 1}`} onClose={() => { if (!saving.current) setSelectedSlot(null); }} onSelect={(character) => {
+      if (selection) {
+        if (!selection.busy && character.id) { selection.onAssign(selectedSlot, character); setSelectedSlot(null); }
+        return;
+      }
       if (saving.current || !character.id) return;
       saving.current = true;
       save.mutate({ slot: selectedSlot, characterId: character.id }, {
@@ -135,14 +140,15 @@ export function TeamScreen({ characters, onClose }: { characters: Character[]; o
   }}>
     <canvas ref={canvasRef} aria-hidden="true" className="block h-full w-full" />
     <button ref={closeRef} type="button" aria-label="Close team" onClick={onClose} onFocus={() => setCloseFocused(true)} onBlur={() => setCloseFocused(false)} className="absolute top-4 right-4 size-12 cursor-pointer rounded-xl outline-none"><span className="sr-only">Close team</span></button>
-    {rects.map((rect, i) => <button key={i} ref={(element) => { slotRefs.current[i] = element; }} type="button" aria-label={`${i < 3 ? "Front" : "Back"} ${i % 3 + 1}: ${slots[i]?.name ?? "empty"}. Choose character`} onClick={() => { returnSlot.current = i; setSelectedSlot(i); }} onFocus={() => setFocusedSlot(i)} onBlur={() => setFocusedSlot(null)} className="absolute cursor-pointer rounded-xl outline-none" style={{ left: rect.x, top: rect.y, width: rect.width, height: rect.height }}><span className="sr-only">Choose character</span></button>)}
-    {rects.map((rect, i) => slots[i] && <button key={`upgrade-${i}`} type="button" aria-label={`Open ${slots[i]?.name} skills and upgrades`} className="menu-action absolute cursor-pointer rounded border border-[#a38358] paper-card bg-[#e9d4a7] px-1 py-2 text-xs text-[#43311f] focus-visible:outline-2 focus-visible:outline-[#805523]" style={{ left: rect.x, top: rect.y + rect.height + 8, width: rect.width }} onClick={() => {
+    {rects.map((rect, i) => <button key={i} ref={(element) => { slotRefs.current[i] = element; }} type="button" disabled={selection?.busy} aria-label={`${i < 3 ? "Front" : "Back"} ${i % 3 + 1}: ${slots[i]?.name ?? "empty"}. Choose character`} onClick={() => { returnSlot.current = i; setSelectedSlot(i); }} onFocus={() => setFocusedSlot(i)} onBlur={() => setFocusedSlot(null)} className="absolute cursor-pointer rounded-xl outline-none" style={{ left: rect.x, top: rect.y, width: rect.width, height: rect.height }}><span className="sr-only">Choose character</span></button>)}
+    {!selection && rects.map((rect, i) => slots[i] && <button key={`upgrade-${i}`} type="button" aria-label={`Open ${slots[i]?.name} skills and upgrades`} className="menu-action absolute cursor-pointer rounded border border-[#a38358] paper-card bg-[#e9d4a7] px-1 py-2 text-xs text-[#43311f] focus-visible:outline-2 focus-visible:outline-[#805523]" style={{ left: rect.x, top: rect.y + rect.height + 8, width: rect.width }} onClick={() => {
       const member = slots[i];
       if (!member) return;
       returnSlot.current = i;
       setInspected(characters.find((character) => character.id === member.id) ?? member);
     }}>Upgrade</button>)}
-    {rects.map((rect, i) => slots[i] && <button key={`remove-${i}`} type="button" disabled={save.isPending} aria-label={`Remove ${slots[i]?.name} from team`} className="menu-action absolute rounded border border-[#bd8275] paper-card bg-[#d8ae95] px-2 py-2 text-xs text-[#7c3124] disabled:opacity-50" style={{ left: rect.x, top: rect.y + rect.height + 48, width: rect.width }} onClick={() => {
+    {rects.map((rect, i) => slots[i] && <button key={`remove-${i}`} type="button" disabled={selection ? selection.busy : save.isPending} aria-label={`Remove ${slots[i]?.name} from team`} className="menu-action absolute rounded border border-[#bd8275] paper-card bg-[#d8ae95] px-2 py-2 text-xs text-[#7c3124] disabled:opacity-50" style={{ left: rect.x, top: rect.y + rect.height + (selection ? 8 : 48), width: rect.width }} onClick={() => {
+      if (selection) { if (!selection.busy) selection.onAssign(i, null); return; }
       if (saving.current) return;
       saving.current = true;
       save.mutate({ slot: i, characterId: null }, {
@@ -151,6 +157,7 @@ export function TeamScreen({ characters, onClose }: { characters: Character[]; o
       });
     }}>Remove</button>)}
     {save.error && <p role="alert" className="absolute bottom-2 left-6 text-sm text-red-200">{save.error.message}</p>}
+    {selection?.error && <p role="alert" className="absolute bottom-2 left-6 text-sm text-[#a13725]">{selection.error}</p>}
     <p role="status" className="sr-only">{slots.filter(Boolean).length} of 6 slots filled.</p>
   </div></ResponsiveCanvasFrame>;
 }

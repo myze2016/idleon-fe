@@ -8,6 +8,7 @@ import { ResponsiveCanvasFrame } from "./responsive-canvas-frame";
 import { GatheringScene } from "./gathering-scene";
 import { PvpPanel } from "./pvp-panel";
 import type { GatheringMembership, GatheringState } from "./gathering-types";
+import { useRealtime } from "@/lib/realtime";
 
 const button = "menu-action inline-flex min-h-11 cursor-pointer items-center gap-2 px-3 py-2 text-sm disabled:cursor-default disabled:opacity-50";
 export function GatheringPanel({ onClose }: { onClose: () => void }) {
@@ -18,6 +19,7 @@ export function GatheringPanel({ onClose }: { onClose: () => void }) {
   const initialJoinRequested = useRef(false);
   const [choosingRoom, setChoosingRoom] = useState(false);
   const position = useRef({ x: .5, y: .7 });
+  const incomingMoves = useRef(new Map<string, { x: number; y: number; at: string }>());
   const [selected, setSelected] = useState("");
   const [tab, setTab] = useState<"chat" | "players">("chat");
   const [chatOpen, setChatOpen] = useState(false);
@@ -39,8 +41,42 @@ export function GatheringPanel({ onClose }: { onClose: () => void }) {
     initialJoinRequested.current = true;
     enter({ firstAvailable: true });
   }, [userId, enter]);
+  const { ready: liveReady, sendPosition } = useRealtime("gathering", { roomId: membership?.roomId, token: membership?.token }, !!membership && !!userId, event => {
+    const queryKey = ["gathering-room", userId, membership?.token];
+    if (event.kind === "move") {
+      if (event.userId === userId) return;
+      incomingMoves.current.set(event.userId, { x: event.x, y: event.y, at: event.at });
+    } else void client.invalidateQueries({ queryKey });
+  });
+  useEffect(() => {
+    incomingMoves.current.clear();
+    if (!liveReady || pvpCode) return;
+    // Batch all peers into one UI update; a busy room must not render once per packet.
+    const timer = setInterval(() => {
+      if (!incomingMoves.current.size) return;
+      const moves = new Map(incomingMoves.current); incomingMoves.current.clear();
+      client.setQueryData<GatheringState>(["gathering-room", userId, membership?.token], previous => {
+        if (!previous) return previous;
+        const serverNow = [...moves.values()].reduce((latest, move) => move.at > latest ? move.at : latest, previous.serverNow);
+        return { ...previous, serverNow, players: previous.players.map(player => {
+          const move = moves.get(player.id);
+          return move ? { ...player, x: move.x, y: move.y } : player;
+        }) };
+      });
+    }, 100);
+    return () => clearInterval(timer);
+  }, [liveReady, pvpCode, client, userId, membership?.token]);
+  useEffect(() => {
+    if (!liveReady || pvpCode) return;
+    let last = { x: NaN, y: NaN };
+    const timer = setInterval(() => {
+      const next = position.current;
+      if ((next.x !== last.x || next.y !== last.y) && sendPosition(next.x, next.y)) last = { ...next };
+    }, 125);
+    return () => clearInterval(timer);
+  }, [liveReady, sendPosition, pvpCode]);
   const room = useQuery<GatheringState>({ queryKey: ["gathering-room", userId, membership?.token], enabled: !!membership && !!userId,
-    retry: false, refetchInterval: query => query.state.error instanceof ApiError && [401, 409].includes(query.state.error.status) ? false : pvpCode ? 10000 : 1000, refetchOnWindowFocus: true,
+    retry: false, refetchInterval: query => query.state.error instanceof ApiError && [401, 409].includes(query.state.error.status) ? false : pvpCode || liveReady ? 10000 : 1000, refetchOnWindowFocus: true,
     queryFn: async ({ signal }) => {
       const current = membershipRef.current;
       if (!current) throw new Error("Join a gathering room first");

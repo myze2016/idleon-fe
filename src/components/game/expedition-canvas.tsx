@@ -1,7 +1,7 @@
 "use client";
+import { drawPlayerInfo } from "./player-info";
 import { tourneySpectatorPlacement } from "./tourney-crowd";
 import { drawRpgButton } from "./rpg-button";
-import { drawMenuInfo } from "./menu-button";
 import { drawMonster } from "./meadow-monsters";
 import { drawCharacter } from "./character-design";
 
@@ -25,8 +25,8 @@ import { recordDamage, type DamageEntry } from "@/lib/battle-damage";
 import { DamageSpread } from "./damage-spread";
 import { drawCurrencyBadge } from "./currency-art";
 import { LevelUpNotification, type LevelUpNotice } from "./level-up-notification";
-import { drawCharacterInfoPortrait, drawWeaponTypeIcon } from "./character-info-icons";
 import { drawLocationIcon } from "./location-icons";
+import { BattleLog } from "./battle-log";
 
 export function ExpeditionCanvas({ location, team, gold, wishCurrency, characterName, characters, progression }: {
   location: "meadow" | "forest" | "garnaland" | "harbor" | "tourney" | "deepsea" | "deepsea-2f" | "deepsea-palace"; team: (Character | null)[]; gold: number;
@@ -35,6 +35,7 @@ export function ExpeditionCanvas({ location, team, gold, wishCurrency, character
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [hud, setHud] = useState(() => battleHudLayout(950, 300));
   const [damageSpread, setDamageSpread] = useState<DamageEntry[]>([]);
+  const [logEntries, setLogEntries] = useState<{ actor: string; detail: string }[]>([]);
   const [levelUp, setLevelUp] = useState<LevelUpNotice | null>(null);
   useEffect(() => {
     if (!levelUp) return;
@@ -227,9 +228,6 @@ export function ExpeditionCanvas({ location, team, gold, wishCurrency, character
     }
     function rect(x: number, y: number, w: number, h: number, color: string) {
       ctx!.fillStyle = color; ctx!.fillRect(x, y, w, h);
-    }
-    function box(x: number, y: number, w: number, h: number) {
-      drawMenuInfo(ctx!, x, y, w, h);
     }
 
     function text(value: string, x: number, y: number, font: string, color: string, maxWidth?: number) {
@@ -461,6 +459,7 @@ export function ExpeditionCanvas({ location, team, gold, wishCurrency, character
               + (step.healing ? ` +${step.healing} HP` : "") + (step.critical ? " · Critical" : "");
             if (step.kind !== "mana") battleLog.unshift({ actor, detail });
             battleLog.length = Math.min(battleLog.length, 5);
+            if (step.kind !== "mana") setLogEntries([...battleLog]);
             if (step.kind !== "mana" && memberIndex >= 0 && enemy) {
               const character = members[memberIndex].character;
               const playerX = memberPositions[memberIndex];
@@ -747,32 +746,12 @@ export function ExpeditionCanvas({ location, team, gold, wishCurrency, character
       });
       const layout = battleHudLayout(width, height);
       const nameX = layout.pad + 12, nameTop = layout.pad;
-      box(layout.pad, nameTop, layout.nameWidth, layout.nameHeight);
-      const nameY = nameTop + (layout.compact ? layout.nameHeight * 0.31 : 27);
       const starter = charactersRef.current.find((character) => character.isStarter) ?? charactersRef.current[0];
-      if (starter) {
-        drawCharacterInfoPortrait(ctx, starter.weapon, nameX - 4, nameY - 22, 26);
-        drawWeaponTypeIcon(ctx, starter.weapon, nameX + layout.nameWidth - 46, nameY - 15, 16);
-      }
-      text(nameRef.current, nameX + 28, nameY, `600 ${layout.compact ? 14 : 17}px system-ui`, "#43311f", Math.max(24, layout.nameWidth - 78));
-      const locationY = nameTop + (layout.compact ? layout.nameHeight * 0.59 : 49);
+      drawPlayerInfo(ctx, { x: layout.pad, y: nameTop, width: layout.nameWidth, height: layout.nameHeight, name: nameRef.current, weapon: starter?.weapon, progression: progressRef.current });
+      const locationY = nameTop + 115;
       drawLocationIcon(ctx, location, nameX - 3, locationY - 18, 24);
       text(`${deepsea ? deepSeaName : tourney ? "Zugwangs Battle Tourney" : harbor ? `Harbor · ${period}` : garnaland ? "Garnaland" : forest ? "Forest" : "Meadow"} · ${Math.floor(distance / 16)} m`, nameX + 24, locationY, `${layout.compact ? 10 : 12}px system-ui`, "#66513b", Math.max(24, layout.nameWidth - 48));
-      text(`Boss: ${meadowProgress.defeated}/${meadowProgress.target ?? (deepsea ? "30–40" : tourney ? "50–70" : "38–45")}`, nameX, nameTop + (layout.compact ? layout.nameHeight * 0.84 : 70), `${layout.compact ? 10 : 12}px system-ui`, "#68491e", layout.nameWidth - 24);
-      if (!layout.compact) battleLog.forEach((entry, index) => {
-        const y = layout.logY + index * (layout.rowHeight + layout.rowGap);
-        box(layout.pad, y, layout.nameWidth, layout.rowHeight);
-        text(`${entry.actor}: ${entry.detail}`, nameX, y + layout.rowHeight / 2 + 3, `600 ${layout.compact ? 10 : 12}px system-ui`, index === 0 ? "#68491e" : "#66513b", layout.nameWidth - 24);
-      });
-      const progress = progressRef.current, progressWidth = Math.min(220, width - layout.pad * 2 - 56);
-      const hudTop = layout.progressY, compactHud = layout.compact;
-      ctx.save(); ctx.translate(56, 0);
-      box(layout.pad, hudTop, progressWidth, layout.progressHeight);
-      text(compactHud ? `Lv. ${progress.level}` : `Account Lv. ${progress.level}`, compactHud ? layout.pad + 126 : nameX, hudTop + (compactHud ? layout.progressHeight * 0.28 : 50), `600 ${compactHud ? 11 : 14}px system-ui`, "#43311f", compactHud ? 76 : progressWidth - 28);
-      text(`EXP: ${progress.exp}/${progress.expToNextLevel}`, nameX, hudTop + (compactHud ? layout.progressHeight * 0.58 : 74), `${compactHud ? 10 : 12}px system-ui`, "#66513b", progressWidth - 28);
-      rect(nameX, hudTop + (compactHud ? layout.progressHeight * 0.72 : 88), progressWidth - 28, 6, "#8d7455");
-      rect(nameX, hudTop + (compactHud ? layout.progressHeight * 0.72 : 88), (progressWidth - 28) * progress.exp / progress.expToNextLevel, 6, "#8c6231");
-      ctx.restore();
+      text(`Boss: ${meadowProgress.defeated}/${meadowProgress.target ?? (deepsea ? "30–40" : tourney ? "50–70" : "38–45")}`, nameX, nameTop + 134, `${layout.compact ? 10 : 12}px system-ui`, "#68491e", layout.nameWidth - 24);
       if (message && elapsed < messageUntil) text(message, layout.pad, height - layout.progressHeight - 24, "11px system-ui", "#ffcebb", width - 32);
       for (const badge of layout.currencies) drawCurrencyBadge(ctx, badge.kind, badge.kind === "gold" ? goldRef.current : wishesRef.current, badge.x, badge.y, badge.width, badge.height);
       const controls = [...layout.controls, { ...layout.returnButton, label: "Return to room" }];
@@ -795,6 +774,9 @@ export function ExpeditionCanvas({ location, team, gold, wishCurrency, character
     <div inert={overlayOpen} className="h-full w-full">
     <canvas ref={canvasRef} role="img" aria-label={`Your team is automatically walking from left to right through an endless ${location}.`} className="block h-full w-full" />
     <DamageSpread rows={damageSpread} compact={hud.compact} top={Math.max(hud.returnButton.y + hud.returnButton.height, ...hud.controls.map((control) => control.y + control.height)) + hud.gap} pad={hud.pad} />
+    <BattleLog key={hud.compact ? "compact" : "wide"} label="Adventure battle log" defaultExpanded={!hud.compact} className="absolute z-10" style={{ left: hud.pad, width: hud.nameWidth, ...(hud.compact ? { bottom: hud.pad + hud.progressHeight + hud.gap } : { top: hud.logY }) }} listStyle={{ maxHeight: Math.max(50, Math.min(200, hud.progressY - hud.logY - 52)) }}>
+      {logEntries.length ? logEntries.map((entry, index) => <li key={index}>{entry.actor}: {entry.detail}</li>) : <li>Waiting for battle to begin…</li>}
+    </BattleLog>
     {location === "tourney" && yellowSpectator && hasEvidence && <button ref={spectatorButton} type="button" aria-label="Recognize the yellow spectator from Zugwangs Evidence" disabled={summoning} onClick={() => void summonAction.current?.()}
       className="absolute left-[82%] top-[41%] z-10 h-[72px] w-12 -translate-x-1/2 -translate-y-1/2 cursor-pointer rounded outline-none focus-visible:ring-2 focus-visible:ring-yellow-200 disabled:cursor-wait">
       <span className="sr-only">{summoning ? "Summoning Demon Prince…" : "A yellow-headed person hidden among the spectators"}</span>

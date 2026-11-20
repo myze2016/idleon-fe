@@ -25,32 +25,34 @@ export default function DashboardPage() {
     if ([session.error, character.error].some((error) => error instanceof ApiError && error.status === 401)) router.replace("/login");
   }, [router, session.error, character.error]);
 
-  if (!user) return <main className="flex min-h-[70dvh] items-center justify-center p-6 text-[#43311f]">
-    <div className="paper-menu max-w-md p-10 text-center">{error ? <><p role="alert" className="mb-4 text-sm text-[#a13725]">{error}</p><Button className={actionClass} onClick={() => { void session.refetch(); }}>Try again</Button></> : <><LoaderCircle className="mx-auto mb-3 size-6 animate-spin text-[#805523]" /><p role="status" className="text-sm">Opening your journal?</p></>}</div>
+  if (!user) return <main className="flex min-h-0 flex-1 items-center justify-center p-3 text-[#43311f]">
+    <div className="paper-menu dashboard-parchment max-w-md p-6 text-center">{error ? <><p role="alert" className="mb-4 text-sm text-[#a13725]">{error}</p><Button className={actionClass} onClick={() => { void session.refetch(); }}>Try again</Button></> : <><LoaderCircle className="mx-auto mb-3 size-6 animate-spin text-[#805523]" /><p role="status" className="text-sm">Opening your journal…</p></>}</div>
   </main>;
 
-  return <main className="text-[#43311f]">
-    <div className="mx-auto max-w-4xl py-10 sm:py-16">
-      <section className="paper-menu border border-[#a07a46] px-7 py-10 shadow-2xl sm:px-12 sm:py-12" aria-labelledby="dashboard-title">
-        <p className="text-xs font-semibold uppercase tracking-[0.2em] text-[#805523]">Adventurer&apos;s journal</p>
-        <h1 id="dashboard-title" className="mt-4 font-serif text-3xl leading-tight sm:text-5xl">Welcome back, {user.name}.</h1>
-        <p className="mt-4 max-w-lg text-sm leading-7 text-[#71583c]">Your cabin is waiting. Gather your companions and set out when you are ready.</p>
+  return <main className="dashboard-home text-[#43311f]">
+    <div className="dashboard-journal">
+      <section className="paper-menu dashboard-parchment dashboard-home-parchment min-w-0 shadow-2xl" aria-labelledby="dashboard-title">
+        <div className="dashboard-intro">
+        <p className="dashboard-eyebrow font-semibold uppercase tracking-[0.16em] text-[#805523]">Adventurer&apos;s journal</p>
+        <h1 id="dashboard-title" className="dashboard-title font-serif">Welcome back, {user.name}.</h1>
+        <p className="dashboard-description text-[#71583c]">Your cabin is waiting. Gather your team and explore.</p>
         {error && <p role="alert" className="mt-5 rounded border border-[#bc8061] bg-[#f3d8ba] p-3 text-sm text-[#a13725]">{error}</p>}
-        <div className="mt-8 border-t border-[#ac8a5d]/50 pt-7">
-          <h2 className="flex items-center gap-2 font-serif text-xl"><Swords className="size-5 text-[#805523]" />Your adventure</h2>
-          {character.isPending ? <p role="status" className="mt-4 text-sm text-[#71583c]">Loading your team?</p>
+        </div>
+        <div className="dashboard-adventure">
+          <h2 className="dashboard-adventure-title flex items-center gap-2 font-serif text-lg"><Swords className="size-4 text-[#805523]" />Your adventure</h2>
+          {character.isPending ? <p role="status" className="mt-4 text-sm text-[#71583c]">Loading your team…</p>
             : character.error ? <div className="mt-4"><p role="alert" className="text-sm text-[#a13725]">{character.error.message}</p><Button className={actionClass + " mt-3"} onClick={() => void character.refetch()}>Try again</Button></div>
             : <>
-              <p className="mt-3 text-sm text-[#71583c]">{adventurer ? adventurer.name + " ? " + weaponDetails(adventurer.weapon).label : "Choose your first character and begin your journey."}</p>
-              <div className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
-                {[{ label: "Account level", value: state?.progression.level ?? 1 }, { label: "Gold", value: (state?.gold ?? 0).toLocaleString() }, { label: "Companions", value: state?.characters.length ?? 0 }, { label: "Team", value: (state?.teamSlots.filter(Boolean).length ?? 0) + " / 6" }].map((item) => <div key={item.label} className="paper-card border border-[#ac8a5d] bg-[#e9d4a7] p-4"><p className="text-xs text-[#71583c]">{item.label}</p><p className="mt-2 font-serif text-2xl">{item.value}</p></div>)}
+              <p className="dashboard-companion text-[#71583c]">{adventurer ? adventurer.name + " · " + weaponDetails(adventurer.weapon).label : "Choose your first character and begin your journey."}</p>
+              <div className="dashboard-stats">
+                {[{ label: "Account level", value: state?.progression.level ?? 1 }, { label: "Gold", value: (state?.gold ?? 0).toLocaleString() }, { label: "Companions", value: state?.characters.length ?? 0 }, { label: "Team", value: (state?.teamSlots.filter(Boolean).length ?? 0) + " / 6" }].map((item) => <div key={item.label} className="paper-card dashboard-stat border border-[#ac8a5d] bg-[#e9d4a7]"><p className="text-[11px] text-[#71583c]">{item.label}</p><p className="dashboard-stat-value font-serif tabular-nums">{item.value}</p></div>)}
               </div>
-              <Link href="/game" className="menu-action mt-8 inline-flex min-h-12 w-full items-center justify-center gap-3 px-6 py-3 font-semibold outline-offset-4 sm:w-auto">Start adventure<ArrowRight className="size-5" /></Link>
-              <p className="mt-3 text-xs text-[#71583c]">{adventurer ? "Enter your room to manage your team and explore." : "Start by choosing your name and weapon."}</p>
+              <Link href="/game" className="menu-action dashboard-start inline-flex min-h-11 items-center justify-center gap-3 px-4 py-2 font-semibold outline-offset-4">Start adventure<ArrowRight className="size-5" /></Link>
+              <p className="dashboard-hint text-[#71583c]">{adventurer ? "Manage your team and explore." : "Choose your name and weapon."}</p>
             </>}
         </div>
       </section>
-      <div className="mt-5 flex flex-wrap justify-between gap-3 px-1 text-xs text-[#e0cba5]"><span className="flex items-center gap-2"><Users className="size-3.5" />{user.username}</span><span className="flex items-center gap-2"><Coins className="size-3.5" />Small steps. New adventures.</span></div>
+      <div className="dashboard-footer text-xs text-[#e0cba5]"><span className="flex min-w-0 items-center gap-2"><Users className="size-3.5 shrink-0" /><span className="truncate" title={user.username}>{user.username}</span></span><span className="hidden items-center gap-2 sm:flex"><Coins className="size-3.5" />Small steps. New adventures.</span></div>
     </div>
   </main>;
 }

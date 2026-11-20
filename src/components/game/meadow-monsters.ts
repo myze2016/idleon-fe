@@ -1,12 +1,15 @@
 import { useSyncExternalStore } from "react";
 
-const sheets = [
+interface MonsterSheet { src: string; rows: string[]; heights: number[]; rowBounds?: [number, number][] }
+const sheets: MonsterSheet[] = [
   { src: "/optimized/sprites/garnaland-enemies-v1.e342187f2734.webp", rows: ["mushroom-fighter", "mushroom-rager", "fairy", "mushroom-chicken", "mushroom-king"], heights: [44, 46, 42, 48, 56] },
   { src: "/optimized/sprites/tourney-enemies-v1.f113c0748f4b.webp", rows: ["gladiator", "spearman", "zugwang", "demon-prince"], heights: [60, 60, 62, 62] },
   { src: "/optimized/sprites/harbor-monsters-v1.ad48155c85dd.webp", rows: ["crab-day", "hermit", "starfish", "fishpeople-guide"], heights: [32, 38, 40, 52] },
   { src: "/optimized/sprites/harbor-night-monsters-v1.c2f016253e3d.webp", rows: ["fishpeople-spearman", "fishpeople-hunter", "fishpeople-magos"], heights: [50, 48, 52] },
   { src: "/optimized/sprites/meadow-monsters-v1.274e92c35b16.webp", rows: ["boar", "slime", "plant", "mutant-boar"], heights: [42, 32, 50, 48] },
-  { src: "/optimized/sprites/forest-monsters-v1.3048a91bf0ef.webp", rows: ["warrior", "slinger", "coco-klan-chief"], heights: [48, 46, 52] },
+  // The chief's crown starts above the last third of this painted sheet.
+  // Keep it out of the slinger crop and its automatic foot detection.
+  { src: "/optimized/sprites/forest-monsters-v1.3048a91bf0ef.webp", rows: ["warrior", "slinger", "coco-klan-chief"], heights: [48, 46, 52], rowBounds: [[0, 1 / 3], [1 / 3, 5 / 8], [5 / 8, 1]] },
 ];
 const atlases = new Map<string, HTMLImageElement>();
 const listeners = new Set<() => void>();
@@ -40,14 +43,16 @@ export function drawMonster(ctx: CanvasRenderingContext2D, type: string, time: n
   let atlas = atlases.get(sheet.src);
   if (!atlas) { atlas = new Image(); atlas.onload = loaded; atlas.onerror = loaded; atlas.src = sheet.src; atlases.set(sheet.src, atlas); }
   if (!atlas.complete || !atlas.naturalWidth) return false;
-  const cellWidth = atlas.naturalWidth / 4, cellHeight = atlas.naturalHeight / sheet.rows.length;
+  const bounds = sheet.rowBounds?.[row] ?? [row / sheet.rows.length, (row + 1) / sheet.rows.length];
+  const sourceY = bounds[0] * atlas.naturalHeight;
+  const cellWidth = atlas.naturalWidth / 4, cellHeight = (bounds[1] - bounds[0]) * atlas.naturalHeight;
   let sizing = metrics.get(type);
   if (!sizing) {
     const sample = document.createElement("canvas");
     sample.width = atlas.naturalWidth; sample.height = Math.ceil(cellHeight);
     const sampleCtx = sample.getContext("2d", { willReadFrequently: true });
     if (!sampleCtx) return false;
-    sampleCtx.drawImage(atlas, 0, row * cellHeight, atlas.naturalWidth, cellHeight, 0, 0, sample.width, sample.height);
+    sampleCtx.drawImage(atlas, 0, sourceY, atlas.naturalWidth, cellHeight, 0, 0, sample.width, sample.height);
     const pixels = sampleCtx.getImageData(0, 0, sample.width, sample.height).data;
     const feet: number[] = [];
     let maxHeight = 1, maxWidth = 1;
@@ -77,7 +82,7 @@ export function drawMonster(ctx: CanvasRenderingContext2D, type: string, time: n
   ctx.save();
   ctx.fillStyle = "#2b241c44";
   ctx.beginPath(); ctx.ellipse(0, 0, type === "plant" ? 15 : 21, 4, 0, 0, Math.PI * 2); ctx.fill();
-  ctx.drawImage(atlas, frame * cellWidth, row * cellHeight, cellWidth, cellHeight,
+  ctx.drawImage(atlas, frame * cellWidth, sourceY, cellWidth, cellHeight,
     -cellWidth * sizing.scale / 2, -sizing.feet[frame] * sizing.scale,
     cellWidth * sizing.scale, cellHeight * sizing.scale);
   ctx.restore();

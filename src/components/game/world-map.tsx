@@ -1,4 +1,5 @@
 "use client";
+import { ArrowLeft, Check, ChevronRight, Lock, Waves } from "lucide-react";
 import { drawPaperPanel } from "./paper-panel";
 import { drawRpgButton } from "./rpg-button";
 import { ResponsiveCanvasFrame } from "./responsive-canvas-frame";
@@ -132,23 +133,36 @@ export function WorldMap({ onClose }: { onClose: () => void }) {
       else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first?.focus(); }
     }
   }}>
-    {garnalandOpen || deepSeaOpen ? <div role="dialog" aria-modal="true" aria-labelledby="placeholder-title" className="absolute inset-0 z-40 flex flex-col items-center justify-center gap-5 bg-[#3e3024] p-8 text-center text-[#f1ebce]" onKeyDown={(event) => {
+    {garnalandOpen || deepSeaOpen ? <ResponsiveCanvasFrame fit minHeight={560} narrowMinHeight={620}><div role="dialog" aria-modal="true" aria-labelledby="placeholder-title" className="paper-menu absolute inset-0 z-40 flex flex-col justify-center gap-4 bg-[#efdfb8] p-4 text-[#43311f] sm:p-6" onKeyDown={(event) => {
       if (event.key === "Escape") { event.preventDefault(); event.stopPropagation(); closePlaceholder(); }
     }}>
-      <span aria-hidden="true" className="text-5xl text-[#e4d895]">✦</span>
-      <h2 id="placeholder-title" className="font-serif text-3xl">{deepSeaOpen ? "DeepSea Moot" : "Garnaland"}</h2>
-      <p className="max-w-sm text-[#c1cda9]">{deepSeaOpen ? "Follow the Deepsea Moth Map into the underwater stronghold. Choose your floor, then press Start in the room." : "The Demon Prince has fallen. The way to Garnaland is open."}</p>
-      {deepSeaOpen ? <div role="group" aria-label="DeepSea Moot floors" className="flex w-full max-w-sm flex-col gap-3">
+      <header className="menu-info mx-auto w-full max-w-4xl p-4">
+        <p className="mb-1 text-[10px] font-semibold uppercase tracking-widest text-[#805523]">Choose your destination</p>
+        <h2 id="placeholder-title" className="flex items-center gap-2 font-serif text-2xl font-semibold"><Waves size={24} aria-hidden="true" />{deepSeaOpen ? "DeepSea Moot" : "Garnaland"}</h2>
+        <p className="mt-2 text-xs text-[#71583c]">{deepSeaOpen ? "Explore the underwater stronghold. Select a floor, then press Start in My Room." : "The Demon Prince has fallen. The way to Garnaland is open."}</p>
+      </header>
+      {deepSeaOpen ? <div role="group" aria-label="DeepSea Moot floors" className="mx-auto grid w-full max-w-4xl grid-cols-1 gap-3 sm:grid-cols-3">
         {([
-          { id: "deepsea", floor: 1, name: "DeepSea Moot", requirement: "Deepsea Moth Map" },
-          { id: "deepsea-2f", floor: 2, name: "DeepSea Moot 2F", requirement: "Defeat Fishpeople Guardian" },
-          { id: "deepsea-palace", floor: 3, name: "Royal Palace", requirement: "Defeat Fishpeople Researcher" },
-        ] as const).map((floor) => <button key={floor.id} type="button" disabled={!deepSeaUnlocked || (character.data?.deepSeaFloor ?? 1) < floor.floor} onClick={() => { store.getState().selectLocation(floor.id); onClose(); }} className="cursor-pointer rounded-xl border border-[#89b9bc] bg-[#214a59] px-4 py-3 text-left outline-none focus-visible:ring-2 focus-visible:ring-[#fff0b8] disabled:cursor-default disabled:opacity-50">
-          <span className="block font-semibold">{floor.name}</span><span className="text-xs text-[#c1cda9]">{(character.data?.deepSeaFloor ?? 1) >= floor.floor ? "Select floor" : floor.requirement}</span>
-        </button>)}
-      </div> : <p className="text-sm text-[#e4d895]">Coming soon — this location is a placeholder.</p>}
-      <button ref={backRef} type="button" onClick={closePlaceholder} className="cursor-pointer rounded-xl border border-[#b8a76d] bg-[#654e35] px-5 py-3 outline-none focus-visible:ring-2 focus-visible:ring-[#fff0b8]">Back to world map</button>
-    </div> : <>
+          { id: "deepsea", floor: 1, name: "DeepSea Moot", subtitle: "First floor", requirement: "Find the Deepsea Moth Map", art: "/optimized/maps/deepsea-floor1-harbor-v4.7d2f476449e3.webp" },
+          { id: "deepsea-2f", floor: 2, name: "DeepSea Moot 2F", subtitle: "Into the depths", requirement: "Defeat Fishpeople Guardian", art: "/optimized/maps/deepsea-floor2-harbor-v4.271cd3940422.webp" },
+          { id: "deepsea-palace", floor: 3, name: "Royal Palace", subtitle: "The sunken city", requirement: "Defeat Fishpeople Researcher", art: "/optimized/maps/deepsea-palace-harbor-v4.f1cb7b684899.webp" },
+        ] as const).map((floor) => {
+          const unlocked = deepSeaUnlocked && (character.data?.deepSeaFloor ?? 1) >= floor.floor;
+          const active = selected === floor.id;
+          return <button key={floor.id} type="button" aria-pressed={active} disabled={!unlocked} onClick={() => { store.getState().selectLocation(floor.id); onClose(); }} className="menu-info group flex min-h-28 min-w-0 items-stretch overflow-hidden p-2 text-left outline-none focus-visible:ring-2 focus-visible:ring-[#805523] disabled:cursor-default sm:flex-col" style={{ cursor: unlocked ? "pointer" : "default", boxShadow: active ? "inset 0 0 0 2px #805523" : undefined }}>
+            <span aria-hidden="true" className="relative w-24 shrink-0 overflow-hidden rounded border border-[#a38358] bg-[#34575e] sm:h-36 sm:w-full" style={{ backgroundImage: 'url('+floor.art+')', backgroundSize: "cover", backgroundPosition: "center", filter: unlocked ? undefined : "saturate(.35)" }}>
+              <span className="absolute top-1 left-1 rounded bg-[#efdfb8] px-2 py-1 text-[10px] font-semibold text-[#43311f]">Floor {floor.floor}</span>
+            </span>
+            <span className="flex min-w-0 flex-1 flex-col justify-center gap-1 px-3 py-2 sm:px-1">
+              <span className="text-[10px] uppercase tracking-wider text-[#805523]">{floor.subtitle}</span>
+              <span className="font-serif text-base font-semibold">{floor.name}</span>
+              <span className="mt-1 flex items-center gap-1 text-[11px] text-[#71583c]">{!unlocked ? <><Lock size={13} className="shrink-0" />{floor.requirement}</> : active ? <><Check size={14} />Selected destination</> : <><ChevronRight size={14} />Select floor</>}</span>
+            </span>
+          </button>;
+        })}
+      </div> : <p className="text-sm text-[#71583c]">Coming soon.</p>}
+      <div className="mx-auto w-full max-w-4xl"><button ref={backRef} type="button" onClick={closePlaceholder} className="menu-action inline-flex min-h-11 cursor-pointer items-center gap-2 px-4 py-2 text-sm font-semibold outline-none focus-visible:ring-2 focus-visible:ring-[#805523]"><ArrowLeft size={16} />Back to world map</button></div>
+    </div></ResponsiveCanvasFrame> : <>
     <div ref={viewportRef} tabIndex={0} aria-label="World map. Drag or use arrow keys and arrow buttons to move." className="absolute inset-0 overflow-hidden overscroll-none cursor-grab select-none active:cursor-grabbing" style={{ touchAction: "none" }} onPointerDown={(event) => {
       if (!event.isPrimary || event.button !== 0) return;
       const view = event.currentTarget;

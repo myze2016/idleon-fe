@@ -6,24 +6,29 @@ import { Swords, X } from "lucide-react";
 import { api } from "@/lib/api";
 import { useSession } from "@/lib/auth";
 import { useCharacter } from "@/lib/character-api";
-import { weaponDetails } from "@/lib/character";
+import { TeamScreen } from "./team-screen";
 import { ResponsiveCanvasFrame } from "./responsive-canvas-frame";
 import { PvpBattleCanvas } from "./pvp-battle-canvas";
 import { PvpChat } from "./pvp-chat";
 import { PvpArena } from "./pvp-arena";
+import { BattleLog } from "./battle-log";
 import type { RoomState } from "./pvp-types";
+import { useRealtime } from "@/lib/realtime";
 
 export function PvpPanel({ onClose, initialCode = "" }: { onClose: () => void; initialCode?: string }) {
+  const [editingTeam, setEditingTeam] = useState(false);
   const closeRef = useRef<HTMLButtonElement>(null);
   const [code, setCode] = useState(initialCode), [joinCode, setJoinCode] = useState(""), [now, setNow] = useState(() => Date.now());
   const session = useSession(), userId = session.data?.user.id, roster = useCharacter(userId), client = useQueryClient();
-  const lobby = useQuery({ queryKey: ["pvp-lobby", userId], enabled: !!userId && !code, refetchInterval: 1500,
+  const liveLobby = useRealtime("pvp-lobby", {}, !!userId && !code, () => { void client.invalidateQueries({ queryKey: ["pvp-lobby", userId] }); });
+  const liveRoom = useRealtime("pvp", { code }, !!userId && !!code, () => { void client.invalidateQueries({ queryKey: ["pvp-room", userId, code] }); });
+  const lobby = useQuery({ queryKey: ["pvp-lobby", userId], enabled: !!userId && !code, refetchInterval: liveLobby.ready ? 15000 : 1500,
     queryFn: async ({ signal }) => {
       const data = await api<{ rooms: { code: string; hostName: string; hostUsername: string; isMine: boolean }[]; activeCode: string | null }>("/pvp", { signal });
       if (data.activeCode) setCode(data.activeCode);
       return data;
     } });
-  const room = useQuery({ queryKey: ["pvp-room", userId, code], enabled: !!userId && !!code, queryFn: async ({ signal }) => {
+  const room = useQuery<RoomState>({ queryKey: ["pvp-room", userId, code], enabled: !!userId && !!code, queryFn: async ({ signal }) => {
     const previous = client.getQueryData<RoomState>(["pvp-room", userId, code]);
     const known = previous?.result && previous.startsAt ? previous.startsAt : null;
     const next = await api<RoomState>(`/pvp/${code}${known ? `?battle=${encodeURIComponent(known)}` : ""}`, { signal });
@@ -33,7 +38,7 @@ export function PvpPanel({ onClose, initialCode = "" }: { onClose: () => void; i
     };
     return next;
   }, retry: false,
-    refetchInterval: (query) => query.state.error || ["complete", "canceled", "closed", "expired"].includes(query.state.data?.phase ?? "") ? false : query.state.data?.phase === "battle" && query.state.data.result ? 1500 : 500 });
+    refetchInterval: (query) => query.state.error || ["complete", "canceled", "closed", "expired"].includes(query.state.data?.phase ?? "") ? false : liveRoom.ready ? 15000 : query.state.data?.phase === "battle" && query.state.data.result ? 1500 : 500 });
   const action = useMutation({ mutationFn: (input: { path: string; body?: object }) => api<{ code: string }>(input.path, { method: "POST", ...(input.body ? { body: JSON.stringify(input.body) } : {}) }),
     onSuccess: async (data) => { setCode(data.code); await client.invalidateQueries({ queryKey: ["pvp-room", userId, data.code] }); await client.invalidateQueries({ queryKey: ["pvp-lobby", userId] }); } });
   const leave = useMutation({ mutationFn: () => code ? api(`/pvp/${code}/leave`, { method: "POST" }) : Promise.resolve(),
@@ -44,6 +49,14 @@ export function PvpPanel({ onClose, initialCode = "" }: { onClose: () => void; i
     const timer = setInterval(() => setNow(Date.now()), 100);
     return () => clearInterval(timer);
   }, [room.data?.startsAt, room.data?.phase]);
+  useEffect(() => {
+    const data = room.data;
+    if (!data?.startsAt || !["countdown", "battle"].includes(data.phase)) return;
+    const boundary = Date.parse(data.startsAt) + (data.phase === "battle" ? (data.result?.duration ?? 180) * 1000 : 0);
+    const delay = Math.max(0, boundary - Date.parse(data.serverNow) - (Date.now() - room.dataUpdatedAt)) + 80;
+    const timer = setTimeout(() => { void client.invalidateQueries({ queryKey: ["pvp-room", userId, code] }); }, delay);
+    return () => clearTimeout(timer);
+  }, [room.data, room.dataUpdatedAt, client, userId, code]);
   const data = room.data, me = data?.players.find((player) => player?.id === userId);
   const selected = me?.characterIds ?? [];
   const serverTime = data ? Date.parse(data.serverNow) + Math.max(0, now - room.dataUpdatedAt) : now;
@@ -58,6 +71,22 @@ export function PvpPanel({ onClose, initialCode = "" }: { onClose: () => void; i
   function select(characterIds: string[]) { action.mutate({ path: `/pvp/${code}/select`, body: { characterIds } }); }
 
   if (data && ["countdown", "battle", "complete"].includes(data.phase)) return <PvpArena data={data} userId={userId!} elapsed={elapsed} busy={busy} error={error} onClose={close} onReturn={() => action.mutate({ path: `/pvp/${code}/return` })} />;
+
+  if (editingTeam && data?.phase === "waiting") return <TeamScreen characters={roster.data?.characters ?? []} onClose={() => setEditingTeam(false)} selection={{
+    slots: Array.from({ length: 6 }, (_, slot) => roster.data?.characters.find(member => member.id === selected[slot]) ?? null),
+    busy: busy || !!me?.ready, error,
+    onAssign: (slot, member) => {
+      if (busy || me?.ready) return;
+      const next = [...selected];
+      if (!member?.id) next.splice(slot, 1);
+      else {
+        const previous = next.indexOf(member.id);
+        if (previous >= 0) next[previous] = next[slot];
+        next[slot] = member.id;
+      }
+      select(next.filter((id): id is string => !!id));
+    },
+  }} />;
 
   return <ResponsiveCanvasFrame minHeight={520}><div role="dialog" aria-modal="true" aria-labelledby="pvp-title" className="paper-menu absolute inset-0 z-40 overflow-auto paper-menu paper-card bg-[#efdfb8] text-[#43311f]" onKeyDown={(event) => {
     if (event.key === "Escape") { event.preventDefault(); event.stopPropagation(); close(); }
@@ -102,23 +131,14 @@ export function PvpPanel({ onClose, initialCode = "" }: { onClose: () => void; i
               select(saved.length ? saved : roster.data!.characters.slice(0, 6).map((member) => member.id!));
             }}>Use room team</button>
           </div>
-          <p className="text-xs text-[#71583c]">Select 1–6 characters in formation order. First three lead; the next three stay behind. Click a selected character to remove it. A team of six can fight a team of one.</p>
-          <ol aria-label="Selected team formation" className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-6">{Array.from({ length: 6 }, (_, slot) => {
-            const member = roster.data?.characters.find((entry) => entry.id === selected[slot]);
-            return <li key={slot} className="rounded-lg border border-[#a38358] paper-card menu-info bg-[#e9d4a7] p-2 text-xs"><span className="block text-[#805523]">{slot < 3 ? "Front" : "Back"} {slot % 3 + 1}</span><span>{member?.name ?? "Empty"}</span></li>;
-          })}</ol>
-          {roster.isPending ? <p>Loading characters…</p> : roster.data?.characters.length ? <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">{roster.data.characters.map((member) => {
-            const chosen = selected.includes(member.id!);
-            return <button key={member.id} type="button" disabled={busy || !!me?.ready || (!chosen && selected.length >= 6)} aria-pressed={chosen} onClick={() => select(chosen ? selected.filter((id) => id !== member.id) : [...selected, member.id!])} className={`menu-action cursor-pointer rounded-xl border p-3 text-left outline-none focus-visible:ring-2 focus-visible:ring-[#805523] disabled:opacity-60 ${chosen ? "border-[#e4d895] paper-card bg-[#ceb077]" : "border-[#a38358] paper-card menu-info bg-[#e9d4a7]"}`}>
-              <span className="font-semibold">{chosen ? `${selected.indexOf(member.id!) + 1}. ` : ""}{member.name}</span><span className="ml-2 text-xs text-[#71583c]">{weaponDetails(member.weapon).label}</span><span className="mt-1 block text-xs text-[#71583c]">HP {member.stats?.hp} · MP {member.stats?.mp} · ATK {member.stats?.atk} · Magic {member.stats?.magic} · Speed {member.stats?.speed}</span>
-            </button>;
-          })}</div> : <p className="text-sm text-[#71583c]">Create your starter character first.</p>}
+          <button type="button" className={button} disabled={busy || !!me?.ready || !roster.data?.characters.length} onClick={() => setEditingTeam(true)}>Edit team formation</button>
+          <p className="text-xs text-[#71583c]">{selected.length ? selected.map(id => roster.data?.characters.find(member => member.id === id)?.name ?? "Character").join(" / ") : "Choose up to six characters using the team formation slots."}</p>
           <button type="button" disabled={busy || !selected.length} className={button} onClick={() => action.mutate({ path: `/pvp/${code}/ready`, body: { ready: !me?.ready } })}>{me?.ready ? "Unready" : "Ready"}</button>
           <p className="text-xs text-[#71583c]">Both players must be ready. Teams start at opposite ends after the five-second countdown. Ranged attacks reach farther; melee characters must close the gap. Opponent selections are hidden until both are ready.</p>
         </>}
         {data.phase === "complete" && <div role="status" className="rounded-xl border border-[#a38358] paper-card menu-info bg-[#e9d4a7] p-5 text-center"><p className="text-2xl font-semibold text-[#805523]">{data.result?.winnerId ? data.result.winnerId === userId ? "Victory!" : "Defeat" : "Draw"}</p><p className="mt-2 text-sm text-[#71583c]">PvE health, mana, gold, and progression are unchanged.</p><button type="button" disabled={busy} className={`${button} mt-4`} onClick={() => action.mutate({ path: `/pvp/${code}/return` })}>Return to PvP room</button></div>}
         {["canceled", "closed", "expired"].includes(data.phase) && <p className="rounded-xl border border-[#a38358] p-4 text-sm">The room was closed, canceled, or expired. Return to the room to start another match.</p>}
-        {!!fighters.length && <ol aria-label="PvP battle log" tabIndex={0} className="h-[clamp(8rem,22dvh,12rem)] space-y-1 overflow-y-auto overscroll-contain rounded-xl border border-[#a38358] paper-card bg-[#efdfb8] p-4 text-xs break-words [scrollbar-gutter:stable] focus-visible:outline-2 focus-visible:outline-[#805523]">{recent.length ? recent.map((step, index) => <li key={`${step.at}-${index}`} className={step.critical ? "text-[#79468f]" : step.kind === "skill" ? "text-[#315f8e]" : "text-[#71583c]"}>{step.at.toFixed(1)}s · {fighters[step.actor]?.name ?? data.players[step.side]?.name}: {step.label}{step.damage ? ` · −${step.damage} HP` : ""}{step.healing ? ` · +${step.healing} HP` : ""}</li>) : <li className="text-[#71583c]">Waiting for battle to begin…</li>}</ol>}
+        {!!fighters.length && <BattleLog label="PvP battle log">{recent.length ? recent.map((step, index) => <li key={`${step.at}-${index}`} className={step.critical ? "text-[#79468f]" : step.kind === "skill" ? "text-[#315f8e]" : "text-[#71583c]"}>{step.at.toFixed(1)}s · {fighters[step.actor]?.name ?? data.players[step.side]?.name}: {step.label}{step.damage ? ` · −${step.damage} HP` : ""}{step.healing ? ` · +${step.healing} HP` : ""}</li>) : <li className="text-[#71583c]">Waiting for battle to begin…</li>}</BattleLog>}
         <PvpChat key={code} code={code} userId={userId!} ended={["canceled", "closed", "expired"].includes(data.phase)} />
       </>}
     </div>

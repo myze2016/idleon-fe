@@ -1,4 +1,5 @@
 "use client";
+import { endlessStatFactor } from "@/lib/endless";
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
@@ -25,14 +26,14 @@ function Editor({ catalog, onPublished }: { catalog: Catalog; onPublished: () =>
   const publish = useMutation({ mutationFn: () => api("/admin/endless", { method: "PUT", body: JSON.stringify({ version: catalog.version, config: draft }) }),
     onSuccess: async () => { onPublished(); await Promise.all([client.invalidateQueries({ queryKey: ["admin", "endless"] }), client.invalidateQueries({ queryKey: ["endless"] }), client.invalidateQueries({ queryKey: ["endless-leaderboard"] })]); } });
   const field = "menu-field mt-1 min-h-11 w-full px-3 py-2 text-sm";
-  const factor = (distance: number) => Number.isFinite(draft.statMultiplier) ? Math.min(1_000_000, draft.statMultiplier ** (distance / 100)).toLocaleString(undefined, { maximumFractionDigits: 2 }) : "—";
+  const factor = (distance: number) => Number.isFinite(draft.statMultiplier) ? endlessStatFactor(distance, draft.statMultiplier).toLocaleString(undefined, { maximumFractionDigits: 2 }) : "—";
   return <form className="mt-5 space-y-5" onSubmit={event => { event.preventDefault(); publish.mutate(); }}>
     <p className="text-sm">Current season {catalog.version}. {dirty ? "You have unpublished changes." : "Showing published settings."}</p>
     <fieldset disabled={publish.isPending} className="space-y-5">
       <section className="menu-info space-y-4 p-4"><h2 className="text-lg font-semibold">Difficulty</h2>
         <label className="flex min-h-11 items-center gap-3 text-sm font-semibold"><input className="size-5" type="checkbox" checked={draft.enabled} onChange={event => setDraft(previous => ({ ...previous, enabled: event.target.checked }))} />Allow new Endless runs</label>
-        <label className="block text-sm font-semibold">Stat multiplier per 100 meters<input className={field} type="number" required min={1.01} max={3} step={.01} value={Number.isFinite(draft.statMultiplier) ? draft.statMultiplier : ""} onChange={event => setDraft(previous => ({ ...previous, statMultiplier: event.target.value === "" ? NaN : Number(event.target.value) }))} /></label>
-        <p className="text-sm">Enemy stats grow with distance: base stats times multiplier raised to (distance / 100), rounded up. Travel speed is 10 meters per second. HP, MP, Attack, Defense, Magic, Magic Defense, Speed, and native skill damage scale.</p>
+        <label className="block text-sm font-semibold">Stat multiplier every 500 meters<input className={field} type="number" required min={1.01} max={3} step={.01} value={Number.isFinite(draft.statMultiplier) ? draft.statMultiplier : ""} onChange={event => setDraft(previous => ({ ...previous, statMultiplier: event.target.value === "" ? NaN : Number(event.target.value) }))} /></label>
+        <p className="text-sm">Enemy stats increase in steps every 500 meters: base stats times multiplier raised to floor(distance / 500), rounded up. Travel speed is 10 meters per second. HP, MP, Attack, Defense, Magic, Magic Defense, Speed, and native skill damage scale.</p>
         <div className="flex flex-wrap gap-3 text-sm">{[0, 100, 500, 1000].map(distance => <span key={distance} className="menu-info px-3 py-2">{distance} m: x{factor(distance)}</span>)}</div>
         <p className="text-xs">Stats and skill damage cap at 1,000,000; Speed caps at 1,000. Ability timing and chances stay unchanged. Enemies continuously spawn at random intervals of 2–3 seconds. Up to 40 enemies can remain on the field. Runs end when the whole team is defeated.</p>
       </section>

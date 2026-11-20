@@ -1,5 +1,10 @@
 import type { ArenaFighter, DuelStep } from "@/components/game/pvp-types";
 
+export const ENDLESS_STAT_STEP_METERS = 500;
+export function endlessStatFactor(distance: number, multiplier: number) {
+  return Math.min(1_000_000, multiplier ** Math.floor(Math.max(0, distance) / ENDLESS_STAT_STEP_METERS));
+}
+
 export interface EndlessConfig { enabled: boolean; enemyPool: string[]; statMultiplier: number }
 export interface EndlessResult { fighters: ArenaFighter[]; steps: DuelStep[]; duration: number; winnerId: string | null }
 export interface EndlessRun {

@@ -10,7 +10,7 @@ export function battleHudLayout(width: number, height: number) {
   const gridWidth = buttonWidth * 3 + gap * 2;
   const gridLeft = width - pad - gridWidth;
   const nameWidth = Math.max(90, Math.min(compact ? 210 : 260, topGrid ? (gridLeft - pad - gap * 3) * .4 : singleRow ? width - toolbarWidth - 300 - pad * 3 : width - returnWidth - pad * 3));
-  const nameHeight = tight ? 54 : compact ? 68 : 88;
+  const nameHeight = 148;
   const currencyLeft = pad + nameWidth + gap;
   const currencyRight = topGrid ? gridLeft - gap : singleRow ? width - pad - toolbarWidth - gap : width - pad - returnWidth - gap;
   const currenciesBesideName = currencyRight - currencyLeft >= 200;
@@ -29,7 +29,7 @@ export function battleHudLayout(width: number, height: number) {
   const returnButton = topGrid
     ? { x: gridLeft + 2 * (buttonWidth + gap), y: pad + buttonHeight + gap, width: buttonWidth, height: buttonHeight }
     : { x: width - pad - returnWidth, y: pad, width: returnWidth, height: buttonHeight };
-  const progressHeight = tight ? 46 : compact ? 64 : 110, progressY = height - pad - progressHeight;
+  const progressHeight = 0, progressY = height - pad;
   const logY = topGrid || singleRow ? pad + nameHeight + gap : rowY + buttonHeight + gap;
   const rowGap = tight ? 2 : compact ? 4 : 6;
   const rowHeight = Math.max(8, Math.min(compact ? 26 : 38, (progressY - gap - logY - rowGap * 4) / 5));

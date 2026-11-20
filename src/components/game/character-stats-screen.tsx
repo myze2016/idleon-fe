@@ -1,155 +1,101 @@
 "use client";
-import { drawCurrencyIcon, useCurrencyArt } from "./currency-art";
+import { useEffect, useId, useRef, useState, useSyncExternalStore } from "react";
+import { createPortal } from "react-dom";
+import { X } from "lucide-react";
 import { drawCharacterInfoPortrait, drawWeaponTypeIcon, useCharacterPortraits } from "./character-info-icons";
-import { drawMenuButton, drawMenuInfo } from "./menu-button";
-import { drawArtifactIcon } from "./artifact-icon";
 import { ResponsiveCanvasFrame } from "./responsive-canvas-frame";
-
-import { useEffect, useRef, useState } from "react";
 import { weaponDetails, type Character } from "@/lib/character";
 import { useSession } from "@/lib/auth";
 import { useCharacter, useUnlockSkill2, useUpgradeCharacter } from "@/lib/character-api";
 import { CollectionPanel } from "./collection-panel";
+import { ArtifactIcon } from "./artifact-icon";
+import { CurrencyBadge } from "./currency-badge";
 import { artifactDetails, artifactStatText } from "@/lib/artifact";
 
+const action = "menu-action inline-flex min-h-11 cursor-pointer items-center justify-center gap-2 px-3 py-2 text-xs font-semibold disabled:cursor-default disabled:opacity-50";
+const landscapeQuery = "(max-height: 450px) and (min-width: 600px)";
+function subscribeLandscape(listener: () => void) {
+  const query = window.matchMedia(landscapeQuery);
+  query.addEventListener("change", listener);
+  return () => query.removeEventListener("change", listener);
+}
+const landscapeSnapshot = () => window.matchMedia(landscapeQuery).matches;
+const serverLandscapeSnapshot = () => false;
 export function CharacterStatsScreen({ character: initialCharacter, onClose }: { character: Character; onClose: () => void }) {
-  const currencyArt = useCurrencyArt();
-  const portraitVersion = useCharacterPortraits();
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-  const closeRef = useRef<HTMLButtonElement>(null);
-  const [focused, setFocused] = useState("");
+  const shortLandscape = useSyncExternalStore(subscribeLandscape, landscapeSnapshot, serverLandscapeSnapshot);
+  const portraitVersion = useCharacterPortraits(), id = useId();
+  const portrait = useRef<HTMLCanvasElement>(null), closeRef = useRef<HTMLButtonElement>(null);
   const [artifactsOpen, setArtifactsOpen] = useState(false);
-  const [unlockRect, setUnlockRect] = useState({ x: 0, y: 0, width: 0 });
-  const session = useSession();
-  const state = useCharacter(session.data?.user.id);
-  const unlock = useUnlockSkill2(session.data?.user.id);
-  const upgrade = useUpgradeCharacter(session.data?.user.id);
-  const character = state.data?.characters.find((member) => member.id === initialCharacter.id) ?? initialCharacter;
-  const gold = state.data?.gold ?? 0;
-  const unlocked = !!character.skill2Unlocked;
+  const [panel, setPanel] = useState("stats"), [skillIndex, setSkillIndex] = useState(0);
+  const userId = useSession().data?.user.id;
+  const state = useCharacter(userId), unlock = useUnlockSkill2(userId), upgrade = useUpgradeCharacter(userId);
+  const character = state.data?.characters.find(member => member.id === initialCharacter.id) ?? initialCharacter;
+  const gold = state.data?.gold ?? 0, unlocked = !!character.skill2Unlocked;
   const unlockCost = state.data?.economy?.skillUnlockCost ?? 1000;
   const canUnlock = !!character.id && gold >= unlockCost && !unlocked && !unlock.isPending;
-  const error = upgrade.error?.message ?? unlock.error?.message;
   const upgradeDefinition = character.upgrade;
   const canUpgrade = !!character.id && !!upgradeDefinition && gold >= upgradeDefinition.cost && !upgrade.isPending;
-  const equipped = state.data?.artifacts?.find((item) => item.id === character.artifactId);
-  const entries = character.stats ? [
-    ["HP", character.stats.hp], ["MP", character.stats.mp], ["ATK", character.stats.atk], ["DEF", character.stats.def],
-    ["Magic", character.stats.magic], ["Magic DEF", character.stats.magicDef], ["Speed", character.stats.speed], ["Range", character.stats.range],
-  ] as const : [];
-
+  const error = upgrade.error?.message ?? unlock.error?.message;
+  const equipped = state.data?.artifacts?.find(item => item.id === character.artifactId);
+  const stats = character.stats;
+  const entries = stats ? [["HP", stats.hp], ["MP", stats.mp], ["ATK", stats.atk], ["DEF", stats.def], ["Magic", stats.magic], ["Magic DEF", stats.magicDef], ["Speed", stats.speed], ["Range", stats.range]] : [];
+  const skill = character.skills?.[skillIndex];
   useEffect(() => { if (!artifactsOpen) closeRef.current?.focus({ preventScroll: true }); }, [artifactsOpen]);
-
   useEffect(() => {
-    const canvas = canvasRef.current, ctx = canvas?.getContext("2d");
+    const canvas = portrait.current, ctx = canvas?.getContext("2d");
     if (!canvas || !ctx) return;
-    function draw() {
-      if (!canvas || !ctx) return;
-      const w = canvas.clientWidth, h = canvas.clientHeight, ratio = Math.min(window.devicePixelRatio || 1, 2);
-      canvas.width = Math.round(w * ratio); canvas.height = Math.round(h * ratio); ctx.scale(ratio, ratio);
-      const background = ctx.createLinearGradient(0, 0, 0, h); background.addColorStop(0, "#efdfb8"); background.addColorStop(1, "#d7bc8c");
-      ctx.fillStyle = background; ctx.fillRect(0, 0, w, h); drawMenuInfo(ctx, 0, 0, w, h);
-      function text(value: string, x: number, y: number, font: string, color = "#43311f", maxWidth?: number) {
-        ctx!.font = font; ctx!.fillStyle = color; ctx!.fillText(value, x, y, maxWidth);
-      }
-      function wrap(value: string, x: number, y: number, maxWidth: number, lines: number) {
-        ctx!.font = "12px system-ui";
-        let line = "", row = 0;
-        for (const word of value.split(" ")) {
-          if (line && ctx!.measureText(`${line} ${word}`).width > maxWidth) {
-            text(line, x, y + row * 18, "12px system-ui", "#71583c"); line = word; row++;
-            if (row >= lines) return;
-          } else line = line ? `${line} ${word}` : word;
-        }
-        if (line) text(line, x, y + row * 18, "12px system-ui", "#71583c");
-      }
-      drawCharacterInfoPortrait(ctx, character.weapon, 24, 27, 50);
-      text(character.name, 86, 48, "600 26px system-ui", "#43311f", w - 174);
-      drawWeaponTypeIcon(ctx, character.weapon, 86, 59, 20);
-      text(`${weaponDetails(character.weapon).label} / Stats${equipped || character.upgradeLevel ? " (includes bonuses)" : ""}`, 112, 76, "13px system-ui", "#71583c", w - 136);
-      const top = 106;
-      const area = Math.min(720, w - 48), left = (w - area) / 2, cellWidth = (area - 12) / 2;
-      const cellHeight = 44;
-      const stats = character.stats;
-      const rows = stats ? [["HP", stats.hp], ["MP", stats.mp], ["ATK", stats.atk], ["DEF", stats.def], ["Magic", stats.magic], ["Magic DEF", stats.magicDef], ["Speed", stats.speed], ["Range", stats.range]] : [];
-      rows.forEach(([label, value], i) => {
-        const x = left + i % 2 * (cellWidth + 12), y = top + Math.floor(i / 2) * (cellHeight + 10);
-        drawMenuInfo(ctx, x, y, cellWidth, cellHeight);
-        text(String(label), x + 12, y + cellHeight / 2 + 5, "12px system-ui", "#71583c");
-        ctx.textAlign = "right"; text(String(value), x + cellWidth - 12, y + cellHeight / 2 + 5, "600 16px system-ui", "#43311f"); ctx.textAlign = "left";
-      });
-      if (!stats) text("Stats unavailable. Refresh to load them.", 24, top + 30, "14px system-ui", "#71583c", w - 48);
-      const abilityTop = 332;
-      const abilities = [
-        { title: `Attack: ${stats?.range === "range" ? "Ranged" : "Melee"}`, detail: character.timing ? `Every ${character.timing.attackInterval.toFixed(2)}s` : "Basic attack", y: abilityTop, height: 66, skill: undefined },
-        ...[0, 1].map((index) => {
-          const skill = character.skills?.[index];
-          return { title: `Skill ${index + 1}${skill ? `: ${skill.name}` : ""}`, detail: skill?.description ?? "Refresh to load skill details.", y: index === 0 ? 410 : 574, height: index === 0 ? 152 : 228, skill };
-        }),
-      ];
-      abilities.forEach((ability, i) => {
-        const y = ability.y;
-        drawMenuInfo(ctx, left, y, area, ability.height);
-        text(ability.title, left + 12, y + 24, "600 15px system-ui", "#43311f", area - 24);
-        wrap(ability.detail, left + 12, y + 47, area - 24, i === 0 ? 1 : i === 1 ? 4 : 5);
-        if (ability.skill) {
-          const skill = ability.skill;
-          const timing = (character.timing?.spellCastTime ?? 1) * skill.baseCastTime;
-          const metadata = skill.passive ? "Passive · No mana cost" : `${skill.mpCost} MP${skill.hpCost ? ` · ${skill.hpCost} HP` : ""} · Cast ${timing.toFixed(2)}s · Cooldown ${skill.cooldown}s`;
-          text(metadata, left + 12, y + (i === 1 ? 133 : 146), "11px system-ui", "#805523", area - 24);
-        }
-      });
-      const buttonWidth = area - 24, buttonX = left + 12, buttonY = 742;
-      setUnlockRect({ x: buttonX, y: buttonY, width: buttonWidth });
-      drawMenuButton(ctx, buttonX, buttonY, buttonWidth, 44, focused === "unlock", !canUnlock);
-      ctx.textAlign = "center";
-      text(unlocked ? "Unlocked" : unlock.isPending ? "Unlocking..." : `Unlock · ${unlockCost.toLocaleString()} gold`, buttonX + buttonWidth / 2, buttonY + 27, "600 12px system-ui", "#fff0cc", buttonWidth - 12);
-      ctx.textAlign = "left";
-      drawCurrencyIcon(ctx, "gold", left, 809, 26);
-      text(`Gold: ${gold.toLocaleString()}`, left + 30, 830, "600 14px system-ui", "#805523", area - 30);
-      text(error ?? (!unlocked && gold < unlockCost ? `Need ${(unlockCost - gold).toLocaleString()} more gold to unlock Skill 2.` : "Available skills are used automatically during combat."), left, 854, "12px system-ui", error ? "#a13725" : "#71583c", area);
-      drawMenuButton(ctx, left, 880, area, 66, focused === "artifact");
-      text("Artifact · Select to equip or unequip", left + 12, 903, "600 14px system-ui", "#fff0cc", area - 24);
-      if (equipped) drawArtifactIcon(ctx, equipped.stat, left + area - 58, 889, 46);
-      text(equipped ? `${artifactDetails(equipped.stat).name} · ${artifactStatText(equipped.stat, equipped.enhancementLevel, state.data?.economy?.artifactEnhancements)}` : "Empty · Buy artifacts in the Shop", left + 12, 927, "13px system-ui", "#eed6af", area - (equipped ? 76 : 24));
-      text(`Character upgrades: ${character.upgradeLevel ?? 0}`, left, 974, "600 15px system-ui", "#805523", area);
-      text(upgradeDefinition ? `Next upgrade: +${upgradeDefinition.amount} ${upgradeDefinition.label}. Permanent and repeatable.` : "Upgrades are not available for this class yet.", left, 995, "12px system-ui", "#71583c", area);
-      drawMenuButton(ctx, buttonX, 1010, buttonWidth, 44, focused === "upgrade", !canUpgrade);
-      ctx.textAlign = "center";
-      text(upgrade.isPending ? "Upgrading..." : upgradeDefinition ? `Upgrade +${upgradeDefinition.amount} ${upgradeDefinition.label} · ${upgradeDefinition.cost.toLocaleString()} gold` : "Upgrade unavailable", buttonX + buttonWidth / 2, 1038, "600 12px system-ui", "#fff0cc", buttonWidth - 12);
-      ctx.textAlign = "left";
-      if (upgrade.error) text(upgrade.error.message, left, 1080, "12px system-ui", "#a13725", area);
-      drawMenuButton(ctx, w - 64, 16, 48, 48, focused === "close");
-      ctx.strokeStyle = "#fff0cc"; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(w - 47, 33); ctx.lineTo(w - 33, 47); ctx.moveTo(w - 33, 33); ctx.lineTo(w - 47, 47); ctx.stroke();
-    }
-    window.addEventListener("artifact-art-ready", draw);
-    window.addEventListener("info-skin-changed", draw);
-    const observer = new ResizeObserver(draw); observer.observe(canvas); draw();
-    return () => { observer.disconnect(); window.removeEventListener("info-skin-changed", draw); window.removeEventListener("artifact-art-ready", draw); };
-  }, [character, focused, gold, unlocked, canUnlock, error, unlock.isPending, equipped, artifactsOpen, upgradeDefinition, canUpgrade, upgrade.isPending, upgrade.error, currencyArt, portraitVersion, unlockCost, state.data?.economy]);
+    const ratio = Math.min(window.devicePixelRatio || 1, 2);
+    canvas.width = 60 * ratio; canvas.height = 60 * ratio; ctx.scale(ratio, ratio);
+    drawCharacterInfoPortrait(ctx, character.weapon, 2, 2, 52);
+    drawWeaponTypeIcon(ctx, character.weapon, 40, 40, 20);
+  }, [character.weapon, portraitVersion, artifactsOpen]);
 
-  if (artifactsOpen && character.id) return <CollectionPanel title="Artifacts" characterId={character.id} onClose={() => { setArtifactsOpen(false); }} />;
-
-  return <ResponsiveCanvasFrame><div role="dialog" aria-modal="true" aria-label={`${character.name} stats and abilities`} className="absolute inset-0 z-30 overflow-auto bg-[#efdfb8]" onKeyDown={(event) => {
+  if (typeof document === "undefined") return null;
+  return createPortal(<div className="fixed inset-0 z-[100]">{artifactsOpen && character.id ? <CollectionPanel title="Artifacts" characterId={character.id} onClose={() => setArtifactsOpen(false)} /> : <ResponsiveCanvasFrame fit minHeight={360}><div role="dialog" aria-modal="true" aria-label={`${character.name} stats and abilities`} className="paper-menu character-info-screen absolute inset-0 z-30 bg-[#efdfb8] text-[#43311f]" onKeyDown={event => {
     if (event.key === "Escape") { event.preventDefault(); event.stopPropagation(); onClose(); }
     if (event.key === "Tab") {
-      const buttons = Array.from(event.currentTarget.querySelectorAll<HTMLButtonElement>("button:not(:disabled)"));
-      const first = buttons[0], last = buttons[buttons.length - 1];
-      if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last?.focus(); }
-      else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first?.focus(); }
+      const buttons = Array.from(event.currentTarget.querySelectorAll<HTMLButtonElement>("button:not(:disabled)")).filter(button => button.getClientRects().length > 0);
+      if (event.shiftKey && document.activeElement === buttons[0]) { event.preventDefault(); buttons.at(-1)?.focus(); }
+      else if (!event.shiftKey && document.activeElement === buttons.at(-1)) { event.preventDefault(); buttons[0]?.focus(); }
     }
   }}>
-    <div className="relative h-full min-h-[1110px] w-full">
-    <canvas ref={canvasRef} aria-hidden="true" className="block h-full w-full" />
-    <button ref={closeRef} type="button" aria-label="Back to character list" onClick={onClose} onFocus={() => setFocused("close")} onBlur={() => setFocused("")} className="absolute top-4 right-4 size-12 cursor-pointer rounded-xl outline-none"><span className="sr-only">Back to character list</span></button>
-    <button type="button" disabled={!canUnlock} onClick={() => { if (character.id) unlock.mutate(character.id, { onSuccess: () => closeRef.current?.focus({ preventScroll: true }) }); }} onFocus={() => setFocused("unlock")} onBlur={() => setFocused("")} className="absolute h-11 cursor-pointer rounded-lg outline-none disabled:cursor-default" style={{ left: unlockRect.x, top: unlockRect.y, width: unlockRect.width }}><span className="sr-only">{unlocked ? "Skill 2 unlocked" : `Unlock Skill 2 for ${unlockCost.toLocaleString()} gold`}</span></button>
-    <button type="button" disabled={!character.id} onClick={() => setArtifactsOpen(true)} onFocus={() => setFocused("artifact")} onBlur={() => setFocused("")} className="absolute top-[880px] h-[66px] cursor-pointer rounded-lg outline-none" style={{ left: unlockRect.x - 12, width: unlockRect.width + 24 }}><span className="sr-only">Equip or unequip artifact. {equipped ? artifactDetails(equipped.stat).name : "Empty slot"}.</span></button>
-    <button type="button" disabled={!canUpgrade} onClick={() => { if (character.id) upgrade.mutate(character.id); }} onFocus={() => setFocused("upgrade")} onBlur={() => setFocused("")} className="absolute top-[1010px] h-11 cursor-pointer rounded-lg outline-none disabled:cursor-default" style={{ left: unlockRect.x, width: unlockRect.width }}><span className="sr-only">{upgradeDefinition ? `Upgrade character: +${upgradeDefinition.amount} ${upgradeDefinition.label}, costs ${upgradeDefinition.cost.toLocaleString()} gold` : "Upgrade unavailable"}</span></button>
-    <p role="status" className="sr-only">Character upgrades: {character.upgradeLevel ?? 0}. {upgrade.isPending ? "Upgrading." : ""}</p>
-    <p role="status" className="sr-only">Attack: {character.stats?.range === "range" ? "Ranged" : "Melee"}. Skill 2: {unlocked ? "unlocked" : `locked, costs ${unlockCost.toLocaleString()} gold`}. Gold: {gold}.</p>
-    <ul className="sr-only">{character.skills?.map((skill) => <li key={skill.id}>{skill.name}. {skill.description} {skill.passive ? "Passive" : `${skill.mpCost} MP, ${skill.hpCost} HP, ${skill.cooldown} second cooldown.`} {skill.unlocked ? "Available" : "Locked"}.</li>)}</ul>
-    {error && <p role="alert" className="sr-only">{error}</p>}
-    <dl className="sr-only">{entries.map(([label, value]) => <div key={label}><dt>{label}</dt><dd>{value}</dd></div>)}</dl>
+    <header className="menu-info character-info-header" style={{ flexWrap: "wrap" }}>
+      <div className="flex min-w-[140px] flex-1 items-center gap-2">
+      <canvas ref={portrait} aria-hidden="true" className="character-info-portrait shrink-0" />
+      <div className="min-w-0 flex-1"><h1 className="character-info-name truncate font-serif font-semibold" title={character.name}>{character.name}</h1><p className="truncate text-xs text-[#71583c]">{weaponDetails(character.weapon).label} · Character info</p></div>
+      </div>
+      <div className="ml-auto flex shrink-0 items-center gap-2">
+      <CurrencyBadge kind="gold" amount={gold} className="w-[clamp(120px,26vw,216px)] !h-11" />
+      <button ref={closeRef} type="button" aria-label="Back to character list" onClick={onClose} className={action + " size-11 shrink-0 p-0"}><X size={20} /></button>
+      </div>
+    </header>
+    <nav aria-label="Character info sections" className="character-info-nav">{["stats", "skills", "equipment"].map(name => <button key={name} type="button" aria-pressed={panel === name} aria-controls={`${id}-${name}`} onClick={() => setPanel(name)} className={action} data-active={panel === name}>{name === "stats" ? "Stats" : name === "skills" ? "Skills" : "Equipment"}</button>)}</nav>
+    <div className="character-info-panels">
+      <section id={`${id}-stats`} aria-label="Character stats" data-active={panel === "stats"} className="menu-info character-info-panel">
+        <h2 className="character-panel-heading font-serif text-lg font-semibold">Stats</h2>
+        {stats ? <dl className="character-info-stat-grid" style={shortLandscape ? { gridTemplateColumns: "repeat(8, minmax(0, 1fr))", gap: 4 } : undefined}>{entries.map(([label, value]) => <div key={label} className="menu-info character-info-stat"><dt className="text-[11px] text-[#71583c]">{label}</dt><dd className="font-serif text-lg font-semibold tabular-nums">{value}</dd></div>)}</dl> : <p className="text-sm">Stats unavailable. Refresh to load them.</p>}
+        <div className="menu-info character-basic-attack"><h3 className="text-sm font-semibold">Attack: {stats?.range === "range" ? "Ranged" : "Melee"}</h3><p className="text-xs text-[#71583c]">{character.timing ? `Every ${character.timing.attackInterval.toFixed(2)}s` : "Basic attack"}</p></div>
+        <p className="character-info-note">{equipped || character.upgradeLevel ? "Includes artifact and character upgrade bonuses." : "Your current combat stats."}</p>
+      </section>
+      <section id={`${id}-skills`} aria-label="Character skills" data-active={panel === "skills"} className="menu-info character-info-panel">
+        <h2 className="character-panel-heading font-serif text-lg font-semibold">Skills</h2>
+        <div className="character-skill-selector">{[0, 1].map(index => <button key={index} type="button" aria-pressed={skillIndex === index} onClick={() => setSkillIndex(index)} className={action} data-active={skillIndex === index}>Skill {index + 1}{index === 1 && !unlocked ? " · Locked" : ""}</button>)}</div>
+        <div className="character-skill-card">
+          <h3 className="character-skill-title text-sm font-semibold">{skill?.name ?? `Skill ${skillIndex + 1}`}</h3>
+          <p className="character-skill-description">{skill?.description ?? "Refresh to load skill details."}</p>
+          <div className="character-skill-meta">{skill?.passive ? <p>Passive · No mana cost</p> : skill ? <><p>{skill.mpCost} MP{skill.hpCost ? ` · ${skill.hpCost} HP` : ""}</p><p>Cast {((character.timing?.spellCastTime ?? 1) * skill.baseCastTime).toFixed(2)}s · Cooldown {skill.cooldown}s</p></> : null}</div>
+          {skillIndex === 1 && <div className="character-skill-unlock"><button type="button" disabled={!canUnlock} onClick={() => { if (character.id) unlock.mutate(character.id, { onSuccess: () => closeRef.current?.focus({ preventScroll: true }) }); }} className={action + " w-full"}>{unlocked ? "Skill 2 unlocked" : unlock.isPending ? "Unlocking…" : <>Unlock Skill 2 · {unlockCost.toLocaleString()} gold</>}</button>{!unlocked && gold < unlockCost && <p className="character-info-note mt-1">Need {(unlockCost - gold).toLocaleString()} more gold.</p>}</div>}
+        </div>
+        <p className="character-info-note">Available skills are used automatically in combat.</p>
+      </section>
+      <section id={`${id}-equipment`} aria-label="Character equipment and upgrades" data-active={panel === "equipment"} className="menu-info character-info-panel">
+        <h2 className="character-panel-heading font-serif text-lg font-semibold">Equipment &amp; upgrades</h2>
+        <button type="button" disabled={!character.id} onClick={() => setArtifactsOpen(true)} aria-label={`Equip or unequip artifact. ${equipped ? artifactDetails(equipped.stat).name : "Empty slot"}.`} className={action + " character-artifact-button text-left"}>
+          <div className="min-w-0 flex-1"><p className="text-sm">Artifact · Select to equip</p><p className="mt-1 text-xs font-normal">{equipped ? `${artifactDetails(equipped.stat).name} · ${artifactStatText(equipped.stat, equipped.enhancementLevel, state.data?.economy?.artifactEnhancements)}` : "Empty · Buy artifacts in the Shop"}</p></div>{equipped && <ArtifactIcon stat={equipped.stat} />}
+        </button>
+        <div className="character-upgrade-card"><h3 className="text-sm font-semibold">Character upgrades: {character.upgradeLevel ?? 0}</h3><p className="character-info-note">{upgradeDefinition ? `Next: +${upgradeDefinition.amount} ${upgradeDefinition.label}. Permanent and repeatable.` : "Upgrades are not available for this class yet."}</p><button type="button" disabled={!canUpgrade} onClick={() => { if (character.id) upgrade.mutate(character.id); }} className={action + " w-full"}>{upgrade.isPending ? "Upgrading…" : upgradeDefinition ? <>Upgrade +{upgradeDefinition.amount} {upgradeDefinition.label} · {upgradeDefinition.cost.toLocaleString()} gold</> : "Upgrade unavailable"}</button></div>
+      </section>
     </div>
-  </div></ResponsiveCanvasFrame>;
+    {error && <footer className="character-info-footer"><p role="alert" className="min-w-0 text-xs text-[#a13725]">{error}</p></footer>}
+  </div></ResponsiveCanvasFrame>}</div>, document.body);
 }

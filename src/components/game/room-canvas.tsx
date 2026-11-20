@@ -1,6 +1,6 @@
 "use client";
+import { drawPlayerInfo } from "./player-info";
 import { drawCurrencyBadge } from "./currency-art";
-import { drawCharacterInfoPortrait, drawWeaponTypeIcon } from "./character-info-icons";
 import { drawLocationIcon } from "./location-icons";
 import { ResponsiveCanvasFrame } from "./responsive-canvas-frame";
 import { drawCabinFireplace } from "./cabin-fireplace";
@@ -110,10 +110,6 @@ export function RoomCanvas({ character, characters, gold, wishCurrency, progress
     canvas.addEventListener("blur", clear);
     canvas.focus({ preventScroll: true });
 
-    function box(x: number, y: number, w: number, h: number, fill: string, border?: string, radius = 0) {
-      ctx!.beginPath(); ctx!.roundRect(x, y, w, h, radius); ctx!.fillStyle = fill; ctx!.fill();
-      if (border) { ctx!.strokeStyle = border; ctx!.lineWidth = 2; ctx!.stroke(); }
-    }
     function text(value: string, x: number, y: number, font: string, color: string, maxWidth?: number) {
       ctx!.font = font; ctx!.fillStyle = color; ctx!.fillText(value, x, y, maxWidth);
     }
@@ -215,30 +211,16 @@ export function RoomCanvas({ character, characters, gold, wishCurrency, progress
       // Keep currencies beside the character information, before the toolbar.
       const controls = roomToolbarLayout(width, height);
       const infoWidth = controls[0].y === 16 ? controls[0].x - 32 : width - 32;
-      const nameWidth = Math.min(260, Math.max(104, infoWidth * .4));
+      const nameWidth = Math.min(260, Math.max(160, infoWidth * .4));
       const badgeWidth = Math.min(180, (infoWidth - nameWidth - 24) / 2);
-      drawMenuInfo(ctx, 16, 16, nameWidth, 62);
-      const portraitSize = nameWidth < 150 ? 28 : 40, infoX = 28 + portraitSize + 10;
-      drawCharacterInfoPortrait(ctx, character.weapon, 28, 47 - portraitSize / 2, portraitSize);
-      text(character.name, infoX, 42, "600 17px system-ui", "#43311f", Math.max(24, nameWidth + 4 - infoX));
-      drawWeaponTypeIcon(ctx, character.weapon, infoX, 49, 15);
-      text(weaponDetails(character.weapon).label, infoX + 18, 62, "11px system-ui", "#66513b", Math.max(20, nameWidth - infoX - 14));
-      drawMenuInfo(ctx, 16, 86, nameWidth, 32);
-      drawLocationIcon(ctx, "city", 28, 89, 26);
-      text("Id-leon City", 60, 107, "600 12px system-ui", "#43311f", nameWidth - 56);
+      drawPlayerInfo(ctx, { x: 16, y: 16, width: nameWidth, name: character.name, weapon: character.weapon, progression: progressionRef.current });
+      drawMenuInfo(ctx, 16, 124, nameWidth, 32);
+      drawLocationIcon(ctx, "city", 28, 127, 26);
+      text("Id-leon City", 60, 145, "600 12px system-ui", "#43311f", nameWidth - 56);
       const badgeX = 16 + nameWidth + 12;
       const badgeY = 16 + (62 - badgeWidth / 3) / 2;
       drawCurrencyBadge(ctx, "gold", goldRef.current, badgeX, badgeY, badgeWidth);
       drawCurrencyBadge(ctx, "wish", wishRef.current, badgeX + badgeWidth + 12, badgeY, badgeWidth);
-      const progress = progressionRef.current;
-      const progressWidth = Math.max(100, Math.min(200, width - 232));
-      ctx.save();
-      drawMenuInfo(ctx, 16, height - 102, progressWidth, 86);
-      text(`Account Lv. ${progress.level}`, 38, height - 76, "600 14px system-ui", "#43311f", progressWidth - 44);
-      text(`EXP: ${progress.exp}/${progress.expToNextLevel}`, 38, height - 52, "12px system-ui", "#66513b", progressWidth - 44);
-      box(38, height - 38, progressWidth - 44, 6, "#8d7455", undefined, 3);
-      if (progress.exp > 0) box(38, height - 38, (progressWidth - 44) * progress.exp / progress.expToNextLevel, 6, "#8c6231", undefined, 3);
-      ctx.restore();
       for (const control of controls) {
         const label = control.id === "menu" && store.getState().isPaused ? "Close" : control.label;
         drawRpgButton(ctx, buttonIcons, label === "Close" ? "close" : control.id, label,
