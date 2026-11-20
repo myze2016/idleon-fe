@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { ArrowLeftRight, ChevronRight, MessageCircle, Send, Swords, Users, X } from "lucide-react";
+import { ArrowLeftRight, ChevronRight, LoaderCircle, MessageCircle, Send, Swords, Users, X } from "lucide-react";
 import { api, ApiError } from "@/lib/api";
 import { useSession } from "@/lib/auth";
 import { ResponsiveCanvasFrame } from "./responsive-canvas-frame";
@@ -11,6 +11,16 @@ import type { GatheringMembership, GatheringState } from "./gathering-types";
 import { useRealtime } from "@/lib/realtime";
 
 const button = "menu-action inline-flex min-h-11 cursor-pointer items-center gap-2 px-3 py-2 text-sm disabled:cursor-default disabled:opacity-50";
+
+function GatheringLoading({ label }: { label: string }) {
+  return <div role="status" className="flex flex-1 items-center justify-center p-5">
+    <div className="menu-info flex items-center gap-3 px-5 py-3 text-center text-sm font-semibold">
+      <LoaderCircle aria-hidden="true" className="size-5 shrink-0 motion-safe:animate-spin" />
+      {label}
+    </div>
+  </div>;
+}
+
 export function GatheringPanel({ onClose }: { onClose: () => void }) {
   const userId = useSession().data?.user.id;
   const client = useQueryClient();
@@ -18,6 +28,8 @@ export function GatheringPanel({ onClose }: { onClose: () => void }) {
   const membershipRef = useRef<GatheringMembership | null>(null);
   const initialJoinRequested = useRef(false);
   const [choosingRoom, setChoosingRoom] = useState(false);
+  const [leaving, setLeaving] = useState(false);
+  const leavingRef = useRef(false);
   const position = useRef({ x: .5, y: .7 });
   const incomingMoves = useRef(new Map<string, { x: number; y: number; at: string }>());
   const [selected, setSelected] = useState("");
@@ -94,15 +106,18 @@ export function GatheringPanel({ onClose }: { onClose: () => void }) {
     if (data.code) { consumedDuel.current = data.code; setPvpCode(data.code); }
     await client.invalidateQueries({ queryKey: ["gathering-room", userId] });
   } });
-  async function leave(close = false) {
+  async function leave() {
+    if (leavingRef.current || join.isPending) return;
+    leavingRef.current = true;
+    setLeaving(true);
     const current = membershipRef.current;
     if (current) {
       try { await api(`/gathering/${current.roomId}/leave`, { method: "POST", body: JSON.stringify({ token: current.token }) }); }
       catch { /* Offline presence expires automatically. */ }
     }
     membershipRef.current = null; setMembership(null); setSelected(""); action.reset();
-    await client.invalidateQueries({ queryKey: ["gathering-lobby", userId] });
-    if (close) onClose();
+    void client.invalidateQueries({ queryKey: ["gathering-lobby", userId] });
+    onClose();
   }
   useEffect(() => {
     closeButton.current?.focus({ preventScroll: true });
@@ -121,11 +136,15 @@ export function GatheringPanel({ onClose }: { onClose: () => void }) {
   const opponent = data?.players.find(player => player.id === selected && player.id !== userId);
   const pending = data?.challenges.filter(challenge => challenge.status === "pending") ?? [];
   const error = action.error?.message ?? room.error?.message ?? ((choosingRoom || !membership) ? join.error?.message ?? lobby.error?.message : undefined);
+  const joining = join.isPending || (!membership && !join.isError);
+  const loading = leaving ? "Returning to My Room…" : joining
+    ? join.variables?.create ? "Creating gathering room…" : "Joining gathering room…"
+    : membership && !choosingRoom && !data && (room.isPending || room.isFetching) ? "Loading gathering room…" : null;
   return <ResponsiveCanvasFrame fit minHeight={560} narrowMinHeight={640}><div role="dialog" aria-modal="true" aria-labelledby="gathering-title" className="paper-menu absolute inset-0 flex flex-col overflow-hidden bg-[#efdfb8] text-[#43311f]" onKeyDown={event => {
     if (event.key === "Escape" && !pvpCode) {
       event.stopPropagation();
       if (chatOpen) { setChatOpen(false); chatToggle.current?.focus({ preventScroll: true }); }
-      else void leave(true);
+      else void leave();
     }
     if (event.key === "Tab" && !pvpCode) {
       const controls = Array.from(event.currentTarget.querySelectorAll<HTMLElement>("button:not(:disabled), input:not(:disabled)"));
@@ -136,16 +155,16 @@ export function GatheringPanel({ onClose }: { onClose: () => void }) {
     <div inert={!!pvpCode} className="relative isolate flex min-h-0 flex-1 flex-col">
       <header className="menu-info flex shrink-0 flex-wrap items-center justify-between gap-2 border-b border-[#a38358] px-4 py-3">
         <div><h2 id="gathering-title" className="flex items-center gap-2 font-serif text-xl font-semibold"><Users size={22} />Gathering{membership ? ` #${membership.roomId}` : " rooms"}</h2><p className="mt-0.5 text-xs text-[#71583c]">{data && membership ? `${data.players.length}/${data.capacity} adventurers · Live room chat` : `Meet adventurers · ${lobby.data?.capacity ?? 12} players per room`}</p></div>
-        <div className="ml-auto flex gap-2">{membership && <><button ref={chatToggle} type="button" className={button} aria-label={chatOpen ? "Hide room chat" : "Show room chat"} aria-expanded={chatOpen} aria-controls="gathering-sidebar" onClick={() => setChatOpen(value => !value)}><MessageCircle size={18} /><span className="hidden sm:inline">Chat</span></button><button type="button" className={button} aria-label="Change gathering room" aria-expanded={choosingRoom} onClick={() => setChoosingRoom(value => !value)}><ArrowLeftRight size={16} /><span className="hidden sm:inline">Rooms</span></button></>}<button ref={closeButton} type="button" className={button} aria-label="Return to my room" onClick={() => void leave(true)}><X size={20} /></button></div>
+        <div className="ml-auto flex gap-2">{membership && <><button ref={chatToggle} type="button" className={button} disabled={!!loading} aria-label={chatOpen ? "Hide room chat" : "Show room chat"} aria-expanded={chatOpen} aria-controls="gathering-sidebar" onClick={() => setChatOpen(value => !value)}><MessageCircle size={18} /><span className="hidden sm:inline">Chat</span></button><button type="button" className={button} disabled={!!loading} aria-label="Change gathering room" aria-expanded={choosingRoom} onClick={() => setChoosingRoom(value => !value)}><ArrowLeftRight size={16} /><span className="hidden sm:inline">Rooms</span></button></>}<button ref={closeButton} type="button" className={button} aria-label="Return to my room" disabled={join.isPending || leaving} onClick={() => void leave()}><X size={20} /></button></div>
       </header>
-      {error && <div role="alert" className="flex shrink-0 flex-wrap items-center gap-2 border-b border-[#a38358] bg-[#f9e4c4] px-4 py-2 text-xs text-[#963f2d]">{error}{membership && <><button className={button} onClick={() => void room.refetch()}>Retry</button><button className={button} onClick={() => join.mutate({ roomId: membership.roomId })}>Rejoin</button></>}</div>}
-      {(!membership || choosingRoom) ? !membership && !join.isError ? <p role="status" className="p-5">Joining the first available gathering room...</p> : <div className="flex-1 space-y-5 overflow-auto p-5">
+      {error && <div role="alert" className="flex shrink-0 flex-wrap items-center gap-2 border-b border-[#a38358] bg-[#f9e4c4] px-4 py-2 text-xs text-[#963f2d]">{error}{membership && <><button className={button} disabled={!!loading || room.isFetching} onClick={() => void room.refetch()}>Retry</button><button className={button} disabled={!!loading} onClick={() => join.mutate({ roomId: membership.roomId })}>Rejoin</button></>}</div>}
+      {loading ? <GatheringLoading label={loading} /> : (!membership || choosingRoom) ? <div className="flex-1 space-y-5 overflow-auto p-5">
         <p className="text-sm">Relax by the hearth, chat, and invite another player to a friendly duel. Your starter character represents you here.</p>
         <div className="flex flex-wrap gap-3"><button className={button} disabled={join.isPending} onClick={() => join.mutate({ firstAvailable: true })}>{join.isPending ? "Joining…" : "Join available room"}</button><button className={button} disabled={join.isPending} onClick={() => join.mutate({ create: true })}>New gathering room</button></div>
         {membership && <button type="button" className={button} onClick={() => setChoosingRoom(false)}>Back to Gathering #{membership.roomId}</button>}
         <h3 className="font-semibold">Change gathering room</h3>
-        {lobby.isPending ? <p role="status">Loading rooms…</p> : lobby.data?.rooms.length ? <ul className="grid gap-3 sm:grid-cols-2">{lobby.data.rooms.map(entry => <li key={entry.id} className="menu-info flex items-center justify-between gap-3 p-4"><div><p className="font-semibold">Gathering #{entry.id}</p><p className="text-xs">{entry.players}/{entry.capacity} players</p></div><button className={button} disabled={join.isPending || entry.id === membership?.roomId || entry.players >= entry.capacity} onClick={() => join.mutate({ roomId: entry.id })}>{entry.id === membership?.roomId ? "Current room" : entry.players >= entry.capacity ? "Full" : "Join"}</button></li>)}</ul> : <p className="text-sm">No rooms yet. Join to open the first gathering.</p>}
-      </div> : !data ? <p role="status" className="p-5">Entering gathering room…</p> : <>
+        {lobby.isPending ? <GatheringLoading label="Loading rooms…" /> : lobby.data?.rooms.length ? <ul className="grid gap-3 sm:grid-cols-2">{lobby.data.rooms.map(entry => <li key={entry.id} className="menu-info flex items-center justify-between gap-3 p-4"><div><p className="font-semibold">Gathering #{entry.id}</p><p className="text-xs">{entry.players}/{entry.capacity} players</p></div><button className={button} disabled={join.isPending || entry.id === membership?.roomId || entry.players >= entry.capacity} onClick={() => join.mutate({ roomId: entry.id })}>{entry.id === membership?.roomId ? "Current room" : entry.players >= entry.capacity ? "Full" : "Join"}</button></li>)}</ul> : <p className="text-sm">No rooms yet. Join to open the first gathering.</p>}
+      </div> : data && <>
         {pending.map(challenge => <div key={challenge.id} className="flex shrink-0 flex-wrap items-center justify-between gap-2 border-b border-[#a38358] bg-[#f5e3b9] px-4 py-2 text-sm">
           {challenge.toId === userId ? <><span><Swords className="mr-1 inline" size={16} />{data.players.find(player => player.id === challenge.fromId)?.username ?? "An adventurer"} invites you to PvP.</span><div className="flex gap-2"><button className={button} disabled={action.isPending} onClick={() => action.mutate({ path: `challenge/${challenge.id}/answer`, body: { accept: true } })}>Accept</button><button className={button} disabled={action.isPending} onClick={() => action.mutate({ path: `challenge/${challenge.id}/answer`, body: { accept: false } })}>Decline</button></div></> : <span>Waiting for {data.players.find(player => player.id === challenge.toId)?.username ?? "the other player"} to answer your PvP invitation…</span>}
         </div>)}

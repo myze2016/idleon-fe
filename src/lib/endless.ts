@@ -1,4 +1,4 @@
-import type { ArenaFighter, DuelStep } from "@/components/game/pvp-types";
+import type { ArenaFighter, DuelStep, Skill2Control } from "@/components/game/pvp-types";
 
 export const ENDLESS_STAT_STEP_METERS = 500;
 export function endlessStatFactor(distance: number, multiplier: number) {
@@ -11,7 +11,7 @@ export interface EndlessRun {
   id: string; season: number; status: string; wave: number; bestWave: number; distance: number;
   team: ArenaFighter[]; settings: EndlessConfig;
   pending: { enemyType: string | null; result: EndlessResult } | null;
-  skill2?: { id: string; name: string; enabled: boolean }[];
+  skill2?: Skill2Control[];
   readyAt: string | null; serverNow: string; createdAt: string;
 }
 export interface EndlessHome { version: number; config: EndlessConfig; run: EndlessRun | null; enemies: { id: string; name: string }[] }

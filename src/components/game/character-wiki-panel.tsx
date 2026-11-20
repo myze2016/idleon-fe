@@ -41,7 +41,7 @@ export function CharacterWikiPanel({ onClose, onEnemies }: { onClose: () => void
       <p role="status" className="text-xs text-[#71583c]">{filtered.length} of {entries.length} characters</p>
     </header>
     <div className="mx-auto max-w-5xl space-y-4 p-5">
-      <p className="text-xs leading-relaxed text-[#71583c]">Base stats exclude upgrades and artifacts. Damage formulas use current Attack or Magic before the target’s corresponding defense. Living characters regenerate 5 MP per second in battle. Speed shortens attack intervals and cast times. Skill 1 starts unlocked; Skill 2 costs {(entries[0]?.skills.find(skill => skill.slot === 2)?.unlockCost ?? 1000).toLocaleString()} gold per character.</p>
+      <p className="text-xs leading-relaxed text-[#71583c]">Base stats exclude upgrades and artifacts. Damage formulas use current Attack or Magic before the target’s corresponding defense. Living characters regenerate 2 MP per second in battle. Speed shortens attack intervals and cast times. Skill 1 starts unlocked; Skill 2 costs {(entries[0]?.skills.find(skill => skill.slot === 2)?.unlockCost ?? 1000).toLocaleString()} gold per character.</p>
       {query.isPending && <p role="status">Loading character wiki…</p>}
       {query.isError && <div role="alert" className="text-[#a13725]"><p>{query.error.message}</p><button type="button" onClick={() => void query.refetch()} className={`${inputClass} mt-2 menu-action cursor-pointer`}>Retry</button></div>}
       {filtered.map((entry) => <article key={entry.id} className="rounded-xl border border-[#a38358] paper-card menu-info bg-[#e9d4a7] p-4">

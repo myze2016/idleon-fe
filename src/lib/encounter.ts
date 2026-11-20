@@ -18,10 +18,11 @@ export interface BattleStep {
   kind?: "attack" | "cast" | "skill" | "heal" | "buff" | "poison" | "block" | "counter" | "double" | "mana" | "bleed";
   label?: string; teamMp?: number[]; healing?: number; castEndsAt?: number; targetIds?: string[]; critical?: boolean;
   teamCasting?: ({ name: string; startedAt: number; endsAt: number } | null)[];
-  enemyIndex?: number; enemyHps?: number[];
+  enemyIndex?: number; enemyHps?: number[]; enemyMps?: number[];
 }
 export interface BattleResult { artifactsEarned?: (import("./artifact").Artifact & { name: string })[]; enemies?: EnemyEncounter[]; deepSeaFloor?: number; deepSeaJustUnlocked?: boolean; deepSeaProgress?: { defeated: number; target: number }; garnalandUnlocked?: boolean; garnalandJustUnlocked?: boolean; questItemsEarned?: import("./character").QuestItem[]; won: boolean; steps: BattleStep[]; goldEarned: number; gold: number; expEarned: number; progression: AccountProgress;
   wishEarned?: number; wishCurrency?: number; enemyHps?: number[]; meadowProgress?: { defeated: number; target: number | null };
+  manaRegenPerSecond?: number;
   levelsGained?: number;
   initialTeamHp?: number[]; initialTeamMp?: number[]; teamHp?: number[]; teamMp?: number[];
   period?: "day" | "night"; harborProgress?: { defeated: number; target: number | null };

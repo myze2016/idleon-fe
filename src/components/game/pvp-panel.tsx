@@ -123,7 +123,7 @@ export function PvpPanel({ onClose, initialCode = "" }: { onClose: () => void; i
           <p className="mt-1 text-xs text-[#805523]">{player ? `${player.selectedCount ?? player.fighters.length} / 6 characters · ${player.ready ? "Ready" : "Choosing team"}` : "Share the room code"}</p>
           {player?.fighters.length ? <p className="mt-2 text-xs text-[#71583c]">{player.fighters.map((fighter) => fighter.name).join(", ")}</p> : null}
         </div>)}</div>
-        {!!fighters.length && <PvpBattleCanvas fighters={fighters} steps={data.result?.steps ?? []} elapsed={data.phase === "complete" ? data.result?.duration ?? elapsed : elapsed} playing={data.phase === "countdown" || data.phase === "battle"} hostId={data.players[0]!.id} />}
+        {!!fighters.length && <PvpBattleCanvas arena={data.phase !== "waiting"} fighters={fighters} steps={data.result?.steps ?? []} elapsed={data.phase === "complete" ? data.result?.duration ?? elapsed : elapsed} playbackKey={data.startsAt ?? undefined} duration={data.result?.duration} playing={data.phase === "countdown" || data.phase === "battle"} hostId={data.players[0]!.id} viewerId={userId} />}
         {data.phase === "waiting" && <>
           <div className="flex flex-wrap items-center justify-between gap-3"><h3 className="font-semibold">Your team ({selected.length}/6)</h3>
             <button type="button" className={button} disabled={busy || !!me?.ready || !roster.data?.characters.length} onClick={() => {
