@@ -9,6 +9,7 @@ import type { ArenaFighter, DuelStep } from "./pvp-types";
 import { drawArenaEnemy } from "./arena-enemies";
 import { BATTLE_SKILL_LABEL_SECONDS, battleSkillName, eventCursor, indexDuelActions, latestDuelAction } from "@/lib/duel-playback";
 import { drawFighterHud } from "./battle-labels";
+import { preloadSkillEffects } from "./skill-effect-art";
 import { adventureFormation, combatEncounterDistance, interpolateCameraTravel, projectBattlefieldParty, projectEnemyX, projectParty } from "./adventure-formation";
 
 export function PvpBattleCanvas(props: { fighters: ArenaFighter[]; steps: DuelStep[]; elapsed: number; playing: boolean; hostId: string; viewerId?: string; fullScreen?: boolean; backgroundSrc?: string; adventure?: boolean; arena?: boolean; playbackKey?: string; duration?: number }) {
@@ -33,6 +34,7 @@ export function PvpBattleCanvas(props: { fighters: ArenaFighter[]; steps: DuelSt
     let playbackIndex = indexDuelActions([]);
     function draw(time: number) {
       if (!ctx || !canvas) return;
+    preloadSkillEffects();
       const state = current.current;
       const viewport = state.adventure || state.arena;
       const responsive = viewport && state.fullScreen;
@@ -182,6 +184,7 @@ export function PvpBattleCanvas(props: { fighters: ArenaFighter[]; steps: DuelSt
           ? (elapsed - skill.at) / Math.max(0.001, skill.castEndsAt - skill.at) : undefined;
         drawFighterHud(ctx, x, ground, avatarScale, ground - (fighter.weapon ? 72 : 55) * avatarScale, {
           name: fighter.name, hp, maxHp: fighter.stats.hp, mp, maxMp: fighter.stats.mp, enemy: direction === -1, skill: activeSkill, castProgress,
+          statuses: last?.statuses?.[index],
         });
       }
       for (let event = eventCursor(state.steps, elapsed - 0.9); event < cursor; event++) {
@@ -193,7 +196,7 @@ export function PvpBattleCanvas(props: { fighters: ArenaFighter[]; steps: DuelSt
           const converted: BattleStep = { at: step.at, actor: "team", characterId: fighter.id, damage: step.damage, enemyHp: 0, teamHp: step.hp,
             kind: step.kind as BattleStep["kind"], label: step.label, healing: step.healing, critical: step.critical, targetIds: [state.fighters[target]?.id] };
           drawCombatEffect(ctx, { step: converted, startedAt: step.at, source: positions[actor], target: positions[target], weapon: fighter.weapon ?? fighter.enemyType ?? "enemy",
-            ranged: fighter.stats.range === "range" || isRangedSkill(step.label) }, elapsed - step.at, ground, state.adventure ? avatarScale : 1,
+            ranged: fighter.stats.range === "range" || isRangedSkill(step.label) }, elapsed - step.at, ground, avatarScale,
             (id) => { const i = state.fighters.findIndex((unit) => unit.id === id); return i < 0 ? undefined : positions[i]; });
         }
       }

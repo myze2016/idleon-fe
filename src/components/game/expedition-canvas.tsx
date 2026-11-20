@@ -3,7 +3,7 @@ import { drawPlayerInfo } from "./player-info";
 import { adventureFormation, combatEncounterDistance, enemySpawnSpacing, interpolateCameraTravel, projectBattlefieldParty, projectBattlefieldX, projectEnemyX, projectParty } from "./adventure-formation";
 import { tourneySpectatorPlacement } from "./tourney-crowd";
 import { drawRpgButton } from "./rpg-button";
-import { drawMonster } from "./meadow-monsters";
+import { drawMonster, preloadMonsterSprites } from "./meadow-monsters";
 import { drawCharacter } from "./character-design";
 
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -32,6 +32,7 @@ import { Skill2Controls } from "./skill-2-controls";
 import type { Skill2Control } from "./pvp-types";
 import { BATTLE_SKILL_LABEL_SECONDS, battleSkillName, eventCursor } from "@/lib/duel-playback";
 import { drawFighterHud } from "./battle-labels";
+import { preloadSkillEffects } from "./skill-effect-art";
 
 type ExpeditionPlayback = Pick<BattleResult, "steps" | "won" | "enemies" | "initialTeamHp" | "initialTeamMp"> & {
   skill2: Skill2Control[];
@@ -122,6 +123,7 @@ export function ExpeditionCanvas({ location, team, gold, wishCurrency, character
   useEffect(() => {
     const canvas = canvasRef.current, ctx = canvas?.getContext("2d");
     if (!canvas || !ctx) return;
+    preloadSkillEffects();
     const buttonIcons = new Image(); buttonIcons.src = "/optimized/ui/adventure-button-icons-v2.c022326897c4.webp";
     const meadowArtwork = new Image(); if (!location.startsWith("deepsea")) meadowArtwork.src = location === "garnaland" ? "/optimized/maps/garnaland-painted-v1.1a69c9e916ff.webp" : location === "tourney" ? "/optimized/maps/tourney-seated-crowd-v2.bb8eb62bd7e4.webp" : location === "harbor" ? "/optimized/maps/harbor-painted-v1.f0301e091aa5.webp" : location === "forest" ? "/optimized/maps/forest-painted-v1.2233514177d4.webp" : "/optimized/maps/meadow-painted-v1.0509ccc36dff.webp";
     const garnaland = location === "garnaland";
@@ -135,10 +137,7 @@ export function ExpeditionCanvas({ location, team, gold, wishCurrency, character
     const deepsea = location.startsWith("deepsea");
     const deepseaBackground = new Image();
     if (deepsea) deepseaBackground.src = location === "deepsea" ? "/optimized/maps/deepsea-floor1-harbor-v4.7d2f476449e3.webp" : location === "deepsea-2f" ? "/optimized/maps/deepsea-floor2-harbor-v4.271cd3940422.webp" : "/optimized/maps/deepsea-palace-harbor-v4.f1cb7b684899.webp";
-    const deepseaSprites = new Image();
-    if (deepsea) deepseaSprites.src = "/optimized/sprites/deepsea-enemies-simple-v2.805283925014.webp";
-    const deepseaFeet = new Map<number, number>();
-    const deepseaCells: Record<string, number> = { "fishpeople-guard": 0, "fishpeople-archer": 1, "fishpeople-rider": 2, "fishpeople-guardian": 3, baracudon: 5, "fishpeople-cleric": 6, "fishpeople-researcher": 7, "fishpeople-knight": 8, "fishpeople-rifler": 9, "fishpeople-baron": 10, "fishpeople-lord": 11 };
+    preloadMonsterSprites(location);
     const meadowEffects = new Image();
     meadowEffects.src = "/optimized/sprites/meadow-hit-death.a9920b82286e.webp";
     const meadowAnimation = new Map<string, { hp: number; hurtAt: number; diedAt?: number }>();
@@ -153,6 +152,7 @@ export function ExpeditionCanvas({ location, team, gold, wishCurrency, character
     let restStartedAt = 0, restManaPerSecond = 0;
     const resultHold = 1.5;
     const memberPositions: number[] = [];
+    let statuses: number[] = [];
     const recentSkills = new Map<string, { label: string; until: number }>();
     let alive = true, spawning = false, firstSpawn = true, spawnElapsed = 0, nextSpawn = spawnDelay(), message = "", messageUntil = 0;
     let spectatorAvailable = false, summonBusy = false;
@@ -206,6 +206,7 @@ export function ExpeditionCanvas({ location, team, gold, wishCurrency, character
       const engagedAt = elapsed;
       activeGroup = group; const encounter = group[0]; foe = encounter;
       recentSkills.clear();
+      statuses = [];
       damageRows = members.map(({ character }, index) => ({ id: character.id ?? `member-${index}`, name: character.name, basic: 0, skill: 0, dot: 0, total: 0 }));
       setDamageSpread(damageRows);
       encounter.teamHp = [...teamHp]; encounter.teamMp = [...teamMp];
@@ -367,7 +368,8 @@ export function ExpeditionCanvas({ location, team, gold, wishCurrency, character
       const frameSeconds = document.hidden ? 0 : Math.max(0, (time - (last || time)) / 1000);
       const dt = Math.min(frameSeconds, 0.05); last = time;
       elapsed += dt;
-      spawnElapsed += frameSeconds;
+      const hasLivingEnemy = monsters.some(monster => monster.hp > 0);
+      spawnElapsed += frameSeconds / (hasLivingEnemy ? 1 : 0.75);
       // Refresh equipped stats without restarting the running expedition.
       members.forEach((member) => { member.character = charactersRef.current.find((owned) => owned.id === member.character.id) ?? member.character; });
       if (foe?.stage === "fighting" && skillChangePending) {
@@ -583,15 +585,20 @@ export function ExpeditionCanvas({ location, team, gold, wishCurrency, character
             if (step.kind !== "mana") battleLog.unshift({ actor, detail });
             battleLog.length = Math.min(battleLog.length, 5);
             if (step.kind !== "mana") setLogEntries([...battleLog]);
-            if (step.kind !== "mana" && memberIndex >= 0 && enemy) {
-              const character = members[memberIndex].character;
-              const playerX = memberPositions[memberIndex];
-              effects.push({ step, startedAt: elapsed, enemyId: enemy.data.id,
-                source: step.actor === "team" ? playerX : enemy.x * width,
-                target: step.actor === "team" ? enemy.x * width : playerX,
-                weapon: character.weapon, ranged: step.actor === "team" ? character.stats?.range === "range" || isRangedSkill(step.label) : enemy.data.stats.range === "range" || isRangedSkill(step.label) });
+            if (step.kind !== "mana") {
+              const character = members[memberIndex]?.character;
+              const playerX = memberPositions[memberIndex], enemyX = enemy ? enemy.x * width : undefined;
+              const friendly = step.actor === "team";
+              const source = friendly ? playerX : enemyX;
+              const target = (friendly ? enemyX : playerX) ?? source;
+              if (source !== undefined && target !== undefined) {
+                effects.push({ step, startedAt: elapsed, enemyId: enemy?.data.id, source, target,
+                  weapon: (friendly ? character?.weapon : enemy?.data.type) ?? "enemy",
+                  ranged: (friendly ? character?.stats?.range : enemy?.data.stats.range) === "range" || isRangedSkill(step.label) });
+              }
             }
             foe.hp = step.enemyHp; foe.teamHp = step.teamHp; foe.teamMp = step.teamMp ?? foe.teamMp;
+            statuses = step.statuses ?? [];
             teamHp = [...foe.teamHp]; teamMp = [...foe.teamMp];
             foe.casts = step.teamCasting ?? []; foe.lastHit = step; foe.lastHitAt = elapsed;
             activeGroup.forEach((monster, index) => {
@@ -602,6 +609,7 @@ export function ExpeditionCanvas({ location, team, gold, wishCurrency, character
             });
           }
           if (foe.step >= foe.battle.steps.length) {
+            statuses = [];
             void settleFight(foe);
           } else foe.nextStep = foe.battleStartedAt + foe.battle.steps[foe.step].at;
           }
@@ -628,6 +636,7 @@ export function ExpeditionCanvas({ location, team, gold, wishCurrency, character
         const castProgress = cast && foe ? (elapsed - foe.battleStartedAt - cast.startedAt) / Math.max(0.001, cast.endsAt - cast.startedAt) : undefined;
         drawFighterHud(ctx, x, ground, avatarScale, ground - 72 * avatarScale, {
           name: character.name, hp: health, maxHp: character.stats?.hp ?? 100, mp: teamMp[index], maxMp: character.stats?.mp, skill: activeSkill, castProgress,
+          statuses: statuses[index],
         });
       });
       for (const monster of monsters) {
@@ -668,33 +677,8 @@ export function ExpeditionCanvas({ location, team, gold, wishCurrency, character
         }
         if (foe.data.type === "slime") ctx.scale(1 + strike * 0.22, 1 - strike * 0.16);
         const stride = foe.hp > 0 && foe.moving ? Math.sin(elapsed * 10) : 0;
-        if ((location === "meadow" || forest || harbor || tourney || garnaland) && drawMonster(ctx, foe.data.type, elapsed, !!foe.moving, strike)) {
+        if (drawMonster(ctx, foe.data.type, elapsed, !!foe.moving, strike, location)) {
           // Generated poses replace the procedural fallback once loaded.
-        } else if (deepsea && deepseaSprites.complete && deepseaSprites.naturalWidth > 0 && deepseaCells[foe.data.type] !== undefined) {
-          const cell = foe.data.type === "fishpeople-rider" && location === "deepsea-2f" ? 4 : deepseaCells[foe.data.type];
-          const cw = deepseaSprites.naturalWidth / 4, ch = deepseaSprites.naturalHeight / 3;
-          ctx.save();
-          // Atlas faces right; the enemy canvas mirrors it toward the party.
-          let feet = deepseaFeet.get(cell);
-          if (feet === undefined) {
-            const sample = document.createElement("canvas");
-            sample.width = Math.ceil(cw); sample.height = Math.ceil(ch);
-            const sampleCtx = sample.getContext("2d", { willReadFrequently: true });
-            feet = ch;
-            if (sampleCtx) {
-              sampleCtx.drawImage(deepseaSprites, cell % 4 * cw, Math.floor(cell / 4) * ch, cw, ch, 0, 0, sample.width, sample.height);
-              const pixels = sampleCtx.getImageData(0, 0, sample.width, sample.height).data;
-              outer: for (let y = sample.height - 1; y >= 0; y--) {
-                let solid = 0;
-                for (let sx = 0; sx < sample.width; sx++) if (pixels[(y * sample.width + sx) * 4 + 3] > 180) solid++;
-                if (solid >= 4) { feet = (y + 1) / sample.height * ch; break outer; }
-              }
-            }
-            deepseaFeet.set(cell, feet);
-          }
-          ctx.fillStyle = "#152c3655"; ctx.beginPath(); ctx.ellipse(0, 0, 23, 4, 0, 0, Math.PI * 2); ctx.fill();
-          ctx.drawImage(deepseaSprites, cell % 4 * cw, Math.floor(cell / 4) * ch, cw, ch, -40, -feet / ch * 78, 80, 78);
-          ctx.restore();
         } else if (deepsea) {
           const fish = !["baracudon", "fishpeople-rider"].includes(foe.data.type);
           if (!fish) {
@@ -809,9 +793,11 @@ export function ExpeditionCanvas({ location, team, gold, wishCurrency, character
         ctx.globalAlpha = 1;
         ctx.textAlign = "center";
         const recent = recentSkills.get(foe.data.id);
+        const enemyIndex = activeGroup.indexOf(foe);
         drawFighterHud(ctx, x, ground, avatarScale, ground - 55 * size, {
           name: `${foe.data.boss ? "BOSS · " : ""}${foe.data.name}`, hp: foe.hp, maxHp: foe.data.stats.hp, mp: foe.mp, maxMp: foe.data.stats.mp, enemy: true,
           skill: recent && recent.until > elapsed ? recent.label : undefined,
+          statuses: enemyIndex >= 0 ? statuses[members.length + enemyIndex] : undefined,
         });
         }
         ctx.textAlign = "center";

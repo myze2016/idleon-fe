@@ -1,5 +1,6 @@
 import type { BattleStep } from "@/lib/encounter";
 import { drawPaintedCombatEffect } from "./painted-combat-effects";
+import { drawSkillArt } from "./skill-effect-art";
 
 export interface CombatEffect {
   step: BattleStep; startedAt: number; source: number; target: number; weapon: string; ranged: boolean; enemyId?: string;
@@ -21,11 +22,10 @@ export function drawCombatEffect(ctx: CanvasRenderingContext2D, effect: CombatEf
   function ring(x: number, radius: number) {
     ctx.strokeStyle = color; ctx.lineWidth = 2; ctx.beginPath(); ctx.ellipse(x, ground - 5, radius, radius * 0.35, 0, 0, Math.PI * 2); ctx.stroke();
   }
-  if (drawPaintedCombatEffect(ctx, effect, age, ground, scale, memberX)) {
+  if (drawSkillArt(ctx, effect, age, ground, scale, memberX) || drawPaintedCombatEffect(ctx, effect, age, ground, scale, memberX)) {
     // Damage numbers below remain shared with the loading fallback.
   } else if (support && step.actor === "enemy") {
     ring(source, (15 + p * 22) * scale);
-    if (step.healing) { ctx.fillStyle = "#8fffb5"; ctx.font = "600 14px system-ui"; ctx.fillText(`+${step.healing}`, source, y - 24 - age * 20); }
   } else if (support || step.kind === "cast") {
     const recipients = support ? step.targetIds ?? [step.characterId] : [step.characterId];
     for (const id of recipients) {
@@ -92,9 +92,13 @@ export function drawCombatEffect(ctx: CanvasRenderingContext2D, effect: CombatEf
       if (/Inferno/.test(label)) ring(target, p * 45 * scale);
     }
   }
-  if (step.damage) {
+  if (step.healing) {
+    const recipient = step.actor === "enemy" ? source : memberX(step.targetIds?.[0] ?? step.characterId) ?? source;
+    ctx.textAlign = "center"; ctx.font = "600 14px system-ui"; ctx.fillStyle = "#8fffb5";
+    ctx.fillText(`+${step.healing}`, recipient, y - (27 + age * 22) * scale);
+  } else if (step.damage) {
     ctx.textAlign = "center"; ctx.font = `700 ${step.critical ? 21 : 16}px system-ui`; ctx.fillStyle = step.critical ? "#c58aff" : step.kind === "skill" ? "#69b7ff" : color;
-    ctx.fillText(step.healing ? `+${step.healing}` : `${step.critical ? "CRIT " : ""}-${step.damage}`, target, y - (35 + age * 28) * scale);
+    ctx.fillText(`${step.critical ? "CRIT " : ""}-${step.damage}`, target, y - (35 + age * 28) * scale);
   }
   ctx.restore();
 }

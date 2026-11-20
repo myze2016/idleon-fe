@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef } from "react";
 import type { WeaponType } from "@/lib/character";
 import { drawCharacter, useCharacterSprites } from "./character-design";
 import { drawMonster, useMonsterSprites } from "./meadow-monsters";
@@ -28,13 +28,6 @@ function deepSeaPortrait(ctx: CanvasRenderingContext2D, type: string) {
 
 export function WikiPortrait({ subject, name }: { subject: { character: WeaponType } | { enemy: string }; name: string }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const [deepseaArtwork, setDeepseaArtwork] = useState<HTMLImageElement | null>(null);
-  useEffect(() => {
-    const image = new Image();
-    image.onload = () => setDeepseaArtwork(image);
-    image.src = "/optimized/sprites/deepsea-enemies-simple-v2.805283925014.webp";
-    return () => { image.onload = null; };
-  }, []);
   const characters = useCharacterSprites(), monsters = useMonsterSprites();
   const character = "character" in subject ? subject.character : null;
   const enemy = "enemy" in subject ? subject.enemy : null;
@@ -44,15 +37,10 @@ export function WikiPortrait({ subject, name }: { subject: { character: WeaponTy
     canvas.width = 176 * ratio; canvas.height = 144 * ratio; ctx.scale(ratio, ratio);
     ctx.clearRect(0, 0, 176, 144); ctx.translate(88, 130); ctx.scale(1.6, 1.6);
     if (character) drawCharacter(ctx, character);
-    else if (enemy && deepseaArtwork && ["fishpeople-guard", "fishpeople-archer", "fishpeople-rider", "fishpeople-guardian", "baracudon", "fishpeople-cleric", "fishpeople-researcher", "fishpeople-knight", "fishpeople-rifler", "fishpeople-baron", "fishpeople-lord"].includes(enemy)) {
-      const cells: Record<string, number> = { "fishpeople-guard": 0, "fishpeople-archer": 1, "fishpeople-rider": 2, "fishpeople-guardian": 3, baracudon: 5, "fishpeople-cleric": 6, "fishpeople-researcher": 7, "fishpeople-knight": 8, "fishpeople-rifler": 9, "fishpeople-baron": 10, "fishpeople-lord": 11 };
-      const cell = cells[enemy], cw = deepseaArtwork.naturalWidth / 4, ch = deepseaArtwork.naturalHeight / 3;
-      ctx.drawImage(deepseaArtwork, cell % 4 * cw, Math.floor(cell / 4) * ch, cw, ch, -40, -78, 80, 78);
-    }
     else if (enemy && !drawMonster(ctx, enemy, 0, false, 0)) {
       if (enemy === "baracudon" || /^fishpeople-(guard|archer|rider|guardian|cleric|researcher|knight|rifler|baron|lord)$/.test(enemy)) deepSeaPortrait(ctx, enemy);
       else { ctx.fillStyle = "#71583c"; ctx.font = "8px system-ui"; ctx.textAlign = "center"; ctx.fillText("Loading artwork…", 0, -35); }
     }
-  }, [character, enemy, characters, monsters, deepseaArtwork]);
+  }, [character, enemy, characters, monsters]);
   return <canvas ref={canvasRef} role="img" aria-label={`${name} appearance`} className="mx-auto block aspect-[11/9] w-32 shrink-0 rounded-xl border border-[#ac8a59] bg-[#ddc292] sm:mx-0 sm:w-40" />;
 }

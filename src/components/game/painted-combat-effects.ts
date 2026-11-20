@@ -23,10 +23,6 @@ export function drawPaintedCombatEffect(ctx: CanvasRenderingContext2D, effect: C
     for (const x of recipients) if (x !== undefined) {
       sprite(step.kind === "heal" ? 9 : 10, x, ground - (18 + p * 12) * scale, 48 + p * 15);
     }
-    if (step.actor === "enemy" && step.healing) {
-      ctx.fillStyle = "#8fffb5"; ctx.font = "600 14px system-ui";
-      ctx.fillText(`+${step.healing}`, source, y - 24 - age * 20);
-    }
     return true;
   }
   if (step.kind === "block") { sprite(11, target, y, 52 + p * 8); return true; }
