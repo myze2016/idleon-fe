@@ -20,15 +20,14 @@ function Pager({ count, page, onChange }: { count: number; page: number; onChang
 }
 function BulkCharacterCosts({ tables, onChange }: { tables: Record<string, UpgradeStep[]>; onChange: (tables: Record<string, UpgradeStep[]>) => void }) {
   const [group, setGroup] = useState<CharacterCostEdit["group"]>("all");
-  const [mode, setMode] = useState<CharacterCostEdit["mode"]>("add");
-  const [amount, setAmount] = useState(100), [range, setRange] = useState(false);
+  const [multiplier, setMultiplier] = useState(1), [range, setRange] = useState(false);
   const [from, setFrom] = useState(1), [to, setTo] = useState(20);
   const [notice, setNotice] = useState("");
   let preview: ReturnType<typeof editCharacterCosts> | undefined, error = "";
-  try { preview = editCharacterCosts(tables, { group, mode, amount, ...(range ? { from, to } : {}) }); } catch (cause) { error = (cause as Error).message; }
+  try { preview = editCharacterCosts(tables, { group, multiplier, ...(range ? { from, to } : {}) }); } catch (cause) { error = (cause as Error).message; }
   return <section className="menu-info space-y-3 p-4"><h2 className="text-lg font-semibold">Bulk character upgrade costs</h2>
-    <div className="grid gap-3 sm:grid-cols-2"><label className="text-xs font-semibold">Characters to update<select className={input + " mt-1"} value={group} onChange={event => { setGroup(event.target.value as CharacterCostEdit["group"]); setNotice(""); }}><option value="all">All characters</option><option value="standard">Standard characters</option><option value="special">Special characters</option></select></label><label className="text-xs font-semibold">Cost change<select className={input + " mt-1"} value={mode} onChange={event => setMode(event.target.value as CharacterCostEdit["mode"])}><option value="add">Increase by gold amount</option><option value="set">Set gold cost</option></select></label></div>
-    <NumberField validate={false} label={mode === "add" ? "Gold to add to each cost" : "New gold cost"} value={amount} onChange={setAmount} />
+    <div className="grid gap-3 sm:grid-cols-2"><label className="text-xs font-semibold">Characters to update<select className={input + " mt-1"} value={group} onChange={event => { setGroup(event.target.value as CharacterCostEdit["group"]); setNotice(""); }}><option value="all">All characters</option><option value="standard">Standard characters</option><option value="special">Special characters</option></select></label><NumberField validate={false} label="Gold cost multiplier" value={multiplier} onChange={setMultiplier} /></div>
+    <p className="text-xs">Multiplies each selected draft cost and rounds to the nearest gold. Use 1.5 for a 50% increase or 0.5 for half price.</p>
     <label className="flex min-h-11 items-center gap-2 text-sm"><input type="checkbox" checked={range} onChange={event => setRange(event.target.checked)} />Apply to a specific plus range</label>
     {range && <div className="grid grid-cols-2 gap-3"><NumberField validate={false} label="From plus" value={from} onChange={setFrom} min={1} max={1000} /><NumberField validate={false} label="Through plus" value={to} onChange={setTo} min={1} max={1000} /></div>}
     <p className="text-xs">{preview ? `${preview.characters} character types, ${preview.steps} upgrade rows selected.` : error} {range ? "Missing rows are added using that character’s last configured stat gain." : "Applies to every configured row; the last row still repeats for later upgrades."}</p>

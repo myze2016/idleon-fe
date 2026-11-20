@@ -10,7 +10,7 @@ export interface EndlessResult { fighters: ArenaFighter[]; steps: DuelStep[]; du
 export interface EndlessRun {
   id: string; season: number; status: string; wave: number; bestWave: number; distance: number;
   team: ArenaFighter[]; settings: EndlessConfig;
-  pending: { enemyType: string; result: EndlessResult } | null;
+  pending: { enemyType: string | null; result: EndlessResult } | null;
   readyAt: string | null; serverNow: string; createdAt: string;
 }
 export interface EndlessHome { version: number; config: EndlessConfig; run: EndlessRun | null; enemies: { id: string; name: string }[] }

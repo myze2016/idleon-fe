@@ -213,14 +213,16 @@ export function RoomCanvas({ character, characters, gold, wishCurrency, progress
       const infoWidth = controls[0].y === 16 ? controls[0].x - 32 : width - 32;
       const nameWidth = Math.min(260, Math.max(160, infoWidth * .4));
       const badgeWidth = Math.min(180, (infoWidth - nameWidth - 24) / 2);
-      drawPlayerInfo(ctx, { x: 16, y: 16, width: nameWidth, name: character.name, weapon: character.weapon, progression: progressionRef.current });
+      const infoTop = 16;
+      drawPlayerInfo(ctx, { x: 16, y: infoTop, width: nameWidth, name: character.name, weapon: character.weapon, progression: progressionRef.current });
       drawMenuInfo(ctx, 16, 124, nameWidth, 32);
       drawLocationIcon(ctx, "city", 28, 127, 26);
       text("Id-leon City", 60, 145, "600 12px system-ui", "#43311f", nameWidth - 56);
       const badgeX = 16 + nameWidth + 12;
-      const badgeY = 16 + (62 - badgeWidth / 3) / 2;
-      drawCurrencyBadge(ctx, "gold", goldRef.current, badgeX, badgeY, badgeWidth);
-      drawCurrencyBadge(ctx, "wish", wishRef.current, badgeX + badgeWidth + 12, badgeY, badgeWidth);
+      const badgeHeight = badgeWidth / 3;
+      const badgeY = infoTop - badgeHeight * .1;
+      drawCurrencyBadge(ctx, "gold", goldRef.current, badgeX, badgeY, badgeWidth, badgeHeight);
+      drawCurrencyBadge(ctx, "wish", wishRef.current, badgeX + badgeWidth + 12, badgeY, badgeWidth, badgeHeight);
       for (const control of controls) {
         const label = control.id === "menu" && store.getState().isPaused ? "Close" : control.label;
         drawRpgButton(ctx, buttonIcons, label === "Close" ? "close" : control.id, label,

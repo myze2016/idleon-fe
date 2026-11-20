@@ -93,7 +93,7 @@ export function EndlessPanel({ onClose }: { onClose: () => void }) {
       {home.isPending ? <p role="status">Loading Endless…</p> : <>
         <h3 className="font-serif text-2xl font-semibold">{run ? "Run complete" : "The endless road"}</h3>
         {run && <p role="status" className="font-semibold">Distance reached: {run.distance.toLocaleString()} m</p>}
-        <p className="text-sm">Three enemies arrive together every 6–8 seconds. Their stats jump every 500 meters. Survive as far as you can with your current adventure team.</p>
+        <p className="text-sm">One or two enemies spawn every 5–25 seconds after the initial group. Their stats jump every 500 meters. Survive as far as you can with your current adventure team.</p>
         <p className="text-xs">HP, MP, and combat effects carry over. Defeated characters stay down. No gold or EXP rewards.</p>
         <h4 className="font-semibold">Adventure team ({ids.length}/6)</h4><p className="text-sm">{ids.map(id => roster.data?.characters.find(member => member.id === id)?.name).join(", ") || "Set your adventure team in Team first."}</p>
         <button className={button} disabled={action.isPending || !ids.length || !home.data?.config.enabled} onClick={() => { setVisual(null); action.mutate({ kind: "start", body: { teamIds: ids, requestKey: requestKey() } }); }}><Play size={17} />{action.isPending ? "Starting…" : "Start Endless run"}</button>

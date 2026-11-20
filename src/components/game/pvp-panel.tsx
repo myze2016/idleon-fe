@@ -74,7 +74,7 @@ export function PvpPanel({ onClose, initialCode = "" }: { onClose: () => void; i
 
   if (editingTeam && data?.phase === "waiting") return <TeamScreen characters={roster.data?.characters ?? []} onClose={() => setEditingTeam(false)} selection={{
     slots: Array.from({ length: 6 }, (_, slot) => roster.data?.characters.find(member => member.id === selected[slot]) ?? null),
-    busy: busy || !!me?.ready, error,
+    busy: busy || !!me?.ready, saving: action.isPending, error,
     onAssign: (slot, member) => {
       if (busy || me?.ready) return;
       const next = [...selected];

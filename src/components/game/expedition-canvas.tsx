@@ -117,7 +117,7 @@ export function ExpeditionCanvas({ location, team, gold, wishCurrency, character
     let period: "day" | "night" = "day";
     const members = team.flatMap((character, slot) => character ? [{ character: charactersRef.current.find((owned) => owned.id === character.id) ?? character, slot }] : []);
     let width = 1, height = 1, ratio = 1, frame = 0, last = 0, distance = 0, elapsed = 0;
-    const spawnDelay = () => 1 + Math.random() * 14;
+    const spawnDelay = () => 5 + Math.random() * (tourney ? 20 : 10);
     let teamHp = members.map(({ character }) => character.stats?.hp ?? 100);
     let teamMp = members.map(({ character }) => character.stats?.mp ?? 0);
     const memberPositions: number[] = [];
@@ -163,6 +163,7 @@ export function ExpeditionCanvas({ location, team, gold, wishCurrency, character
       finally { spawning = false; }
     }
     async function fight(group: Monster[]) {
+      const engagedAt = elapsed;
       activeGroup = group; const encounter = group[0]; foe = encounter;
       damageRows = members.map(({ character }, index) => ({ id: character.id ?? `member-${index}`, name: character.name, basic: 0, skill: 0, dot: 0, total: 0 }));
       setDamageSpread(damageRows);
@@ -184,7 +185,9 @@ export function ExpeditionCanvas({ location, team, gold, wishCurrency, character
         const progress = garnaland ? battle.garnalandProgress : deepsea ? battle.deepSeaProgress : tourney ? battle.tourneyProgress : harbor ? battle.harborProgress : forest ? battle.forestProgress : battle.meadowProgress;
         if (progress) meadowProgress = progress;
         for (const monster of group) monster.stage = "fighting";
-        encounter.battleStartedAt = elapsed; encounter.nextStep = elapsed + (battle.steps[0]?.at ?? 0.45);
+        const openingDelay = battle.steps[0]?.at ?? 0.45;
+        encounter.nextStep = Math.max(elapsed, engagedAt + openingDelay);
+        encounter.battleStartedAt = encounter.nextStep - openingDelay;
       } catch (error) { if (alive) failed(error, true); }
     }
     summonAction.current = async () => {

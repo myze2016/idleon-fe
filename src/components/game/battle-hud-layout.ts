@@ -16,7 +16,7 @@ export function battleHudLayout(width: number, height: number) {
   const currenciesBesideName = currencyRight - currencyLeft >= 200;
   const currencyWidth = Math.min(180, ((currenciesBesideName ? currencyRight - currencyLeft : width - pad * 2) - gap) / 2);
   const currencyHeight = currencyWidth / 3;
-  const currencyY = currenciesBesideName ? pad + (nameHeight - currencyHeight) / 2 : pad + nameHeight + gap;
+  const currencyY = currenciesBesideName ? pad - currencyHeight * .1 : pad + nameHeight + gap;
   const currencies = (["gold", "wish"] as const).map((kind, index) => ({ kind,
     x: (currenciesBesideName ? currencyLeft : pad) + index * (currencyWidth + gap), y: currencyY, width: currencyWidth, height: currencyHeight }));
   const rowY = singleRow ? pad : currenciesBesideName ? pad + nameHeight + gap : currencyY + currencyHeight + gap;

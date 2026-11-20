@@ -6,6 +6,7 @@ import { drawCharacter, useCharacterSprites } from "./character-design";
 import { drawCharacterInfoPortrait, drawWeaponTypeIcon, useCharacterPortraits } from "./character-info-icons";
 
 import { useEffect, useRef, useState } from "react";
+import { LoaderCircle } from "lucide-react";
 import { CharacterRoster } from "./character-roster";
 import { CharacterStatsScreen } from "./character-stats-screen";
 import { useGameState, useGameStoreApi } from "./game-store";
@@ -13,7 +14,7 @@ import { weaponDetails, type Character } from "@/lib/character";
 import { useAssignTeamSlot } from "@/lib/character-api";
 import { useSession } from "@/lib/auth";
 
-export function TeamScreen({ characters, onClose, selection }: { characters: Character[]; onClose: () => void; selection?: { slots: (Character | null)[]; busy: boolean; error?: string; onAssign: (slot: number, character: Character | null) => void } }) {
+export function TeamScreen({ characters, onClose, selection }: { characters: Character[]; onClose: () => void; selection?: { slots: (Character | null)[]; busy: boolean; saving: boolean; error?: string; onAssign: (slot: number, character: Character | null) => void } }) {
   const spriteVersion = useCharacterSprites();
   const portraitVersion = useCharacterPortraits();
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -25,6 +26,7 @@ export function TeamScreen({ characters, onClose, selection }: { characters: Cha
   const store = useGameStoreApi();
   const session = useSession();
   const save = useAssignTeamSlot(session.data?.user.id);
+  const isSaving = selection?.saving ?? save.isPending;
   const saving = useRef(false);
   const [selectedSlot, setSelectedSlot] = useState<number | null>(null);
   const [focusedSlot, setFocusedSlot] = useState<number | null>(null);
@@ -113,6 +115,13 @@ export function TeamScreen({ characters, onClose, selection }: { characters: Cha
 
   if (inspected) return <CharacterStatsScreen character={inspected} onClose={() => setInspected(null)} />;
 
+  const loading = isSaving && <div role="status" className="absolute inset-0 z-50 grid cursor-wait place-items-center bg-black/25">
+    <div className="paper-card flex items-center gap-3 rounded bg-[#efdfb8] px-5 py-3 text-sm font-semibold text-[#43311f]">
+      <LoaderCircle aria-hidden="true" className="size-5 motion-safe:animate-spin" />
+      Saving team…
+    </div>
+  </div>;
+
   if (selectedSlot !== null) return <div className="paper-menu absolute inset-0 z-30">
     <CharacterRoster characters={characters} selectionLabel={`Assign to ${selectedSlot < 3 ? "Front" : "Back"} ${selectedSlot % 3 + 1}`} onClose={() => { if (!saving.current) setSelectedSlot(null); }} onSelect={(character) => {
       if (selection) {
@@ -126,11 +135,12 @@ export function TeamScreen({ characters, onClose, selection }: { characters: Cha
         onSettled: () => { saving.current = false; },
       });
     }} />
-    {(save.isPending || save.error) && <p role="status" className="absolute bottom-14 left-6 z-50 rounded paper-card bg-[#efdfb8] p-3 text-sm text-[#43311f]">{save.isPending ? "Saving team..." : save.error?.message}</p>}
+    {loading}
+    {save.error && <p role="alert" className="absolute bottom-14 left-6 z-50 rounded paper-card bg-[#efdfb8] p-3 text-sm text-[#43311f]">{save.error.message}</p>}
   </div>;
 
   return <ResponsiveCanvasFrame minWidth={600}><div role="dialog" aria-modal="true" aria-label="Team formation" className="paper-menu absolute inset-0 z-30 paper-card bg-[#efdfb8]" onKeyDown={(event) => {
-    if (event.key === "Escape") { event.preventDefault(); event.stopPropagation(); onClose(); }
+    if (event.key === "Escape") { event.preventDefault(); event.stopPropagation(); if (!isSaving && !saving.current) onClose(); }
     if (event.key === "Tab") {
       const buttons = Array.from(event.currentTarget.querySelectorAll<HTMLButtonElement>("button"));
       const first = buttons[0], last = buttons[buttons.length - 1];
@@ -139,11 +149,11 @@ export function TeamScreen({ characters, onClose, selection }: { characters: Cha
     }
   }}>
     <canvas ref={canvasRef} aria-hidden="true" className="block h-full w-full" />
-    <button ref={closeRef} type="button" aria-label="Close team" onClick={onClose} onFocus={() => setCloseFocused(true)} onBlur={() => setCloseFocused(false)} className="absolute top-4 right-4 size-12 cursor-pointer rounded-xl outline-none"><span className="sr-only">Close team</span></button>
-    {rects.map((rect, i) => <button key={i} ref={(element) => { slotRefs.current[i] = element; }} type="button" disabled={selection?.busy} aria-label={`${i < 3 ? "Front" : "Back"} ${i % 3 + 1}: ${slots[i]?.name ?? "empty"}. Choose character`} onClick={() => { returnSlot.current = i; setSelectedSlot(i); }} onFocus={() => setFocusedSlot(i)} onBlur={() => setFocusedSlot(null)} className="absolute cursor-pointer rounded-xl outline-none" style={{ left: rect.x, top: rect.y, width: rect.width, height: rect.height }}><span className="sr-only">Choose character</span></button>)}
+    <button ref={closeRef} type="button" aria-label="Close team" onClick={() => { if (!isSaving && !saving.current) onClose(); }} onFocus={() => setCloseFocused(true)} onBlur={() => setCloseFocused(false)} className="absolute top-4 right-4 size-12 cursor-pointer rounded-xl outline-none"><span className="sr-only">Close team</span></button>
+    {rects.map((rect, i) => <button key={i} ref={(element) => { slotRefs.current[i] = element; }} type="button" disabled={selection?.busy} aria-label={`${i < 3 ? "Front" : "Back"} ${i % 3 + 1}: ${slots[i]?.name ?? "empty"}. Choose character`} onClick={() => { if (isSaving || saving.current) return; returnSlot.current = i; setSelectedSlot(i); }} onFocus={() => setFocusedSlot(i)} onBlur={() => setFocusedSlot(null)} className="absolute cursor-pointer rounded-xl outline-none" style={{ left: rect.x, top: rect.y, width: rect.width, height: rect.height }}><span className="sr-only">Choose character</span></button>)}
     {!selection && rects.map((rect, i) => slots[i] && <button key={`upgrade-${i}`} type="button" aria-label={`Open ${slots[i]?.name} skills and upgrades`} className="menu-action absolute cursor-pointer rounded border border-[#a38358] paper-card bg-[#e9d4a7] px-1 py-2 text-xs text-[#43311f] focus-visible:outline-2 focus-visible:outline-[#805523]" style={{ left: rect.x, top: rect.y + rect.height + 8, width: rect.width }} onClick={() => {
       const member = slots[i];
-      if (!member) return;
+      if (!member || isSaving || saving.current) return;
       returnSlot.current = i;
       setInspected(characters.find((character) => character.id === member.id) ?? member);
     }}>Upgrade</button>)}
@@ -158,6 +168,7 @@ export function TeamScreen({ characters, onClose, selection }: { characters: Cha
     }}>Remove</button>)}
     {save.error && <p role="alert" className="absolute bottom-2 left-6 text-sm text-red-200">{save.error.message}</p>}
     {selection?.error && <p role="alert" className="absolute bottom-2 left-6 text-sm text-[#a13725]">{selection.error}</p>}
+    {loading}
     <p role="status" className="sr-only">{slots.filter(Boolean).length} of 6 slots filled.</p>
   </div></ResponsiveCanvasFrame>;
 }
