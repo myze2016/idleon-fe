@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
-import { ArrowLeft, MessageCircle, ScrollText, Swords, X } from "lucide-react";
+import { ArrowLeft, MessageCircle, ScrollText, Swords } from "lucide-react";
 import type { RoomState } from "./pvp-types";
 import { pvpDamage } from "@/lib/pvp-damage";
 import { DamageSpread } from "./damage-spread";
@@ -38,6 +38,6 @@ export function PvpArena({ data, userId, elapsed, busy, error, onClose, onReturn
     <BattleLog label="PvP battle log" expanded={log} onExpandedChange={setLog} className="absolute bottom-3 left-3 z-10 w-[min(430px,calc(100%-24px))]">{recent.length ? recent.map((step, index) => <li key={`${step.at}-${index}`} className={step.critical ? "text-[#79468f]" : step.kind === "skill" ? "text-[#315f8e]" : "text-[#71583c]"}>{step.at.toFixed(1)}s · {fighters[step.actor]?.name}: {step.label}{step.damage ? ` · −${step.damage} HP` : ""}{step.healing ? ` · +${step.healing} HP` : ""}</li>) : <li>Waiting for battle to begin…</li>}</BattleLog>
     {error && <p role="alert" className="menu-info absolute inset-x-3 top-32 z-20 p-3 text-sm text-[#a13725]">{error}</p>}
     {data.phase === "complete" && <section role="status" className="menu-info absolute top-1/2 left-1/2 z-20 w-[min(360px,calc(100%-24px))] -translate-x-1/2 -translate-y-1/2 space-y-3 p-5 text-center"><h3 className="font-serif text-3xl font-semibold">{data.result?.winnerId ? data.result.winnerId === userId ? "Victory!" : "Defeat" : "Draw"}</h3><p className="text-xs">Battle time: {(data.result?.duration ?? 0).toFixed(1)}s</p><button className={button} disabled={busy} onClick={onReturn}>Return to PvP room</button></section>}
-    {chat && <aside aria-label="Arena chat" className="absolute top-36 right-3 bottom-3 z-30 w-80 max-w-[calc(100%-24px)] overflow-auto rounded-lg bg-[#efdfb8] p-3 shadow-xl"><div className="mb-2 flex justify-end"><button className={button} onClick={() => setChat(false)} aria-label="Close arena chat"><X size={18} /></button></div><PvpChat code={data.code} userId={userId} ended={false} /></aside>}
+    {chat && <aside aria-label="Arena chat" className="absolute top-32 right-3 bottom-3 z-30 w-80 max-w-[calc(100%-24px)] shadow-xl"><PvpChat code={data.code} userId={userId} ended={false} fill onClose={() => setChat(false)} /></aside>}
   </div></ResponsiveCanvasFrame>;
 }

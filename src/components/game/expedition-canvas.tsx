@@ -1,5 +1,6 @@
 "use client";
 import { drawPlayerInfo } from "./player-info";
+import { adventureFormation } from "./adventure-formation";
 import { tourneySpectatorPlacement } from "./tourney-crowd";
 import { drawRpgButton } from "./rpg-button";
 import { drawMonster } from "./meadow-monsters";
@@ -395,11 +396,7 @@ export function ExpeditionCanvas({ location, team, gold, wishCurrency, character
       if (harbor && period === "night") {
         ctx.fillStyle = "#10234288"; ctx.fillRect(0, 0, width, height);
       }
-      const spacing = Math.min(68, width * 0.34 / Math.max(1, members.length - 1));
-      const avatarScale = Math.max(0.55, Math.min(2, height / 300, spacing / 43));
-      const leadingX = width * 0.16 + (members.length - 1) * spacing;
-      const rangedReach = Math.min(width * 0.38, Math.max(150, avatarScale * 170));
-      const contactReach = Math.max(38, avatarScale * 35);
+      const { spacing, avatarScale, leadingX, rangedReach, contactReach } = adventureFormation(width, height, members.length);
       const upcoming = foe?.stage === "fighting" ? foe.battle?.steps[foe.step] : undefined;
       const front = Math.max(...members.flatMap((_, index) => teamHp[index] > 0 ? [memberPositions[index] ?? width * 0.16 + (members.length - 1 - index) * spacing] : []), width * 0.16);
       monsters.forEach((monster) => {

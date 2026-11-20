@@ -4,12 +4,12 @@ import { useState } from "react";
 import { ChevronDown, ChevronUp } from "lucide-react";
 import type { DamageEntry } from "@/lib/battle-damage";
 
-export function DamageSpread({ rows, compact, top, pad }: { rows: DamageEntry[]; compact: boolean; top: number; pad: number }) {
+export function DamageSpread({ rows, compact, top, pad, width }: { rows: DamageEntry[]; compact: boolean; top: number; pad: number; width?: number | string }) {
   const [expanded, setExpanded] = useState(true);
   const total = rows.reduce((sum, row) => sum + row.total, 0);
   const sorted = [...rows].sort((a, b) => b.total - a.total);
   return <section aria-label="Live battle damage spread" className="battle-info absolute z-10 overflow-hidden text-[#43311f]"
-    style={{ width: compact ? 190 : 248, maxWidth: "calc(100% - 20px)", right: pad, top }}>
+    style={{ width: width ?? (compact ? 190 : 248), maxWidth: "calc(100% - 20px)", right: pad, top }}>
     <button type="button" aria-expanded={expanded} aria-controls="damage-spread-rows" onClick={() => setExpanded((value) => !value)} className="flex w-full cursor-pointer items-center justify-between gap-2 px-3 py-2 text-left text-xs font-semibold outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[#805523]">
       <span>Damage · {total.toLocaleString()}</span>{expanded ? <ChevronDown size={14} /> : <ChevronUp size={14} />}
     </button>

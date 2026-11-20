@@ -26,6 +26,14 @@ export function EndlessPanel({ onClose }: { onClose: () => void }) {
   const [now, setNow] = useState(() => Date.now());
   const [visual, setVisual] = useState<EndlessResult | null>(null);
   const closeRef = useRef<HTMLButtonElement>(null);
+  const headerRef = useRef<HTMLElement>(null);
+  const [hudTop, setHudTop] = useState(150);
+  useEffect(() => {
+    const header = headerRef.current; if (!header) return;
+    const update = () => setHudTop(header.offsetTop + header.offsetHeight + 8);
+    const observer = new ResizeObserver(update); observer.observe(header); update();
+    return () => observer.disconnect();
+  }, []);
   const run = home.data?.run, pending = run?.pending, active = run?.status === "active";
   const scores = useQuery({ queryKey: ["endless-leaderboard", userId], enabled: !!userId && leaderboard, queryFn: () => api<EndlessLeaderboard>("/endless/leaderboard"), refetchInterval: leaderboard ? 10000 : false });
   const currentTeam = adventureTeam.some(Boolean) ? adventureTeam : [roster.data?.characters.find(member => member.isStarter) ?? roster.data?.character ?? null];
@@ -59,11 +67,10 @@ export function EndlessPanel({ onClose }: { onClose: () => void }) {
     const timer = setTimeout(() => mutate({ kind: run.pending ? "resolve" : "wave", body: run.pending ? { wave: run.wave } : {} }), wait);
     return () => clearTimeout(timer);
   }, [active, action.isPending, action.error, home.isError, home.dataUpdatedAt, run, mutate]);
-  const remaining = run?.readyAt ? Math.max(0, Date.parse(run.readyAt) - Date.parse(run.serverNow) - (now - home.dataUpdatedAt)) : 0;
-  const elapsed = pending ? Math.max(0, pending.result.duration - remaining / 1000) : visual?.duration ?? 0;
-  const distance = (run?.distance ?? 0) + (pending ? Math.floor(elapsed * 10) : 0);
+  const remaining = run?.readyAt ? Math.max(0, Date.parse(run.readyAt) - Date.parse(run.serverNow) - Math.max(0, now - home.dataUpdatedAt)) : 0;
+  const elapsed = pending ? Math.min(pending.result.duration, Math.max(0, pending.result.duration - remaining / 1000)) : visual?.duration ?? 0;
+  const distance = (run?.distance ?? 0) + (pending ? elapsed * 10 : 0);
   const result = pending?.result ?? visual;
-  const latest = result?.steps.findLast(step => step.at <= elapsed);
   const error = action.error?.message ?? home.error?.message;
   return <ResponsiveCanvasFrame fit minHeight={560} narrowMinHeight={600}><div role="dialog" aria-modal="true" aria-labelledby="endless-title" className="paper-menu absolute inset-0 z-40 overflow-hidden bg-[#3e452d] text-[#43311f]" onKeyDown={event => {
     if (event.key === "Escape") { event.preventDefault(); event.stopPropagation(); if (resetOpen) { if (!action.isPending) { setResetOpen(false); resetRef.current?.focus(); } } else if (leaderboard) setLeaderboard(false); else onClose(); }
@@ -74,27 +81,19 @@ export function EndlessPanel({ onClose }: { onClose: () => void }) {
     }
   }}>
     <div inert={resetOpen} className="absolute inset-0">
-    <div className="absolute inset-0"><PvpBattleCanvas adventure fullScreen fighters={result?.fighters ?? run?.team ?? []} steps={result?.steps ?? []} elapsed={elapsed} playing={!!pending && remaining > 0} distance={distance} hostId={userId ?? ""} backgroundSrc="/optimized/maps/meadow-painted-v1.0509ccc36dff.webp" /></div>
-    <header className="pointer-events-none absolute inset-x-3 top-3 z-10 flex flex-wrap items-start justify-between gap-2">
+    <div className="absolute inset-0"><PvpBattleCanvas adventure fullScreen playbackKey={`${run?.id ?? "preview"}:${run?.wave ?? 0}:${pending ? "combat" : "idle"}`} duration={result?.duration} fighters={result?.fighters ?? run?.team ?? []} steps={result?.steps ?? []} elapsed={elapsed} playing={!!pending && remaining > 0} distance={distance} hostId={userId ?? ""} backgroundSrc="/optimized/maps/meadow-painted-v1.0509ccc36dff.webp" /></div>
+    <header ref={headerRef} className="pointer-events-none absolute inset-x-3 top-3 z-10 flex flex-wrap items-start justify-between gap-2">
       <div className="menu-info px-4 py-2"><h2 id="endless-title" className="flex items-center gap-2 font-serif text-xl font-semibold"><InfinityIcon size={22} />Endless</h2><p className="text-xs">Season {active ? run?.season : home.data?.version ?? 1}</p></div>
-      <div className="menu-info px-4 py-2 text-center"><p className="text-xs font-semibold uppercase">Distance travelled</p><p role="status" className="text-2xl font-bold tabular-nums">{distance.toLocaleString()} m</p><p className="text-xs">Enemy stats ×{endlessStatFactor(distance, run?.settings.statMultiplier ?? home.data?.config.statMultiplier ?? 1.1).toLocaleString(undefined, { maximumFractionDigits: 2 })}</p></div>
+      <div className="menu-info px-4 py-2 text-center"><p className="text-xs font-semibold uppercase">Distance travelled</p><p role="status" className="text-2xl font-bold tabular-nums">{Math.floor(distance).toLocaleString()} m</p><p className="text-xs">Enemy stats ×{endlessStatFactor(distance, run?.settings.statMultiplier ?? home.data?.config.statMultiplier ?? 1.1).toLocaleString(undefined, { maximumFractionDigits: 2 })}</p></div>
       <div className="pointer-events-auto flex flex-wrap gap-2">{active && <button ref={resetRef} className={button} disabled={action.isPending || !ids.length || !home.data?.config.enabled} onClick={() => setResetOpen(true)}><RotateCcw size={18} />Reset progress</button>}<button className={button} onClick={() => setLeaderboard(true)} aria-label="Endless leaderboard"><Trophy size={20} /></button><button ref={closeRef} className={button} onClick={onClose}><ArrowLeft size={18} />My room</button></div>
     </header>
-    {active && <div className="pointer-events-none absolute inset-x-3 bottom-3 flex flex-wrap items-end justify-between gap-3">
-      <section aria-label="Run team" className="menu-info ml-auto max-w-[min(380px,100%)] p-3"><div className="flex flex-wrap gap-x-5 gap-y-2">{run!.team.map(member => {
-        const index = result?.fighters.findIndex(fighter => fighter.id === member.id && fighter.userId === userId) ?? -1;
-        const hp = latest?.hp[index] ?? member.hp ?? member.stats.hp, mp = latest?.mp[index] ?? member.mp ?? member.stats.mp;
-        return <div key={member.id} className="text-xs"><p className="font-semibold">{member.name}{hp <= 0 ? " · Defeated" : ""}</p><p>{Math.ceil(hp)} HP · {Math.floor(mp)} MP</p></div>;
-      })}</div></section>
-
-    </div>}
-    {run && <EndlessBattleHud key={run.id} runId={run.id} checkpoint={run.wave} result={pending?.result ?? null} elapsed={elapsed} distance={distance} userId={userId ?? ""} playing={!!pending} />}
+    {run && <EndlessBattleHud top={hudTop} key={run.id} runId={run.id} checkpoint={run.wave} result={pending?.result ?? null} elapsed={elapsed} distance={distance} userId={userId ?? ""} playing={!!pending} />}
     {error && <div role="alert" className="menu-info absolute inset-x-4 top-32 z-20 flex flex-wrap items-center gap-3 p-3 text-sm text-[#963f2d]">{error}<button className={button} onClick={() => { action.reset(); void home.refetch(); }}>Retry</button></div>}
     {!active && !leaderboard && <div className="absolute inset-0 flex items-center justify-center overflow-auto bg-[#20180c66] p-4"><section className="menu-info my-auto w-full max-w-lg space-y-4 p-5">
       {home.isPending ? <p role="status">Loading Endless…</p> : <>
         <h3 className="font-serif text-2xl font-semibold">{run ? "Run complete" : "The endless road"}</h3>
         {run && <p role="status" className="font-semibold">Distance reached: {run.distance.toLocaleString()} m</p>}
-        <p className="text-sm">Enemies keep arriving every 2–3 seconds. Their stats jump every 500 meters. Survive as far as you can with your current adventure team.</p>
+        <p className="text-sm">Three enemies arrive together every 6–8 seconds. Their stats jump every 500 meters. Survive as far as you can with your current adventure team.</p>
         <p className="text-xs">HP, MP, and combat effects carry over. Defeated characters stay down. No gold or EXP rewards.</p>
         <h4 className="font-semibold">Adventure team ({ids.length}/6)</h4><p className="text-sm">{ids.map(id => roster.data?.characters.find(member => member.id === id)?.name).join(", ") || "Set your adventure team in Team first."}</p>
         <button className={button} disabled={action.isPending || !ids.length || !home.data?.config.enabled} onClick={() => { setVisual(null); action.mutate({ kind: "start", body: { teamIds: ids, requestKey: requestKey() } }); }}><Play size={17} />{action.isPending ? "Starting…" : "Start Endless run"}</button>
