@@ -3,36 +3,26 @@ import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import { artifactCatalog } from "@/lib/artifact";
-import { weaponDetails, type WeaponType } from "@/lib/character";
 import type { EconomySettings, UpgradeStep } from "@/lib/economy";
-import { editCharacterCosts, type CharacterCostEdit } from "@/lib/character-costs";
 
-type Catalog = { version: number; settings: EconomySettings; defaults: EconomySettings; upgrades: Record<string, { stat: string; label: string; amount: number }> };
+type Catalog = { version: number; settings: EconomySettings; defaults: EconomySettings };
 const action = "menu-action inline-flex min-h-11 items-center gap-2 px-4 py-2 text-sm disabled:opacity-50";
 const input = "menu-field min-h-11 w-full min-w-0 px-3 py-2 text-sm";
 const pageSize = 10;
-function NumberField({ label, value, onChange, min = 0, max = 1_000_000_000, validate = true }: { label: string; value: number; onChange: (value: number) => void; min?: number; max?: number; validate?: boolean }) {
-  return <label className="block min-w-0 text-xs font-semibold">{label}<input className={input + " mt-1"} type="number" required={validate} min={validate ? min : undefined} max={validate ? max : undefined} step={validate ? 1 : "any"} value={Number.isFinite(value) ? value : ""} onChange={event => onChange(event.target.value === "" ? NaN : Number(event.target.value))} /></label>;
+function NumberField({ label, value, onChange, min = 0, max = 1_000_000_000, validate = true, fractional = false }: { label: string; value: number; onChange: (value: number) => void; min?: number; max?: number; validate?: boolean; fractional?: boolean }) {
+  return <label className="block min-w-0 text-xs font-semibold">{label}<input className={input + " mt-1"} type="number" required={validate} min={validate ? min : undefined} max={validate ? max : undefined} step={validate && !fractional ? 1 : "any"} value={Number.isFinite(value) ? value : ""} onChange={event => onChange(event.target.value === "" ? NaN : Number(event.target.value))} /></label>;
 }
 function Pager({ count, page, onChange }: { count: number; page: number; onChange: (page: number) => void }) {
   const pages = Math.ceil(count / pageSize);
   return <div className="flex flex-wrap items-center gap-3"><button type="button" className={action} disabled={page === 0} onClick={() => onChange(page - 1)}>Previous</button><span className="text-sm">Page {page + 1} of {pages} · {count} rows</span><button type="button" className={action} disabled={page >= pages - 1} onClick={() => onChange(page + 1)}>Next</button></div>;
 }
-function BulkCharacterCosts({ tables, onChange }: { tables: Record<string, UpgradeStep[]>; onChange: (tables: Record<string, UpgradeStep[]>) => void }) {
-  const [group, setGroup] = useState<CharacterCostEdit["group"]>("all");
-  const [multiplier, setMultiplier] = useState(1), [range, setRange] = useState(false);
-  const [from, setFrom] = useState(1), [to, setTo] = useState(20);
-  const [notice, setNotice] = useState("");
-  let preview: ReturnType<typeof editCharacterCosts> | undefined, error = "";
-  try { preview = editCharacterCosts(tables, { group, multiplier, ...(range ? { from, to } : {}) }); } catch (cause) { error = (cause as Error).message; }
-  return <section className="menu-info space-y-3 p-4"><h2 className="text-lg font-semibold">Bulk character upgrade costs</h2>
-    <div className="grid gap-3 sm:grid-cols-2"><label className="text-xs font-semibold">Characters to update<select className={input + " mt-1"} value={group} onChange={event => { setGroup(event.target.value as CharacterCostEdit["group"]); setNotice(""); }}><option value="all">All characters</option><option value="standard">Standard characters</option><option value="special">Special characters</option></select></label><NumberField validate={false} label="Gold cost multiplier" value={multiplier} onChange={setMultiplier} /></div>
-    <p className="text-xs">Multiplies each selected draft cost and rounds to the nearest gold. Use 1.5 for a 50% increase or 0.5 for half price.</p>
-    <label className="flex min-h-11 items-center gap-2 text-sm"><input type="checkbox" checked={range} onChange={event => setRange(event.target.checked)} />Apply to a specific plus range</label>
-    {range && <div className="grid grid-cols-2 gap-3"><NumberField validate={false} label="From plus" value={from} onChange={setFrom} min={1} max={1000} /><NumberField validate={false} label="Through plus" value={to} onChange={setTo} min={1} max={1000} /></div>}
-    <p className="text-xs">{preview ? `${preview.characters} character types, ${preview.steps} upgrade rows selected.` : error} {range ? "Missing rows are added using that character’s last configured stat gain." : "Applies to every configured row; the last row still repeats for later upgrades."}</p>
-    <button type="button" className={action} disabled={!preview || !preview.steps} onClick={() => { if (preview) { onChange(preview.tables); setNotice(`Updated costs for ${preview.characters} character types in your draft. Publish below to apply.`); } }}>Apply costs to draft</button>
-    <p className="text-xs">Stat gains stay unchanged. Wand upgrades remain unavailable.</p>{notice && <p role="status" className="text-sm">{notice}</p>}
+function CharacterCostMultiplier({ tables, value, onChange }: { tables: Record<string, UpgradeStep[]>; value: number; onChange: (value: number) => void }) {
+  const highestCost = Math.max(1, ...Object.values(tables).flatMap(rows => rows.map(row => row.cost)));
+
+  return <section className="menu-info space-y-3 p-4">
+    <h2 className="text-lg font-semibold">Character upgrade costs</h2>
+    <NumberField label="Gold cost multiplier" value={value} onChange={onChange} fractional max={1_000_000_000 / highestCost} />
+    <p className="text-sm">Applies to every upgrade level for all upgradeable characters. The default is 1?. Use 1.5 to raise base costs by 50% or 0.5 to halve them. Costs round to the nearest gold.</p>
   </section>;
 }
 function ExpTable({ rows, onChange }: { rows: number[]; onChange: (rows: number[]) => void }) {
@@ -70,7 +60,7 @@ export function EconomyControls() {
 }
 function EconomyEditor({ catalog, onPublished }: { catalog: Catalog; onPublished: () => void }) {
   const client = useQueryClient(), [draft, setDraft] = useState(() => structuredClone(catalog.settings));
-  const [tab, setTab] = useState("exp"), [weapon, setWeapon] = useState(Object.keys(catalog.settings.characterUpgrades)[0]);
+  const [tab, setTab] = useState("exp");
   const dirty = JSON.stringify(draft) !== JSON.stringify(catalog.settings);
   const publish = useMutation({ mutationFn: () => api<Catalog>("/admin/economy", { method: "PUT", body: JSON.stringify({ version: catalog.version, settings: draft }) }),
     onSuccess: async data => {
@@ -78,14 +68,13 @@ function EconomyEditor({ catalog, onPublished }: { catalog: Catalog; onPublished
       await Promise.all([["admin", "balance"], ["character"], ["character-wiki"], ["patch-notes"], ["admin-resource-accounts"], ["admin-donation-tiers"]].map(queryKey => client.invalidateQueries({ queryKey })));
     } });
   const tabs = { exp: "EXP per level", artifacts: "Artifact upgrades", characters: "Character upgrades", skill: "Skill 2", shop: "Shop prices" };
-  const specialNames: Record<string, string> = { glaive: "Kent", "ice-staff": "Juan", "dual-axe": "Jeffrey" };
   return <form className="mt-5 space-y-5" onSubmit={event => { event.preventDefault(); publish.mutate(); }}>
     <p className="text-sm">Live version {catalog.version}. {dirty ? "You have unpublished changes." : "Showing published settings."}</p>
     <fieldset disabled={publish.isPending} className="space-y-5">
       <div role="group" aria-label="Progression settings" className="flex flex-wrap gap-2">{Object.entries(tabs).map(([id, label]) => <button key={id} type="button" className={action} aria-pressed={tab === id} onClick={() => setTab(id)}>{label}</button>)}</div>
       {tab === "exp" && <ExpTable rows={draft.levelExp} onChange={levelExp => setDraft(previous => ({ ...previous, levelExp }))} />}
       {tab === "artifacts" && <UpgradeTable title="Artifact enhancement per plus" stat="main stat" rows={draft.artifactEnhancements} onChange={artifactEnhancements => setDraft(previous => ({ ...previous, artifactEnhancements }))} />}
-      {tab === "characters" && <><BulkCharacterCosts tables={draft.characterUpgrades} onChange={characterUpgrades => setDraft(previous => ({ ...previous, characterUpgrades }))} /><label className="block text-sm font-semibold">Character type<select className={input + " mt-1"} value={weapon} onChange={event => setWeapon(event.target.value)}>{Object.keys(draft.characterUpgrades).map(id => <option key={id} value={id}>{specialNames[id] ? `${specialNames[id]} · ` : ""}{weaponDetails(id as WeaponType).label}</option>)}</select></label><UpgradeTable key={weapon} title={`${weaponDetails(weapon as WeaponType).label} upgrades`} stat={catalog.upgrades[weapon].label} rows={draft.characterUpgrades[weapon]} onChange={rows => setDraft(previous => ({ ...previous, characterUpgrades: { ...previous.characterUpgrades, [weapon]: rows } }))} /><p className="text-xs">Each character type has its own cost and gain table. Wand upgrades remain unavailable.</p></>}
+      {tab === "characters" && <CharacterCostMultiplier tables={draft.characterUpgrades} value={draft.characterUpgradeCostMultiplier} onChange={characterUpgradeCostMultiplier => setDraft(previous => ({ ...previous, characterUpgradeCostMultiplier }))} />}
       {tab === "skill" && <section className="menu-info space-y-3 p-4"><h2 className="text-lg font-semibold">Skill 2 unlock</h2><NumberField label="Gold to unlock Skill 2 per character" value={draft.skillUnlockCost} max={1_000_000} onChange={skillUnlockCost => setDraft(previous => ({ ...previous, skillUnlockCost }))} /><p className="text-sm">Charged once per character. Already unlocked skills remain unlocked.</p></section>}
       {tab === "shop" && <section className="menu-info space-y-4 p-4"><h2 className="text-lg font-semibold">Artifact shop prices</h2><div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">{artifactCatalog.map(item => <NumberField key={item.stat} label={item.name} value={draft.shopPrices[item.stat]} max={1_000_000} onChange={price => setDraft(previous => ({ ...previous, shopPrices: { ...previous.shopPrices, [item.stat]: price } }))} />)}</div></section>}
       <p className="menu-info p-4 text-sm">Publishing stat gains recalculates bonuses for existing artifact plus levels and character upgrades. Past gold payments are not changed. Saved Endless runs keep their original stat snapshot.</p>

@@ -6,6 +6,8 @@ import type { Character } from "@/lib/character";
 
 interface GameState {
   isExploring: boolean;
+  travel: "expedition" | "room" | null;
+  setTravel: (travel: GameState["travel"]) => void;
   startExploring: (starter: Character) => void;
   returnToRoom: () => void;
   teamSlots: (Character | null)[];
@@ -24,8 +26,10 @@ interface GameState {
 function createGameStore(initialTeam: (Character | null)[]) {
   return createStore<GameState>()((set) => ({
     isExploring: false,
+    travel: null,
+    setTravel: (travel) => set({ travel }),
     startExploring: (starter) => set((state) => ({
-      isExploring: true, isPaused: false, isMapOpen: false, activePanel: null,
+      isExploring: true, travel: "expedition", isPaused: false, isMapOpen: false, activePanel: null,
       teamSlots: state.teamSlots.some(Boolean) ? state.teamSlots : [starter, null, null, null, null, null],
     })),
     returnToRoom: () => set({ isExploring: false, isPaused: false, isMapOpen: false, activePanel: null }),

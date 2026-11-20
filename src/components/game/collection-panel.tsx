@@ -5,7 +5,7 @@ import { sortArtifactInventory } from "@/lib/artifact-inventory";
 import { CurrencyBadge } from "./currency-badge";
 
 import { useEffect, useRef, useState, type CSSProperties } from "react";
-import { X } from "lucide-react";
+import { LoaderCircle, X } from "lucide-react";
 import { ResponsiveCanvasFrame } from "./responsive-canvas-frame";
 import { useSession } from "@/lib/auth";
 import { useArtifactAction, useCharacter } from "@/lib/character-api";
@@ -21,6 +21,13 @@ function enhancementColor(level: number) {
   return "#287044";
 }
 
+function ArtifactActionLoading({ label }: { label: string }) {
+  return <span className="inline-flex items-center gap-2">
+    <LoaderCircle aria-hidden="true" className="size-4 motion-safe:animate-spin" />
+    {label}
+  </span>;
+}
+
 export function CollectionPanel({ title, onClose, characterId }: { title: "Shop" | "Artifacts"; onClose: () => void; characterId?: string }) {
   const closeRef = useRef<HTMLButtonElement>(null), busy = useRef(false);
   const session = useSession(), state = useCharacter(session.data?.user.id), action = useArtifactAction(session.data?.user.id);
@@ -32,6 +39,10 @@ export function CollectionPanel({ title, onClose, characterId }: { title: "Shop"
   const gold = state.data?.gold ?? 0;
   const economy = state.data?.economy;
   const character = state.data?.characters.find((member) => member.id === characterId);
+  const pending = action.isPending ? action.variables : undefined;
+  const unequipping = pending && "artifactId" in pending && pending.artifactId === null;
+  const pendingLabel = !pending ? undefined : "stat" in pending ? "Buying artifact…" : "enhanceId" in pending
+    ? "Enhancing artifact…" : unequipping ? "Unequipping artifact…" : "Equipping artifact…";
   const items: (Artifact & { name: string; label: string; color: string })[] = title === "Shop"
     ? artifactCatalog.map((item) => ({ ...item, id: item.stat, characterId: null as string | null, enhancementLevel: 0 }))
     : (state.data?.artifacts ?? []).map((item) => ({ ...artifactDetails(item.stat), ...item }));
@@ -72,7 +83,9 @@ export function CollectionPanel({ title, onClose, characterId }: { title: "Shop"
         const owner = state.data?.characters.find((member) => member.id === item.characterId);
         const equipped = !!characterId && item.id === character?.artifactId;
         const owned = state.data?.artifacts.filter((artifact) => artifact.stat === item.stat).length ?? 0;
-        const enhancing = action.isPending && action.variables && "enhanceId" in action.variables && action.variables.enhanceId === item.id;
+        const buying = pending && "stat" in pending && pending.stat === item.stat;
+        const equipping = pending && "artifactId" in pending && pending.artifactId === item.id;
+        const enhancing = pending && "enhanceId" in pending && pending.enhanceId === item.id;
         return <article key={item.id} data-equipped={equipped} className={`paper-card menu-info artifact-enhance-card bg-[#e9d4a7] p-4 ${equipped ? "border-[#805523]" : "border-[#a38358]"}`}>
           {burst?.id === item.id && <div key={`glow-${burst.key}`} className="artifact-enhance-enhanced" aria-hidden="true" />}
           <div className="flex items-center gap-4">
@@ -86,8 +99,8 @@ export function CollectionPanel({ title, onClose, characterId }: { title: "Shop"
             </div>
           </div>
           <div className="mt-4 flex flex-wrap items-center gap-3">
-            {title === "Shop" ? <button type="button" className={buttonClass} disabled={action.isPending || gold < itemCost} onClick={() => perform({ stat: item.stat }, `${item.name} purchased.`)} aria-label={`Buy ${item.name} for ${itemCost.toLocaleString()} gold`}>Buy · {itemCost.toLocaleString()} gold</button> : <>
-              {characterId && <button type="button" className={buttonClass} disabled={action.isPending || equipped || (!!item.characterId && item.characterId !== characterId)} onClick={() => perform({ characterId, artifactId: item.id }, "Artifact equipment saved.")} aria-label={`Equip ${item.name}`}>{equipped ? "Equipped" : "Equip"}</button>}
+            {title === "Shop" ? <button type="button" className={buttonClass} disabled={action.isPending || gold < itemCost} onClick={() => perform({ stat: item.stat }, `${item.name} purchased.`)} aria-label={buying ? `Buying ${item.name}` : `Buy ${item.name} for ${itemCost.toLocaleString()} gold`}>{buying ? <ArtifactActionLoading label="Buying…" /> : `Buy · ${itemCost.toLocaleString()} gold`}</button> : <>
+              {characterId && <button type="button" className={buttonClass} disabled={action.isPending || equipped || (!!item.characterId && item.characterId !== characterId)} onClick={() => perform({ characterId, artifactId: item.id }, "Artifact equipment saved.")} aria-label={equipping ? `Equipping ${item.name}` : `Equip ${item.name}`}>{equipping ? <ArtifactActionLoading label="Equipping…" /> : equipped ? "Equipped" : "Equip"}</button>}
               <button type="button" className={buttonClass} disabled={action.isPending || gold < itemCost} onClick={() => perform({ enhanceId: item.id }, `${item.name} enhanced! +${artifactBonus(item.enhancementLevel + 1, economy?.artifactEnhancements)} ${item.label}.`)} aria-label={`Enhance ${item.name} for ${itemCost.toLocaleString()} gold`}>{enhancing ? "Enhancing…" : `Enhance · ${itemCost.toLocaleString()} gold`}</button>
               <span className="text-xs text-[#71583c]">Next: {artifactStatText(item.stat, item.enhancementLevel + 1, economy?.artifactEnhancements)}</span>
             </>}
@@ -114,14 +127,14 @@ export function CollectionPanel({ title, onClose, characterId }: { title: "Shop"
       </div>
       <p className="mt-2 text-sm text-[#71583c]">{title === "Shop" ? "Artifact prices are listed below" : `${items.length} artifacts · Team equipment first · Select an icon for details`}</p>
       {characterId && <p className="mt-1 text-xs text-[#71583c]">One equipped artifact per character.</p>}
-      {(action.error || action.isPending || notice) && <p role={action.error ? "alert" : "status"} className={`mt-2 text-sm ${action.error ? "text-[#a13725]" : "text-[#805523]"}`}>{action.error?.message ?? (action.isPending ? "Saving…" : notice)}</p>}
+      {(action.error || pendingLabel || notice) && <p role={action.error ? "alert" : "status"} className={`mt-2 text-sm ${action.error ? "text-[#a13725]" : "text-[#805523]"}`}>{action.error?.message ?? pendingLabel ?? notice}</p>}
     </header>
     <div inert={!!inspectedItem} className="min-h-0 flex-1 overflow-auto overscroll-contain"><div className="mx-auto max-w-[960px] space-y-3 p-3 sm:p-4">
       {state.isPending && <p role="status">Loading artifacts…</p>}
       {state.isError && <div role="alert" className="text-[#a13725]"><p>{state.error.message}</p><button type="button" onClick={() => void state.refetch()} className={`${buttonClass} mt-2`}>Retry</button></div>}
       {characterId && <div className="menu-info flex items-center justify-between gap-3 p-3">
         <div><h3 className="text-sm font-semibold">Current artifact slot</h3><p className="text-xs text-[#71583c]">One artifact per character.</p></div>
-        <button type="button" className={buttonClass} disabled={action.isPending || !character?.artifactId} onClick={() => perform({ characterId, artifactId: null }, "Artifact unequipped.")}>Unequip</button>
+        <button type="button" className={buttonClass} disabled={action.isPending || !character?.artifactId} onClick={() => perform({ characterId, artifactId: null }, "Artifact unequipped.")}>{unequipping ? <ArtifactActionLoading label="Unequipping…" /> : "Unequip"}</button>
       </div>}
       {title === "Shop" ? cards : <div className="artifact-inventory-grid" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(88px, 1fr))", gap: 8 }} aria-label="Artifact inventory, current team equipment first">
         {orderedItems.map(item => {
@@ -142,7 +155,7 @@ export function CollectionPanel({ title, onClose, characterId }: { title: "Shop"
     {inspectedItem && <div ref={detailRef} role="dialog" aria-modal="true" aria-labelledby="artifact-details-title" className="absolute inset-0 z-30 flex items-center justify-center bg-[#20150dcc] p-3">
       <div className="menu-info max-h-full w-full max-w-lg overflow-auto shadow-2xl">
         <div className="flex items-center justify-between gap-3 border-b border-[#a3835866] p-3"><h3 id="artifact-details-title" className="font-serif text-xl font-semibold">Artifact details</h3><button ref={detailCloseRef} type="button" aria-label="Close artifact details" className={buttonClass} onClick={closeInspection}><X size={18} /></button></div>
-        {(action.error || action.isPending || notice) && <p role={action.error ? "alert" : "status"} className="px-4 pt-3 text-sm text-[#805523]">{action.error?.message ?? (action.isPending ? "Saving…" : notice)}</p>}
+        {(action.error || pendingLabel || notice) && <p role={action.error ? "alert" : "status"} className="px-4 pt-3 text-sm text-[#805523]">{action.error?.message ?? pendingLabel ?? notice}</p>}
         {cards}
       </div>
     </div>}

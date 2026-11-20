@@ -68,10 +68,12 @@ export function ExpeditionCanvas({ location, team, gold, wishCurrency, character
   const returnToRoom = useCallback(async () => {
     if (returning.current) return;
     returning.current = true; paused.current = true; setReturnError("");
+    store.getState().setTravel("room");
     try {
       await api<void>("/encounters/return", { method: "POST" });
       store.getState().returnToRoom();
     } catch (error) {
+      store.getState().setTravel(null);
       setReturnError(error instanceof Error ? error.message : "Could not return. Try again.");
       paused.current = false;
     } finally { returning.current = false; }
@@ -762,11 +764,12 @@ export function ExpeditionCanvas({ location, team, gold, wishCurrency, character
           control.x, control.y, control.width, control.height, active);
 
       }
+      if (store.getState().travel === "expedition") store.getState().setTravel(null);
       frame = requestAnimationFrame(draw);
     }
     frame = requestAnimationFrame(draw); returnRef.current?.focus({ preventScroll: true });
     return () => { alive = false; summonAction.current = null; cancelAnimationFrame(frame); observer.disconnect(); document.removeEventListener("visibilitychange", visibility); };
-  }, [location, team, client, userId, returnToRoom]);
+  }, [location, team, client, userId, returnToRoom, store]);
 
   return <ResponsiveCanvasFrame fit overlay={false} minHeight={560} narrowMinHeight={600}><div className="relative h-full w-full overflow-hidden bg-[#173d3a]" onKeyDown={(event) => {
     if (event.key === "Escape") { event.preventDefault(); if (rosterOpen) closeRoster(); else if (collectionOpen) closeCollection(); else void returnToRoom(); }

@@ -19,7 +19,20 @@ function GameScene({ character, characters, gold, wishCurrency, progression }: {
   const exploring = useGameState((state) => state.isExploring);
   const location = useGameState((state) => state.selectedLocation);
   const team = useGameState((state) => state.teamSlots);
-  return exploring ? <ExpeditionCanvas location={location} team={team} gold={gold} wishCurrency={wishCurrency} characterName={character.name} characters={characters} progression={progression} /> : <RoomCanvas character={character} characters={characters} gold={gold} wishCurrency={wishCurrency} progression={progression} />;
+  const travel = useGameState((state) => state.travel);
+  return <div className="relative h-full w-full" onKeyDownCapture={event => {
+    if (!travel) return;
+    event.preventDefault();
+    event.stopPropagation();
+  }}>
+    {exploring ? <ExpeditionCanvas location={location} team={team} gold={gold} wishCurrency={wishCurrency} characterName={character.name} characters={characters} progression={progression} /> : <RoomCanvas character={character} characters={characters} gold={gold} wishCurrency={wishCurrency} progression={progression} />}
+    {travel && <div role="status" className="absolute inset-0 z-[70] grid cursor-wait place-items-center bg-black/35">
+      <div className="paper-card flex items-center gap-3 rounded bg-[#efdfb8] px-5 py-3 text-sm font-semibold text-[#43311f]">
+        <LoaderCircle aria-hidden="true" className="size-5 motion-safe:animate-spin" />
+        {travel === "expedition" ? "Loading Expedition…" : "Returning to My Room…"}
+      </div>
+    </div>}
+  </div>;
 }
 
 export function GameEntry() {

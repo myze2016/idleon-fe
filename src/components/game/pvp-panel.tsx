@@ -30,7 +30,7 @@ export function PvpPanel({ onClose, initialCode = "" }: { onClose: () => void; i
     } });
   const room = useQuery<RoomState>({ queryKey: ["pvp-room", userId, code], enabled: !!userId && !!code, queryFn: async ({ signal }) => {
     const previous = client.getQueryData<RoomState>(["pvp-room", userId, code]);
-    const known = previous?.result && previous.startsAt ? previous.startsAt : null;
+    const known = previous?.result ? previous.battleVersion ?? previous.startsAt : null;
     const next = await api<RoomState>(`/pvp/${code}${known ? `?battle=${encodeURIComponent(known)}` : ""}`, { signal });
     if (next.resultUnchanged && previous?.result && previous.startsAt === next.startsAt) return {
       ...next, result: previous.result,
@@ -38,7 +38,7 @@ export function PvpPanel({ onClose, initialCode = "" }: { onClose: () => void; i
     };
     return next;
   }, retry: false,
-    refetchInterval: (query) => query.state.error || ["complete", "canceled", "closed", "expired"].includes(query.state.data?.phase ?? "") ? false : liveRoom.ready ? 15000 : query.state.data?.phase === "battle" && query.state.data.result ? 1500 : 500 });
+    refetchInterval: (query) => query.state.error || ["complete", "canceled", "closed", "expired"].includes(query.state.data?.phase ?? "") ? false : liveRoom.ready ? 15000 : 500 });
   const action = useMutation({ mutationFn: (input: { path: string; body?: object }) => api<{ code: string }>(input.path, { method: "POST", ...(input.body ? { body: JSON.stringify(input.body) } : {}) }),
     onSuccess: async (data) => { setCode(data.code); await client.invalidateQueries({ queryKey: ["pvp-room", userId, data.code] }); await client.invalidateQueries({ queryKey: ["pvp-lobby", userId] }); } });
   const leave = useMutation({ mutationFn: () => code ? api(`/pvp/${code}/leave`, { method: "POST" }) : Promise.resolve(),
@@ -70,7 +70,7 @@ export function PvpPanel({ onClose, initialCode = "" }: { onClose: () => void; i
   function close() { if (!busy) { if (code && data && ["waiting", "countdown", "battle", "complete"].includes(data.phase)) leave.mutate(); else onClose(); } }
   function select(characterIds: string[]) { action.mutate({ path: `/pvp/${code}/select`, body: { characterIds } }); }
 
-  if (data && ["countdown", "battle", "complete"].includes(data.phase)) return <PvpArena data={data} userId={userId!} elapsed={elapsed} busy={busy} error={error} onClose={close} onReturn={() => action.mutate({ path: `/pvp/${code}/return` })} />;
+  if (data && ["countdown", "battle", "complete"].includes(data.phase)) return <PvpArena data={data} userId={userId!} elapsed={elapsed} busy={busy} error={error} onClose={close} onReturn={() => action.mutate({ path: `/pvp/${code}/return` })} onSkill2={(fighterId, enabled) => action.mutate({ path: `/pvp/${code}/skill-2`, body: { fighterId, enabled } })} />;
 
   if (editingTeam && data?.phase === "waiting") return <TeamScreen characters={roster.data?.characters ?? []} onClose={() => setEditingTeam(false)} selection={{
     slots: Array.from({ length: 6 }, (_, slot) => roster.data?.characters.find(member => member.id === selected[slot]) ?? null),

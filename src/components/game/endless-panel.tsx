@@ -12,6 +12,7 @@ import { ResponsiveCanvasFrame } from "./responsive-canvas-frame";
 import { PvpBattleCanvas } from "./pvp-battle-canvas";
 import { useGameState } from "./game-store";
 import { EndlessBattleHud } from "./endless-battle-hud";
+import { Skill2Controls } from "./skill-2-controls";
 
 const button = "menu-action inline-flex min-h-11 cursor-pointer items-center justify-center gap-2 px-3 py-2 text-sm disabled:cursor-default disabled:opacity-50";
 export function EndlessPanel({ onClose }: { onClose: () => void }) {
@@ -20,6 +21,7 @@ export function EndlessPanel({ onClose }: { onClose: () => void }) {
   const home = useQuery({ queryKey: key, enabled: !!userId, queryFn: ({ signal }) => api<EndlessHome>("/endless", { signal }), refetchInterval: 10000 });
   const [leaderboard, setLeaderboard] = useState(false);
   const [resetOpen, setResetOpen] = useState(false);
+  const [skill2Open, setSkill2Open] = useState(false);
   const resetRef = useRef<HTMLButtonElement>(null), cancelResetRef = useRef<HTMLButtonElement>(null);
   useEffect(() => { if (resetOpen) cancelResetRef.current?.focus({ preventScroll: true }); }, [resetOpen]);
   const adventureTeam = useGameState(state => state.teamSlots);
@@ -38,7 +40,7 @@ export function EndlessPanel({ onClose }: { onClose: () => void }) {
   const scores = useQuery({ queryKey: ["endless-leaderboard", userId], enabled: !!userId && leaderboard, queryFn: () => api<EndlessLeaderboard>("/endless/leaderboard"), refetchInterval: leaderboard ? 10000 : false });
   const currentTeam = adventureTeam.some(Boolean) ? adventureTeam : [roster.data?.characters.find(member => member.isStarter) ?? roster.data?.character ?? null];
   const ids = currentTeam.flatMap(member => member?.id && roster.data?.characters.some(owned => owned.id === member.id) ? [member.id] : []);
-  const action = useMutation({ mutationFn: async (input: { kind: "start" | "wave" | "resolve" | "reset"; body?: object }) => {
+  const action = useMutation({ mutationFn: async (input: { kind: "start" | "wave" | "resolve" | "reset" | "skill-2"; body?: object }) => {
     if (input.kind === "reset") {
       const retired = await api<EndlessRun>(`/endless/${run!.id}/retire`, { method: "POST", body: "{}" });
       await client.cancelQueries({ queryKey: key });
@@ -62,18 +64,18 @@ export function EndlessPanel({ onClose }: { onClose: () => void }) {
     return () => clearInterval(timer);
   }, []);
   useEffect(() => {
-    if (!active || action.isPending || action.error || home.isError || !run) return;
+    if (!active || action.isPending || (action.error && action.variables?.kind !== "skill-2") || home.isError || !run) return;
     const wait = run.pending && run.readyAt ? Math.max(0, Date.parse(run.readyAt) - Date.parse(run.serverNow) - (Date.now() - home.dataUpdatedAt)) + 80 : 0;
     const timer = setTimeout(() => mutate({ kind: run.pending ? "resolve" : "wave", body: run.pending ? { wave: run.wave } : {} }), wait);
     return () => clearTimeout(timer);
-  }, [active, action.isPending, action.error, home.isError, home.dataUpdatedAt, run, mutate]);
+  }, [active, action.isPending, action.error, action.variables?.kind, home.isError, home.dataUpdatedAt, run, mutate]);
   const remaining = run?.readyAt ? Math.max(0, Date.parse(run.readyAt) - Date.parse(run.serverNow) - Math.max(0, now - home.dataUpdatedAt)) : 0;
   const elapsed = pending ? Math.min(pending.result.duration, Math.max(0, pending.result.duration - remaining / 1000)) : visual?.duration ?? 0;
   const distance = (run?.distance ?? 0) + (pending ? elapsed * 10 : 0);
   const result = pending?.result ?? visual;
   const error = action.error?.message ?? home.error?.message;
   return <ResponsiveCanvasFrame fit minHeight={560} narrowMinHeight={600}><div role="dialog" aria-modal="true" aria-labelledby="endless-title" className="paper-menu absolute inset-0 z-40 overflow-hidden bg-[#3e452d] text-[#43311f]" onKeyDown={event => {
-    if (event.key === "Escape") { event.preventDefault(); event.stopPropagation(); if (resetOpen) { if (!action.isPending) { setResetOpen(false); resetRef.current?.focus(); } } else if (leaderboard) setLeaderboard(false); else onClose(); }
+    if (event.key === "Escape") { event.preventDefault(); event.stopPropagation(); if (resetOpen) { if (!action.isPending) { setResetOpen(false); resetRef.current?.focus(); } } else if (leaderboard) setLeaderboard(false); else if (skill2Open) setSkill2Open(false); else onClose(); }
     if (event.key === "Tab") {
       const controls = Array.from(event.currentTarget.querySelectorAll<HTMLElement>("button:not(:disabled)")).filter(control => !control.closest("[inert]") && control.getClientRects().length);
       if (event.shiftKey && document.activeElement === controls[0]) { event.preventDefault(); controls.at(-1)?.focus(); }
@@ -85,7 +87,7 @@ export function EndlessPanel({ onClose }: { onClose: () => void }) {
     <header ref={headerRef} className="pointer-events-none absolute inset-x-3 top-3 z-10 flex flex-wrap items-start justify-between gap-2">
       <div className="menu-info px-4 py-2"><h2 id="endless-title" className="flex items-center gap-2 font-serif text-xl font-semibold"><InfinityIcon size={22} />Endless</h2><p className="text-xs">Season {active ? run?.season : home.data?.version ?? 1}</p></div>
       <div className="menu-info px-4 py-2 text-center"><p className="text-xs font-semibold uppercase">Distance travelled</p><p role="status" className="text-2xl font-bold tabular-nums">{Math.floor(distance).toLocaleString()} m</p><p className="text-xs">Enemy stats ×{endlessStatFactor(distance, run?.settings.statMultiplier ?? home.data?.config.statMultiplier ?? 1.1).toLocaleString(undefined, { maximumFractionDigits: 2 })}</p></div>
-      <div className="pointer-events-auto flex flex-wrap gap-2">{active && <button ref={resetRef} className={button} disabled={action.isPending || !ids.length || !home.data?.config.enabled} onClick={() => setResetOpen(true)}><RotateCcw size={18} />Reset progress</button>}<button className={button} onClick={() => setLeaderboard(true)} aria-label="Endless leaderboard"><Trophy size={20} /></button><button ref={closeRef} className={button} onClick={onClose}><ArrowLeft size={18} />My room</button></div>
+      <div className="pointer-events-auto flex flex-wrap gap-2">{active && <Skill2Controls fighters={run?.skill2} open={skill2Open} onOpenChange={setSkill2Open} busy={action.isPending} onChange={(fighterId, enabled) => mutate({ kind: "skill-2", body: { wave: run?.wave, fighterId, enabled } })} />}{active && <button ref={resetRef} className={button} disabled={action.isPending || !ids.length || !home.data?.config.enabled} onClick={() => setResetOpen(true)}><RotateCcw size={18} />Reset progress</button>}<button className={button} onClick={() => setLeaderboard(true)} aria-label="Endless leaderboard"><Trophy size={20} /></button><button ref={closeRef} className={button} onClick={onClose}><ArrowLeft size={18} />My room</button></div>
     </header>
     {run && <EndlessBattleHud top={hudTop} key={run.id} runId={run.id} checkpoint={run.wave} result={pending?.result ?? null} elapsed={elapsed} distance={distance} userId={userId ?? ""} playing={!!pending} />}
     {error && <div role="alert" className="menu-info absolute inset-x-4 top-32 z-20 flex flex-wrap items-center gap-3 p-3 text-sm text-[#963f2d]">{error}<button className={button} onClick={() => { action.reset(); void home.refetch(); }}>Retry</button></div>}

@@ -236,6 +236,7 @@ export function RoomCanvas({ character, characters, gold, wishCurrency, progress
       ctx.textAlign = "center";
       text(({ meadow: "Meadow", forest: "Forest", garnaland: "Garnaland", harbor: "Harbor", tourney: "Zugwangs Battle Tourney", deepsea: "DeepSea Moot", "deepsea-2f": "DeepSea Moot 2F", "deepsea-palace": "DeepSea Moot Royal Palace" })[store.getState().selectedLocation], width - 90, height - 120, "600 12px system-ui", "#43311f", 118);
       ctx.textAlign = "left";
+      if (store.getState().travel === "room") store.getState().setTravel(null);
       frame = requestAnimationFrame(draw);
     }
     frame = requestAnimationFrame(draw);

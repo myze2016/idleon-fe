@@ -4,6 +4,7 @@ export interface EconomySettings {
   levelExp: number[];
   artifactEnhancements: UpgradeStep[];
   characterUpgrades: Record<string, UpgradeStep[]>;
+  characterUpgradeCostMultiplier: number;
   skillUnlockCost: number;
 }
 export function upgradeStep(rows: UpgradeStep[], level: number) { return rows[Math.min(level, rows.length - 1)]; }

@@ -11,6 +11,7 @@ export interface EndlessRun {
   id: string; season: number; status: string; wave: number; bestWave: number; distance: number;
   team: ArenaFighter[]; settings: EndlessConfig;
   pending: { enemyType: string | null; result: EndlessResult } | null;
+  skill2?: { id: string; name: string; enabled: boolean }[];
   readyAt: string | null; serverNow: string; createdAt: string;
 }
 export interface EndlessHome { version: number; config: EndlessConfig; run: EndlessRun | null; enemies: { id: string; name: string }[] }
