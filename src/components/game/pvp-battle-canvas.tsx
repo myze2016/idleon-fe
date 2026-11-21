@@ -7,10 +7,12 @@ import { isRangedSkill } from "@/lib/skill-range";
 import type { BattleStep } from "@/lib/encounter";
 import type { ArenaFighter, DuelStep } from "./pvp-types";
 import { drawArenaEnemy } from "./arena-enemies";
-import { BATTLE_SKILL_LABEL_SECONDS, battleSkillName, eventCursor, indexDuelActions, latestDuelAction } from "@/lib/duel-playback";
+import { BATTLE_SKILL_LABEL_SECONDS, battleSkillName, eventCursor, indexDuelActions, latestDuelAction, movementSample } from "@/lib/duel-playback";
 import { drawFighterHud } from "./battle-labels";
-import { preloadSkillEffects } from "./skill-effect-art";
-import { adventureFormation, combatEncounterDistance, interpolateCameraTravel, projectBattlefieldParty, projectEnemyX, projectParty } from "./adventure-formation";
+import { drawFighterStatuses, preloadSkillEffects } from "./skill-effect-art";
+import { activeCombatStatuses } from "@/lib/combat-status";
+import { applyCharacterDeath, characterDeathSeconds } from "./character-death";
+import { adventureFormation, BattlefieldFraming, battlefieldHasOpponent, combatEncounterDistance, interpolateCameraTravel, PartyMotion } from "./adventure-formation";
 
 export function PvpBattleCanvas(props: { fighters: ArenaFighter[]; steps: DuelStep[]; elapsed: number; playing: boolean; hostId: string; viewerId?: string; fullScreen?: boolean; backgroundSrc?: string; adventure?: boolean; arena?: boolean; playbackKey?: string; duration?: number }) {
   const ref = useRef<HTMLCanvasElement>(null);
@@ -29,7 +31,12 @@ export function PvpBattleCanvas(props: { fighters: ArenaFighter[]; steps: DuelSt
     if (background && props.backgroundSrc) background.src = props.backgroundSrc;
     let frame = 0, scroll = 0;
     let camera: { id: string; x: number; key?: string } | undefined;
-    let regroupAt: number | undefined;
+    let allyMotion = new PartyMotion(), enemyMotion = new PartyMotion();
+    let framing = new BattlefieldFraming();
+    let lastPlaybackKey: string | undefined;
+    let engaged = false;
+    let finishedAt: number | undefined;
+    const deathFrames = new Map<string, { x: number; at: number }>();
     let indexedSteps: DuelStep[] | null = null;
     let playbackIndex = indexDuelActions([]);
     function draw(time: number) {
@@ -55,8 +62,7 @@ export function PvpBattleCanvas(props: { fighters: ArenaFighter[]; steps: DuelSt
       if (indexedSteps !== state.steps) { indexedSteps = state.steps; playbackIndex = indexDuelActions(state.steps); }
       const cursor = eventCursor(state.steps, elapsed);
       const last = state.steps[cursor - 1];
-      const next = state.steps[cursor];
-      const blend = next ? Math.max(0, Math.min(1, (elapsed - (last?.at ?? 0)) / Math.max(0.001, next.at - (last?.at ?? 0)))) : 0;
+      const { previous: fromFrame, next, blend } = movementSample(playbackIndex.motion, elapsed);
       const movement: number[] = [];
       const positions = state.fighters.map((fighter, index) => {
         const team = fighter.userId === state.hostId ? 0 : 1;
@@ -67,33 +73,56 @@ export function PvpBattleCanvas(props: { fighters: ArenaFighter[]; steps: DuelSt
           const offset = state.arena ? combatEncounterDistance / 2 + slot * 64 : 540 - (count - 1 - slot) * 64;
           start = 600 + (team === 0 ? -offset : offset);
         }
-        const from = last?.x?.[index] ?? start, to = next?.x?.[index] ?? from;
-        movement[index] = elapsed >= 0 && Math.abs(to - from) > 0.01 ? Math.sign(to - from) * facing : 0;
+        const spawnedSinceFrame = (fighter.spawnAt ?? 0) > (fromFrame?.at ?? 0);
+        if (spawnedSinceFrame && (fighter.spawnAt ?? 0) > elapsed) return start;
+        const from = (spawnedSinceFrame ? last?.x?.[index] : fromFrame?.x?.[index]) ?? start;
+        const to = next?.x?.[index] ?? from;
+        movement[index] = elapsed >= 0 && Math.abs(to - from) > 0.01 && blend > 0 ? Math.sign(to - from) * facing : 0;
         return elapsed < 0 ? start : from + (to - from) * blend;
       });
-      const alive = (index: number) => (last?.hp[index] ?? state.fighters[index].hp ?? state.fighters[index].stats.hp) > 0;
-      if (state.arena && state.duration !== undefined && elapsed >= state.duration && allies.some(alive) && !opponents.some(alive)) regroupAt ??= time;
-      else regroupAt = undefined;
-      const regroup = regroupAt === undefined ? 0 : Math.min(1, (time - regroupAt) / 1300);
+      const alive = (index: number) => (state.fighters[index].spawnAt ?? 0) <= Math.max(0, elapsed)
+        && (last?.hp[index] ?? state.fighters[index].hp ?? state.fighters[index].stats.hp) > 0;
+      if (lastPlaybackKey !== state.playbackKey) {
+        if (!state.adventure || lastPlaybackKey?.split(":")[0] !== state.playbackKey?.split(":")[0]) {
+          deathFrames.clear();
+          allyMotion = new PartyMotion(); enemyMotion = new PartyMotion();
+          framing = new BattlefieldFraming();
+          camera = undefined; scroll = 0;
+          engaged = false;
+        }
+        lastPlaybackKey = state.playbackKey;
+        finishedAt = undefined;
+      }
+      if (state.duration !== undefined && elapsed >= state.duration) finishedAt ??= time;
+      else finishedAt = undefined;
+      const visualTime = elapsed + (finishedAt === undefined ? 0 : (time - finishedAt) / 1000);
+      const arenaFinished = state.arena && finishedAt !== undefined;
+      const livingAllies = allies.filter(alive).map(index => positions[index] * facing);
+      const livingOpponents = opponents.filter(alive).map(index => positions[index] * facing);
+      const inSight = battlefieldHasOpponent(livingAllies, livingOpponents);
+      if (elapsed >= 0 && inSight) engaged = true;
+      const regrouping = !inSight && (state.adventure || arenaFinished || (state.arena && engaged));
+      const alliesRegroup = regrouping && livingAllies.length > 0;
+      const opponentsRegroup = !inSight && arenaFinished && livingOpponents.length > 0;
       const ranged = allies.findIndex(index => alive(index) && state.fighters[index].stats.range === "range");
       const front = allies.reduce<number | undefined>((lead, index) =>
         alive(index) && (lead === undefined || positions[index] * facing > positions[lead] * facing) ? index : lead, undefined);
       const cameraIndex = ranged < 0 ? front : allies[ranged];
       const side = perspective === state.hostId ? 0 : 1;
-      const travel = elapsed < 0 ? 0 : interpolateCameraTravel(last?.cameraTravel?.[side], next?.cameraTravel?.[side], blend);
+      const travel = elapsed < 0 ? 0 : interpolateCameraTravel(fromFrame?.cameraTravel?.[side], next?.cameraTravel?.[side], blend);
       const startingCamera = next?.cameraWorld?.[side] === undefined ? undefined : next.cameraWorld[side] - (next.cameraTravel?.[side] ?? 0);
-      const cameraWorld = interpolateCameraTravel(last?.cameraWorld?.[side] ?? startingCamera, next?.cameraWorld?.[side], elapsed < 0 ? 0 : blend);
+      const cameraWorld = interpolateCameraTravel(fromFrame?.cameraWorld?.[side] ?? startingCamera, next?.cameraWorld?.[side], elapsed < 0 ? 0 : blend);
       if (state.arena && travel !== undefined) scroll = travel * 0.75;
       else if (viewport && cameraIndex !== undefined) {
         const id = travel === undefined ? state.fighters[cameraIndex].id : perspective;
-        const x = travel ?? positions[cameraIndex] * facing;
-        if (camera?.id === id && camera.key === state.playbackKey) {
+        const x = cameraWorld ?? travel ?? positions[cameraIndex] * facing;
+        if (camera?.id === id && (camera.key === state.playbackKey || (state.adventure && cameraWorld !== undefined))) {
           scroll += (x - camera.x) * 0.75;
         }
         else if (state.arena && camera?.key !== state.playbackKey) scroll = 0;
         camera = { id, x, key: state.playbackKey };
       }
-      const backgroundScroll = scroll + regroup * 117;
+      const backgroundScroll = scroll;
       if (!(background?.complete && background.naturalWidth > 0)) {
         const sky = ctx.createLinearGradient(0, 0, 0, ground);
         sky.addColorStop(0, "#a8d5d2"); sky.addColorStop(1, "#f0ebbb");
@@ -139,52 +168,81 @@ export function PvpBattleCanvas(props: { fighters: ArenaFighter[]; steps: DuelSt
           ctx.drawImage(background, (width - artWidth) / 2 - pan, (height - artHeight) / 2, artWidth, artHeight);
         } else ctx.drawImage(background, 0, 0, width, height);
       }
-      const returning = regroupAt !== undefined && regroup < 1;
       if (viewport) {
         const allyPositions = allies.map(index => positions[index] * facing);
         const allyAlive = (slot: number) => alive(allies[slot]);
         const enemyWorld = opponents.map(index => positions[index] * facing);
-        let screens: number[], enemyScreens: number[];
-        if (cameraWorld === undefined) {
-          const party = projectParty(allyPositions, allyAlive, formation, ranged < 0 ? undefined : { slot: ranged, width });
-          screens = party.screen;
-          enemyScreens = enemyWorld.map(x => projectEnemyX(x - party.frontWorld, party.frontScreen, width, formation));
-        } else {
-          screens = projectBattlefieldParty(allyPositions, allyAlive, cameraWorld, width, formation);
-          enemyScreens = projectBattlefieldParty(enemyWorld, slot => alive(opponents[slot]), cameraWorld, width, formation);
-        }
-        opponents.forEach((index, slot) => { positions[index] = enemyScreens[slot]; });
+        const anchor = cameraWorld ?? (cameraIndex === undefined ? allyPositions[0] ?? 0 : positions[cameraIndex] * facing);
+        const view = framing.view(anchor, livingAllies, width, formation, time / 1000);
+        const screens = view.party(allyPositions, allyAlive, true);
+        const enemyScreens = view.party(enemyWorld, slot => alive(opponents[slot]));
+        const displayedAllies = allyMotion.update(alliesRegroup ? "regroup" : "combat", time / 1000, width,
+          allies.map((index, slot) => ({ id: state.fighters[index].id, x: screens[slot], home: formation.home(slot) })));
         allies.forEach((index, slot) => {
-          const home = formation.home(slot);
-          const x = screens[slot];
-          positions[index] = x + (home - x) * regroup;
+          positions[index] = displayedAllies[slot].x;
+          if (alliesRegroup || displayedAllies[slot].transitioning) {
+            movement[index] = displayedAllies[slot].direction || (alliesRegroup && state.adventure && state.playing ? 1 : 0);
+          }
         });
+        if (state.arena) {
+          const enemyFormation = adventureFormation(width, height, opponents.length, allies.length);
+          const displayedOpponents = enemyMotion.update(opponentsRegroup ? "regroup" : "combat", time / 1000, width,
+            opponents.map((index, slot) => ({ id: state.fighters[index].id, x: enemyScreens[slot], home: width - enemyFormation.home(slot) })));
+          opponents.forEach((index, slot) => {
+            positions[index] = displayedOpponents[slot].x;
+            if (opponentsRegroup) movement[index] = displayedOpponents[slot].direction;
+          });
+        } else opponents.forEach((index, slot) => { positions[index] = enemyScreens[slot]; });
       }
       ctx.save();
       ctx.textAlign = "center";
       for (let index = 0; index < state.fighters.length; index++) {
         const fighter = state.fighters[index], hp = last?.hp[index] ?? fighter.hp ?? fighter.stats.hp, mp = last?.mp[index] ?? fighter.mp ?? fighter.stats.mp;
         if ((fighter.spawnAt ?? 0) > Math.max(0, elapsed)) continue;
-        if (hp <= 0) continue;
         const direction = fighter.userId === perspective ? 1 : -1;
-        const attack = latestDuelAction(playbackIndex.attacks.get(index), elapsed);
+        if (hp <= 0) {
+          if (!fighter.weapon) continue;
+          const diedAt = playbackIndex.deaths.get(index);
+          const fromCurrentBattle = (fighter.hp ?? fighter.stats.hp) > 0 && diedAt !== undefined;
+          const age = fromCurrentBattle ? visualTime - diedAt : Infinity;
+          if (age >= 0 && age < characterDeathSeconds && !deathFrames.has(fighter.id)) {
+            deathFrames.set(fighter.id, { x: positions[index] / width, at: time - age * 1000 });
+          }
+          const death = deathFrames.get(fighter.id);
+          if (!death) continue;
+          const deathAge = fromCurrentBattle ? age : (time - death.at) / 1000;
+          if (deathAge >= characterDeathSeconds) { deathFrames.delete(fighter.id); continue; }
+          ctx.save(); ctx.translate(death.x * width, ground); ctx.scale(avatarScale, avatarScale);
+          applyCharacterDeath(ctx, deathAge, direction);
+          drawCharacter(ctx, fighter.weapon, { facing: direction });
+          ctx.restore();
+          continue;
+        }
+        deathFrames.delete(fighter.id);
+        const statuses = activeCombatStatuses(last ? last.statusEnds?.[index] : fighter.statusEnds, visualTime, last?.statuses?.[index]);
+        const immobilized = statuses.includes("stun") || statuses.includes("freeze");
+        const skill = latestDuelAction(playbackIndex.skills.get(index), elapsed);
+        const offensiveAction = latestDuelAction(playbackIndex.attacks.get(index), elapsed);
+        const attack = fighter.enemyType && (skill?.kind === "heal" || skill?.kind === "buff") && skill.at >= (offensiveAction?.at ?? -Infinity)
+          ? skill : offensiveAction;
         const age = attack ? elapsed - attack.at : Infinity;
-        const swing = age < 0.45 ? Math.sin(Math.max(0, age) / 0.45 * Math.PI) : 0;
+        const swing = !immobilized && age < 0.45 ? Math.sin(Math.max(0, age) / 0.45 * Math.PI) : 0;
         const x = positions[index] + (fighter.stats.range === "melee" && !isRangedSkill(attack?.label) ? direction * swing * 14 : 0);
-        const walkDirection = returning && fighter.userId === perspective ? direction : state.playing ? movement[index] : 0;
+        const regrouping = fighter.userId === perspective ? alliesRegroup : opponentsRegroup;
+        const walkDirection = !immobilized && (state.playing || regrouping) ? movement[index] : 0;
         const walking = walkDirection !== 0;
         if (state.adventure && (x < -150 || x > width + 150)) continue;
         ctx.save(); ctx.translate(x, ground); ctx.scale(avatarScale, avatarScale);
         if (fighter.weapon) drawCharacter(ctx, fighter.weapon, { facing: walkDirection || direction, stride: walking ? Math.sin(time / 190 + index) : 0, swing });
         else if (fighter.enemyType) drawArenaEnemy(ctx, fighter.enemyType, Math.max(0, elapsed), walking, swing, direction);
         ctx.restore();
-        const skill = latestDuelAction(playbackIndex.skills.get(index), elapsed);
+        drawFighterStatuses(ctx, statuses, x, ground, avatarScale, visualTime);
         const activeSkill = skill && elapsed < (skill.castEndsAt ?? skill.at + BATTLE_SKILL_LABEL_SECONDS) ? battleSkillName(skill) : undefined;
         const castProgress = activeSkill && skill?.kind === "cast" && skill.castEndsAt !== undefined
           ? (elapsed - skill.at) / Math.max(0.001, skill.castEndsAt - skill.at) : undefined;
         drawFighterHud(ctx, x, ground, avatarScale, ground - (fighter.weapon ? 72 : 55) * avatarScale, {
           name: fighter.name, hp, maxHp: fighter.stats.hp, mp, maxMp: fighter.stats.mp, enemy: direction === -1, skill: activeSkill, castProgress,
-          statuses: last?.statuses?.[index],
+          statuses,
         });
       }
       for (let event = eventCursor(state.steps, elapsed - 0.9); event < cursor; event++) {

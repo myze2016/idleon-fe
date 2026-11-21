@@ -1,6 +1,6 @@
 "use client";
 import { drawPlayerInfo } from "./player-info";
-import { adventureFormation, combatEncounterDistance, enemySpawnSpacing, interpolateCameraTravel, projectBattlefieldParty, projectBattlefieldX, projectEnemyX, projectParty } from "./adventure-formation";
+import { adventureFormation, BattlefieldFraming, battlefieldHasOpponent, battlefieldView, combatEncounterDistance, enemySpawnSpacing, interpolateCameraTravel, PartyMotion } from "./adventure-formation";
 import { tourneySpectatorPlacement } from "./tourney-crowd";
 import { drawRpgButton } from "./rpg-button";
 import { drawMonster, preloadMonsterSprites } from "./meadow-monsters";
@@ -30,14 +30,15 @@ import { drawLocationIcon } from "./location-icons";
 import { BattleLog } from "./battle-log";
 import { Skill2Controls } from "./skill-2-controls";
 import type { Skill2Control } from "./pvp-types";
-import { BATTLE_SKILL_LABEL_SECONDS, battleSkillName, eventCursor } from "@/lib/duel-playback";
+import { BATTLE_SKILL_LABEL_SECONDS, battleSkillName, eventCursor, indexCombatMovement, movementSample } from "@/lib/duel-playback";
 import { drawFighterHud } from "./battle-labels";
-import { preloadSkillEffects } from "./skill-effect-art";
+import { drawFighterStatuses, preloadSkillEffects } from "./skill-effect-art";
+import { activeCombatStatuses } from "@/lib/combat-status";
+import { applyCharacterDeath, characterDeathSeconds } from "./character-death";
 
 type ExpeditionPlayback = Pick<BattleResult, "steps" | "won" | "enemies" | "initialTeamHp" | "initialTeamMp"> & {
   skill2: Skill2Control[];
-  movement: { at: number; x: number[]; travel?: number; cameraWorld?: number }[];
-  meleeRange: number;
+  movement: { at: number; x: number[]; travel?: number; cameraWorld?: number; kind?: string; label?: string }[];
 };
 
 function expeditionSkill2(team: (Character | null)[], roster: Character[]) {
@@ -152,27 +153,37 @@ export function ExpeditionCanvas({ location, team, gold, wishCurrency, character
     let restStartedAt = 0, restManaPerSecond = 0;
     const resultHold = 1.5;
     const memberPositions: number[] = [];
+    const partyMotion = new PartyMotion();
+    let framing = new BattlefieldFraming();
+    const partyDeaths: ({ x: number; at: number } | undefined)[] = [];
     let statuses: number[] = [];
+    let statusEnds: BattleStep["statusEnds"], statusStartedAt = 0;
+    let defeatedUntil: number | undefined;
     const recentSkills = new Map<string, { label: string; until: number }>();
     let alive = true, spawning = false, firstSpawn = true, spawnElapsed = 0, nextSpawn = spawnDelay(), message = "", messageUntil = 0;
     let spectatorAvailable = false, summonBusy = false;
     let crowdOffset = 0, crowdGroup = 0, refreshingCrowd = false, crowdStarted = false;
     type Monster = {
       data: EnemyEncounter; x: number; moving?: boolean; spawned?: boolean; stage: "ready" | "waiting" | "fighting" | "result";
-      hp: number; mp?: number; teamHp: number[]; teamMp: number[]; casts: NonNullable<BattleStep["teamCasting"]>; battle?: ExpeditionPlayback; reward?: BattleResult; step: number; nextStep: number; until: number; lastHit?: BattleStep; battleStartedAt: number; lastHitAt: number; regroupAt?: number;
+      hp: number; mp?: number; teamHp: number[]; teamMp: number[]; casts: NonNullable<BattleStep["teamCasting"]>; battle?: ExpeditionPlayback; step: number; nextStep: number; until: number; lastHit?: BattleStep; battleStartedAt: number; lastHitAt: number;
+      regroup?: boolean;
+      motion?: ExpeditionPlayback["movement"];
+      arrivesAt?: number;
+      deferredFrom?: Monster;
     };
     let effects: CombatEffect[] = [];
     const battleLog: { actor: string; detail: string }[] = [];
     let damageRows: DamageEntry[] = [];
     let foe: Monster | null = null, monsters: Monster[] = [], activeGroup: Monster[] = [];
+    let victoryReward: { result: BattleResult; x: number; scale: number; until: number } | undefined;
     const disabledSkill2 = new Set<string>();
-    let skillChangePending = false, combatPreparingFailed = false;
+    let skillChangePending = false;
+    let arrivalPendingUntil: number | undefined, retryArrivals: (() => void) | undefined;
     let meadowProgress: { defeated: number; target: number | null } = { defeated: 0, target: null };
 
     function addEncounter(data: EnemyEncounter, slot: number) {
       const formation = adventureFormation(width, height, members.length);
-      const lead = Math.max(0, teamHp.findIndex(hp => hp > 0));
-      const x = projectEnemyX(combatEncounterDistance + slot * enemySpawnSpacing, formation.home(lead), width, formation) / width;
+      const x = battlefieldView(0, [0], width, formation).project(combatEncounterDistance + slot * enemySpawnSpacing) / width;
       monsters.push({ data, x, stage: "ready", hp: data.stats.hp, mp: data.stats.mp, teamHp: [...teamHp], teamMp: [...teamMp], casts: [], step: 0, nextStep: 0, until: 0, battleStartedAt: 0, lastHitAt: 0 });
     }
 
@@ -205,8 +216,10 @@ export function ExpeditionCanvas({ location, team, gold, wishCurrency, character
     async function fight(group: Monster[]) {
       const engagedAt = elapsed;
       activeGroup = group; const encounter = group[0]; foe = encounter;
+      framing = new BattlefieldFraming();
       recentSkills.clear();
       statuses = [];
+      statusEnds = undefined;
       damageRows = members.map(({ character }, index) => ({ id: character.id ?? `member-${index}`, name: character.name, basic: 0, skill: 0, dot: 0, total: 0 }));
       setDamageSpread(damageRows);
       encounter.teamHp = [...teamHp]; encounter.teamMp = [...teamMp];
@@ -223,6 +236,7 @@ export function ExpeditionCanvas({ location, team, gold, wishCurrency, character
       monsters = [...monsters.filter(monster => !previousSummons.includes(monster)), ...summons];
       activeGroup = [...activeGroup.filter(monster => !monster.data.summoned), ...summons];
       encounter.battle = battle;
+      encounter.motion = indexCombatMovement(battle.movement);
       setSkill2(battle.skill2 ?? []);
     }
     function encounterIds() {
@@ -231,8 +245,40 @@ export function ExpeditionCanvas({ location, team, gold, wishCurrency, character
     function combatFailure(error: unknown, retry?: () => void) {
       setCombatError({ message: error instanceof Error ? error.message : "Could not update expedition combat.", retry });
     }
+    async function joinFight(encounter: Monster, group: Monster[]) {
+      arrivalPendingUntil = elapsed + 0.2;
+      retryArrivals = undefined;
+      setCombatError(null);
+      try {
+        const update = await api<{ battle: ExpeditionPlayback; arrivals: { id: string; at: number }[] } | null>(
+          `/encounters/${encodeURIComponent(encounter.data.id)}/arrivals`,
+          { method: "POST", body: JSON.stringify({ encounterIds: group.map(monster => monster.data.id) }) });
+        if (!alive || foe !== encounter) return;
+        if (!update) {
+          group.forEach(monster => { monster.deferredFrom = encounter; });
+          return;
+        }
+        for (const arrival of update.arrivals) {
+          const monster = group.find(member => member.data.id === arrival.id);
+          if (!monster || activeGroup.includes(monster)) continue;
+          monster.stage = "fighting";
+          monster.arrivesAt = arrival.at;
+          monster.spawned = false;
+          activeGroup.push(monster);
+        }
+        installPlayback(encounter, update.battle);
+        const lastPlayed = update.battle.steps[encounter.step - 1];
+        statuses = lastPlayed?.statuses ?? [];
+        statusEnds = lastPlayed?.statusEnds;
+        encounter.nextStep = encounter.battleStartedAt + (update.battle.steps[encounter.step]?.at ?? update.battle.steps.at(-1)?.at ?? 0);
+      } catch (error) {
+        if (alive && foe === encounter) {
+          retryArrivals = () => { void joinFight(encounter, group); };
+          combatFailure(error, retryArrivals);
+        }
+      } finally { arrivalPendingUntil = undefined; }
+    }
     async function prepareFight(encounter: Monster, engagedAt: number) {
-      combatPreparingFailed = false;
       setCombatError(null); setSkill2Busy(true);
       try {
         const battle = await api<ExpeditionPlayback>("/encounters/prepare", { method: "POST", body: JSON.stringify({ encounterIds: encounterIds(), disabledSkill2Ids: [...disabledSkill2] }) });
@@ -245,20 +291,17 @@ export function ExpeditionCanvas({ location, team, gold, wishCurrency, character
         encounter.nextStep = Math.max(elapsed, engagedAt + openingDelay);
         encounter.battleStartedAt = encounter.nextStep - openingDelay;
       } catch (error) {
-        combatPreparingFailed = true;
         if (alive && foe === encounter) combatFailure(error, () => { void prepareFight(encounter, elapsed); });
       }
       finally { if (alive) setSkill2Busy(false); }
     }
     async function settleFight(encounter: Monster) {
       setCombatError(null); setSkill2Busy(true);
-      if (teamHp.some(hp => hp > 0) && activeGroup.every(monster => monster.hp <= 0)) encounter.regroupAt ??= elapsed;
       for (const monster of activeGroup) monster.stage = "waiting";
       try {
         const result = await api<BattleResult>("/encounters/resolve", { method: "POST", body: JSON.stringify({ encounterIds: encounterIds() }) });
         void client.invalidateQueries({ queryKey: ["character", userId] });
         if (!alive || foe !== encounter) return;
-        encounter.reward = result;
         restStartedAt = performance.now();
         restManaPerSecond = result.manaRegenPerSecond ?? 0;
         goldRef.current = result.gold; wishesRef.current = result.wishCurrency ?? wishesRef.current; progressRef.current = result.progression;
@@ -266,15 +309,19 @@ export function ExpeditionCanvas({ location, team, gold, wishCurrency, character
         const progress = garnaland ? result.garnalandProgress : deepsea ? result.deepSeaProgress : tourney ? result.tourneyProgress : harbor ? result.harborProgress : forest ? result.forestProgress : result.meadowProgress;
         if (progress) meadowProgress = progress;
         if (result.wishEarned && result.wishEarned > 0) setLevelUp({ level: result.progression.level, wishes: result.wishEarned, levels: result.levelsGained ?? Math.max(1, result.wishEarned / 100) });
-        if (!result.won) { void returnToRoom(); return; }
+        if (!result.won) {
+          defeatedUntil = Math.max(elapsed, ...partyDeaths.flatMap(death => death ? [death.at + characterDeathSeconds] : []));
+          return;
+        }
         for (const monster of activeGroup) monster.stage = "result";
         encounter.until = elapsed + resultHold;
+        victoryReward = { result, x: encounter.x, scale: encounter.data.boss ? 1.45 : encounter.data.semiBoss ? 1.2 : 1, until: encounter.until };
       } catch (error) { if (alive && foe === encounter) combatFailure(error, () => { void settleFight(encounter); }); }
       finally { if (alive) setSkill2Busy(false); }
     }
     changeSkill2.current = async (fighterId, enabled) => {
       const encounter = foe;
-      if (skillChangePending || returning.current) return;
+      if (skillChangePending || arrivalPendingUntil !== undefined || retryArrivals || returning.current) return;
       if (!encounter || encounter.stage === "result") {
         if (enabled) disabledSkill2.delete(fighterId); else disabledSkill2.add(fighterId);
         setSkill2(expeditionSkill2(team, charactersRef.current).map(fighter => ({ ...fighter, enabled: !disabledSkill2.has(fighter.id) })));
@@ -368,28 +415,52 @@ export function ExpeditionCanvas({ location, team, gold, wishCurrency, character
       const frameSeconds = document.hidden ? 0 : Math.max(0, (time - (last || time)) / 1000);
       const dt = Math.min(frameSeconds, 0.05); last = time;
       elapsed += dt;
+      if (defeatedUntil !== undefined && elapsed >= defeatedUntil) {
+        defeatedUntil = undefined;
+        void returnToRoom();
+      }
       const hasLivingEnemy = monsters.some(monster => monster.hp > 0);
       spawnElapsed += frameSeconds / (hasLivingEnemy ? 1 : 0.75);
       // Refresh equipped stats without restarting the running expedition.
       members.forEach((member) => { member.character = charactersRef.current.find((owned) => owned.id === member.character.id) ?? member.character; });
-      if (foe?.stage === "fighting" && skillChangePending) {
+      const waitingForArrivals = arrivalPendingUntil !== undefined && elapsed >= arrivalPendingUntil;
+      if (foe?.stage === "fighting" && (skillChangePending || waitingForArrivals || retryArrivals)) {
         foe.battleStartedAt += dt;
         foe.nextStep += dt;
       }
       const battle = foe?.battle;
       const playbackTime = foe ? Math.max(0, elapsed - foe.battleStartedAt) : 0;
       const movement = battle?.movement;
-      const cursor = movement ? eventCursor(movement, playbackTime) : 0;
-      const from = movement?.[cursor - 1];
-      const to = movement?.[cursor];
-      const blend = from && to ? (playbackTime - from.at) / (to.at - from.at) : 0;
+      const { previous: from, next: to, blend } = movementSample(foe?.motion ?? [], playbackTime);
+      const latest = movement?.[eventCursor(movement, playbackTime) - 1];
       const worldX = (index: number) => {
-        const x = from?.x[index];
+        // A summon can appear between movement ticks, before it has a position on the movement track.
+        const x = from?.x[index] ?? latest?.x[index];
         return x === undefined ? undefined : x + ((to?.x[index] ?? x) - x) * blend;
       };
-      const moving = (index: number) => !!from && !!to && from.x[index] !== undefined && Math.abs((to.x[index] ?? from.x[index]) - from.x[index]) > 0.01;
-      const travelling = !foe || foe.regroupAt !== undefined || (foe.stage === "waiting" && !battle && !combatPreparingFailed);
-      const partyAdvancing = foe?.stage === "fighting" && !skillChangePending && members.some((_, index) => moving(index));
+      const enemyWorldX = (monster: Monster, slot: number) => {
+        if ((monster.arrivesAt ?? 0) > playbackTime) return undefined;
+        const index = members.length + slot;
+        return (monster.arrivesAt ?? 0) > (from?.at ?? 0) ? latest?.x[index] : worldX(index);
+      };
+      const moving = (index: number) => blend > 0 && !!from && !!to && from.x[index] !== undefined && Math.abs((to.x[index] ?? from.x[index]) - from.x[index]) > 0.01;
+      const positions = members.map((_, index) => worldX(index) ?? 0);
+      const memberAlive = (index: number) => teamHp[index] > 0;
+      const livingAllies = positions.filter((_, index) => memberAlive(index));
+      const livingOpponents = activeGroup.flatMap((monster, slot) => {
+        const x = enemyWorldX(monster, slot);
+        return monster.hp > 0 && x !== undefined ? [x] : [];
+      });
+      const ready = monsters.filter(monster => monster.stage === "ready");
+      if (foe?.stage === "fighting" && !skillChangePending && arrivalPendingUntil === undefined && !retryArrivals) {
+        const joining = ready.filter(monster => monster.deferredFrom !== foe);
+        if (joining.length) void joinFight(foe, joining);
+      }
+      const motionPhase = foe?.regroup || !foe ? (ready.length ? "hold" : "regroup")
+        : !battle ? "hold" : battlefieldHasOpponent(livingAllies, livingOpponents) ? "combat" : "regroup";
+      const travelling = motionPhase === "regroup";
+      const partyAdvancing = foe?.stage === "fighting" && !skillChangePending && !waitingForArrivals && !retryArrivals
+        && members.some((_, index) => moving(index));
       const rangedAnchor = members.findIndex(({ character }, index) => teamHp[index] > 0 && character.stats?.range === "range");
       if ((!foe || foe.stage === "result") && restManaPerSecond && !document.hidden) {
         const seconds = Math.floor((time - restStartedAt) / 1000);
@@ -540,38 +611,41 @@ export function ExpeditionCanvas({ location, team, gold, wishCurrency, character
       const formation = adventureFormation(width, height, members.length);
       const { avatarScale } = formation;
       const cameraWorld = interpolateCameraTravel(from?.cameraWorld, to?.cameraWorld, blend);
-      const positions = members.map((_, index) => worldX(index) ?? 0);
-      const memberAlive = (index: number) => teamHp[index] > 0;
-      const party = from && cameraWorld === undefined
-        ? projectParty(positions, memberAlive, formation, rangedAnchor < 0 ? undefined : { slot: rangedAnchor, width })
-        : undefined;
-      const screens = cameraWorld === undefined ? party?.screen : projectBattlefieldParty(positions, memberAlive, cameraWorld, width, formation);
-      const regroup = foe?.regroupAt === undefined ? 0 : Math.min(1, (elapsed - foe.regroupAt) / 1.3);
-      const memberMoving = members.map((_, index) => {
-        const home = formation.home(index), position = screens?.[index] ?? home;
-        memberPositions[index] = position + (home - position) * regroup;
-        return travelling || (partyAdvancing && moving(index)) || (regroup > 0 && regroup < 1 && Math.abs(home - position) > 2);
+      const view = from ? framing.view(cameraWorld ?? worldX(rangedAnchor < 0 ? front : rangedAnchor) ?? 0, livingAllies, width, formation, elapsed) : undefined;
+      const screens = view?.party(positions, memberAlive, true);
+      const displayedParty = partyMotion.update(motionPhase, elapsed, width, members.map(({ slot }, index) => {
+        const home = formation.home(index);
+        return { id: String(slot), x: screens?.[index] ?? home, home };
+      }));
+      const memberMoving = displayedParty.map((member, index) => {
+        memberPositions[index] = member.x;
+        return travelling || member.moving || (partyAdvancing && moving(index));
       });
       monsters.forEach(monster => {
         if (monster.hp <= 0 || monster.stage === "result") return;
         const index = activeGroup.indexOf(monster);
-        if (battle && index >= 0) {
-          const position = worldX(members.length + index);
+        if (view && index >= 0) {
+          const position = enemyWorldX(monster, index);
           if (position === undefined) return;
-          if (cameraWorld !== undefined) monster.x = projectBattlefieldX(position, cameraWorld, width, formation) / width;
-          else if (party) monster.x = projectEnemyX(position - party.frontWorld, party.frontScreen, width, formation, battle.meleeRange) / width;
+          if (monster.arrivesAt !== undefined) monster.spawned = true;
+          monster.x = view.project(position) / width;
           monster.moving = moving(members.length + index);
         }
       });
-      if (!foe) {
-        const ready = monsters.filter((monster) => monster.stage === "ready");
+      if (foe?.stage === "result" && (ready.length || elapsed >= foe.until)) {
+        if (activeGroup.some((monster) => monster.data.boss)) nextSpawn = spawnElapsed + spawnDelay();
+        monsters = monsters.filter((monster) => !activeGroup.includes(monster));
+        activeGroup = []; foe = null;
         if (ready.length) void fight(ready);
+      } else if (!foe && ready.length) {
+        void fight(ready);
       }
       if (foe) {
-        if (foe.stage === "fighting" && !skillChangePending && foe.battle && elapsed >= foe.nextStep) {
+        if (foe.stage === "fighting" && !skillChangePending && !waitingForArrivals && !retryArrivals && foe.battle && elapsed >= foe.nextStep) {
           while (foe.stage === "fighting" && elapsed >= foe.nextStep) {
-          const step = foe.battle.steps[foe.step++];
+          const step = foe.battle.steps[foe.step];
           if (step) {
+            foe.step++;
             const memberIndex = members.findIndex(({ character }) => character.id === step.characterId);
             const enemy = activeGroup[step.enemyIndex ?? 0];
             const skill = battleSkillName(step);
@@ -599,44 +673,62 @@ export function ExpeditionCanvas({ location, team, gold, wishCurrency, character
             }
             foe.hp = step.enemyHp; foe.teamHp = step.teamHp; foe.teamMp = step.teamMp ?? foe.teamMp;
             statuses = step.statuses ?? [];
+            statusEnds = step.statusEnds;
+            statusStartedAt = foe.battleStartedAt;
+            step.teamHp.forEach((hp, index) => {
+              if (hp <= 0 && teamHp[index] > 0) partyDeaths[index] = { at: elapsed, x: memberPositions[index] / width };
+              else if (hp > 0) partyDeaths[index] = undefined;
+            });
             teamHp = [...foe.teamHp]; teamMp = [...foe.teamMp];
             foe.casts = step.teamCasting ?? []; foe.lastHit = step; foe.lastHitAt = elapsed;
             activeGroup.forEach((monster, index) => {
               monster.hp = step.enemyHps?.[index] ?? (index === 0 ? step.enemyHp : monster.hp);
               monster.mp = step.enemyMps?.[index];
-              if (monster.hp > 0) monster.spawned = true;
+              if (monster.hp > 0 && (monster.arrivesAt ?? 0) <= step.at) monster.spawned = true;
               monster.lastHit = step; monster.lastHitAt = elapsed;
             });
           }
           if (foe.step >= foe.battle.steps.length) {
-            statuses = [];
+            if (arrivalPendingUntil !== undefined) break;
+            if (teamHp.some(hp => hp > 0) && activeGroup.every(monster => monster.hp <= 0)) {
+              foe.regroup = true;
+            }
             void settleFight(foe);
           } else foe.nextStep = foe.battleStartedAt + foe.battle.steps[foe.step].at;
           }
-        } else if (foe.stage === "result" && elapsed >= foe.until) {
-          if (activeGroup.some((monster) => monster.data.boss)) nextSpawn = spawnElapsed + spawnDelay();
-          monsters = monsters.filter((monster) => !activeGroup.includes(monster));
-          activeGroup = []; foe = null;
         }
       }
       // Keep the formation on the left, with Front slots leading toward the right.
+      const statusTime = elapsed - (foe?.battle ? foe.battleStartedAt : statusStartedAt);
       members.forEach(({ character }, index) => {
         const x = memberPositions[index];
         const health = teamHp[index];
-        if (health <= 0) return;
+        if (health <= 0) {
+          const death = partyDeaths[index];
+          if (!death || elapsed - death.at >= characterDeathSeconds) return;
+          ctx.save(); ctx.translate(death.x * width, ground); ctx.scale(avatarScale, avatarScale);
+          applyCharacterDeath(ctx, elapsed - death.at, 1);
+          drawCharacter(ctx, character.weapon);
+          ctx.restore();
+          return;
+        }
+        const activeStatuses = activeCombatStatuses(statusEnds?.[index], statusTime, statuses[index]);
+        const immobilized = activeStatuses.includes("freeze") || activeStatuses.includes("stun");
         const action = [...effects].reverse().find((effect) => effect.step.characterId === character.id && effect.step.actor === "team" && effect.step.kind !== "poison" && effect.step.kind !== "bleed" && elapsed - effect.startedAt < 0.4);
-        const swing = action ? Math.sin(Math.min(1, (elapsed - action.startedAt) / 0.4) * Math.PI) : 0;
+        const swing = action && !immobilized ? Math.sin(Math.min(1, (elapsed - action.startedAt) / 0.4) * Math.PI) : 0;
         const rangedAction = action?.ranged || action?.step.kind === "cast";
-        const phase = elapsed * 5.25 + index * 0.7, stride = health <= 0 || !memberMoving[index] ? 0 : Math.sin(phase);
+        const phase = elapsed * 5.25 + index * 0.7, stride = immobilized || !memberMoving[index] ? 0 : Math.sin(phase);
         ctx.save(); ctx.translate(x + swing * (rangedAction ? -3 : 12) * avatarScale, ground); ctx.scale(avatarScale, avatarScale);
-        drawCharacter(ctx, character.weapon, { facing: 1, stride, swing: swing * (rangedAction ? -0.2 : 1) }); ctx.restore();
+        const facing = !immobilized && (motionPhase === "regroup" || displayedParty[index].transitioning) ? displayedParty[index].direction || 1 : 1;
+        drawCharacter(ctx, character.weapon, { facing, stride, swing: swing * (rangedAction ? -0.2 : 1) }); ctx.restore();
+        drawFighterStatuses(ctx, activeStatuses, x, ground, avatarScale, elapsed);
         ctx.globalAlpha = 1;
         const cast = foe?.casts[index], recent = character.id ? recentSkills.get(character.id) : undefined;
         const activeSkill = cast?.name ?? (recent && recent.until > elapsed ? recent.label : undefined);
         const castProgress = cast && foe ? (elapsed - foe.battleStartedAt - cast.startedAt) / Math.max(0.001, cast.endsAt - cast.startedAt) : undefined;
         drawFighterHud(ctx, x, ground, avatarScale, ground - 72 * avatarScale, {
           name: character.name, hp: health, maxHp: character.stats?.hp ?? 100, mp: teamMp[index], maxMp: character.stats?.mp, skill: activeSkill, castProgress,
-          statuses: statuses[index],
+          statuses: activeStatuses,
         });
       });
       for (const monster of monsters) {
@@ -664,9 +756,13 @@ export function ExpeditionCanvas({ location, team, gold, wishCurrency, character
           }
         }
         if (foe.hp > 0) {
+        const enemyIndex = activeGroup.indexOf(foe);
+        const statusIndex = members.length + enemyIndex;
+        const activeStatuses = enemyIndex < 0 ? [] : activeCombatStatuses(statusEnds?.[statusIndex], statusTime, statuses[statusIndex]);
+        const immobilized = activeStatuses.includes("freeze") || activeStatuses.includes("stun");
         const attack = [...effects].reverse().find((effect) => effect.enemyId === foe.data.id && effect.step.actor === "enemy" && elapsed - effect.startedAt < 0.45);
         const attackProgress = attack ? Math.min(1, (elapsed - attack.startedAt) / 0.45) : 0;
-        const strike = attack && foe.hp > 0 ? Math.sin(attackProgress * Math.PI) : 0;
+        const strike = attack && !immobilized ? Math.sin(attackProgress * Math.PI) : 0;
         const ranged = foe.data.stats.range === "range";
         ctx.save(); ctx.translate(x + strike * (ranged ? 3 : -14) * size, ground - 1 - (foe.data.type === "slime" ? strike * 7 * size : 0)); ctx.scale(-size, size);
         ctx.rotate(strike * (ranged ? -0.08 : 0.16));
@@ -677,7 +773,7 @@ export function ExpeditionCanvas({ location, team, gold, wishCurrency, character
         }
         if (foe.data.type === "slime") ctx.scale(1 + strike * 0.22, 1 - strike * 0.16);
         const stride = foe.hp > 0 && foe.moving ? Math.sin(elapsed * 10) : 0;
-        if (drawMonster(ctx, foe.data.type, elapsed, !!foe.moving, strike, location)) {
+        if (drawMonster(ctx, foe.data.type, elapsed, !!foe.moving && !immobilized, strike)) {
           // Generated poses replace the procedural fallback once loaded.
         } else if (deepsea) {
           const fish = !["baracudon", "fishpeople-rider"].includes(foe.data.type);
@@ -793,36 +889,38 @@ export function ExpeditionCanvas({ location, team, gold, wishCurrency, character
         ctx.globalAlpha = 1;
         ctx.textAlign = "center";
         const recent = recentSkills.get(foe.data.id);
-        const enemyIndex = activeGroup.indexOf(foe);
+        drawFighterStatuses(ctx, activeStatuses, x, ground, size, elapsed);
         drawFighterHud(ctx, x, ground, avatarScale, ground - 55 * size, {
           name: `${foe.data.boss ? "BOSS · " : ""}${foe.data.name}`, hp: foe.hp, maxHp: foe.data.stats.hp, mp: foe.mp, maxMp: foe.data.stats.mp, enemy: true,
           skill: recent && recent.until > elapsed ? recent.label : undefined,
-          statuses: enemyIndex >= 0 ? statuses[members.length + enemyIndex] : undefined,
+          statuses: activeStatuses,
         });
         }
+        ctx.textAlign = "left";
+      }
+      if (victoryReward && elapsed < victoryReward.until) {
+        const { result: reward, x: rewardX, scale } = victoryReward;
+        const x = rewardX * width, size = scale * avatarScale;
         ctx.textAlign = "center";
-        const reward = foe.reward;
-        if (foe.stage === "result" && reward) {
-          if (reward.deepSeaJustUnlocked) text(`Unlocked: ${reward.deepSeaFloor === 2 ? "DeepSea Moot 2F" : "Royal Palace"}`, width * 0.5, height * 0.36, "600 20px system-ui", "#a9e5ed", width * 0.7);
-          if (reward.garnalandJustUnlocked) text("Garnaland unlocked!", width * 0.5, height * 0.42, "600 22px system-ui", "#e4d895", width * 0.6);
-          ctx.save();
-          ctx.font = "bold 18px system-ui";
-          const goldGain = `+${reward.goldEarned} gold`, expGain = `+${reward.expEarned} EXP`;
-          const goldWidth = ctx.measureText(goldGain).width, rewardWidth = goldWidth + 18 + ctx.measureText(expGain).width;
-          const rewardScale = Math.min(1, width * 0.55 / rewardWidth);
-          const rewardHalfWidth = rewardWidth * rewardScale / 2;
-          ctx.translate(Math.max(rewardHalfWidth + 8, Math.min(width - rewardHalfWidth - 8, x)), ground - 88 * size);
-          ctx.scale(rewardScale, rewardScale);
-          ctx.textAlign = "left"; ctx.lineJoin = "round";
-          ctx.strokeStyle = "#21170f"; ctx.lineWidth = 4;
-          ctx.strokeText(goldGain, -rewardWidth / 2, 0);
-          ctx.strokeText(expGain, -rewardWidth / 2 + goldWidth + 18, 0);
-          ctx.fillStyle = "#ffda45"; ctx.fillText(goldGain, -rewardWidth / 2, 0);
-          ctx.fillStyle = "#70f0ff"; ctx.fillText(expGain, -rewardWidth / 2 + goldWidth + 18, 0);
-          ctx.restore();
-          if (reward.questItemsEarned?.length) text(`Obtained: ${reward.questItemsEarned.map((item) => item.name).join(", ")}`, x, ground - 122 * size, "600 16px system-ui", "#a9e5ed", width * 0.65);
-          if (reward.artifactsEarned?.length) text(`Obtained: ${reward.artifactsEarned.map((item) => item.name).join(", ")}`, x, ground - 140 * size, "600 16px system-ui", "#79d8d5", width * 0.65);
-        }
+        if (reward.deepSeaJustUnlocked) text(`Unlocked: ${reward.deepSeaFloor === 2 ? "DeepSea Moot 2F" : "Royal Palace"}`, width * 0.5, height * 0.36, "600 20px system-ui", "#a9e5ed", width * 0.7);
+        if (reward.garnalandJustUnlocked) text("Garnaland unlocked!", width * 0.5, height * 0.42, "600 22px system-ui", "#e4d895", width * 0.6);
+        ctx.save();
+        ctx.font = "bold 18px system-ui";
+        const goldGain = `+${reward.goldEarned} gold`, expGain = `+${reward.expEarned} EXP`;
+        const goldWidth = ctx.measureText(goldGain).width, rewardWidth = goldWidth + 18 + ctx.measureText(expGain).width;
+        const rewardScale = Math.min(1, width * 0.55 / rewardWidth);
+        const rewardHalfWidth = rewardWidth * rewardScale / 2;
+        ctx.translate(Math.max(rewardHalfWidth + 8, Math.min(width - rewardHalfWidth - 8, x)), ground - 88 * size);
+        ctx.scale(rewardScale, rewardScale);
+        ctx.textAlign = "left"; ctx.lineJoin = "round";
+        ctx.strokeStyle = "#21170f"; ctx.lineWidth = 4;
+        ctx.strokeText(goldGain, -rewardWidth / 2, 0);
+        ctx.strokeText(expGain, -rewardWidth / 2 + goldWidth + 18, 0);
+        ctx.fillStyle = "#ffda45"; ctx.fillText(goldGain, -rewardWidth / 2, 0);
+        ctx.fillStyle = "#70f0ff"; ctx.fillText(expGain, -rewardWidth / 2 + goldWidth + 18, 0);
+        ctx.restore();
+        if (reward.questItemsEarned?.length) text(`Obtained: ${reward.questItemsEarned.map((item) => item.name).join(", ")}`, x, ground - 122 * size, "600 16px system-ui", "#a9e5ed", width * 0.65);
+        if (reward.artifactsEarned?.length) text(`Obtained: ${reward.artifactsEarned.map((item) => item.name).join(", ")}`, x, ground - 140 * size, "600 16px system-ui", "#79d8d5", width * 0.65);
         ctx.textAlign = "left";
       }
       effects = effects.filter((effect) => elapsed - effect.startedAt < 0.9);

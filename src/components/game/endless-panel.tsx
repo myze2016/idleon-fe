@@ -64,7 +64,7 @@ export function EndlessPanel({ onClose }: { onClose: () => void }) {
   }, []);
   useEffect(() => {
     if (!active || action.isPending || (action.error && action.variables?.kind !== "skill-2") || home.isError || !run) return;
-    const wait = run.pending && run.readyAt ? Math.max(0, Date.parse(run.readyAt) - Date.parse(run.serverNow) - (Date.now() - home.dataUpdatedAt)) + 80 : 0;
+    const wait = run.pending && run.readyAt ? Math.max(0, Date.parse(run.readyAt) - Date.parse(run.serverNow) - (Date.now() - home.dataUpdatedAt)) : 0;
     const timer = setTimeout(() => mutate({ kind: run.pending ? "resolve" : "wave", body: run.pending ? { wave: run.wave } : {} }), wait);
     return () => clearTimeout(timer);
   }, [active, action.isPending, action.error, action.variables?.kind, home.isError, home.dataUpdatedAt, run, mutate]);

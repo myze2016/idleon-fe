@@ -1,4 +1,5 @@
 import { drawStatusArt } from "./skill-effect-art";
+import type { CombatStatus } from "@/lib/combat-status";
 
 function drawBattleLabel(ctx: CanvasRenderingContext2D, label: string, y: number, color: string) {
   ctx.save();
@@ -15,7 +16,7 @@ function drawBattleLabel(ctx: CanvasRenderingContext2D, label: string, y: number
 
 type FighterHud = {
   name: string; hp: number; maxHp: number; mp?: number; maxMp?: number;
-  enemy?: boolean; skill?: string; castProgress?: number; statuses?: number;
+  enemy?: boolean; skill?: string; castProgress?: number; statuses?: CombatStatus[];
 };
 
 export function drawFighterHud(ctx: CanvasRenderingContext2D, x: number, ground: number, avatarScale: number, headY: number, fighter: FighterHud) {
@@ -37,6 +38,6 @@ export function drawFighterHud(ctx: CanvasRenderingContext2D, x: number, ground:
   if (fighter.castProgress !== undefined) bar(gaugeY + 14, 3, fighter.castProgress, "#f0d68a");
   if (fighter.skill) drawBattleLabel(ctx, fighter.skill, gaugeY - 4, "#ffe68f");
   drawBattleLabel(ctx, fighter.name, 13, "#fff5df");
-  if (fighter.statuses) drawStatusArt(ctx, fighter.statuses, 24);
+  if (fighter.statuses?.length) drawStatusArt(ctx, fighter.statuses, 24);
   ctx.restore();
 }
